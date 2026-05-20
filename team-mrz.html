@@ -674,25 +674,70 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 .sm-box p{font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.5;}
 .sync-link{font-size:.71rem;color:var(--blue);word-break:break-all;padding:8px 10px;background:rgba(99,102,241,.07);border-radius:8px;margin-top:10px;}
 
+/* ══ MOBILE RESPONSIVO ══ */
+@media(max-width:900px){
+  .login-shell{grid-template-columns:1fr;}
+  .login-hero{display:none;}
+  .member-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+}
 @media(max-width:768px){
+  /* Sidebar */
   .sidebar{transform:translateX(-100%);}
   .sidebar.open{transform:translateX(0);}
   .sb-ov.open{display:block;}
   .main{margin-left:0;}
   .hamburger{display:block;}
+  /* Painéis */
+  .panel{padding:12px 10px;}
+  /* Kanban — coluna única */
   .kanban{grid-template-columns:1fr;}
-  .stats{grid-template-columns:repeat(2,1fr);}
-  .panel{padding:14px;}
-}
-@media(max-width:900px){
-  .login-shell{grid-template-columns:1fr;}
-  .login-hero{display:none;}
-  .member-grid{grid-template-columns:repeat(2,1fr);}
+  /* Stats — 2 colunas */
+  .stats{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .sc{padding:12px;}
+  .sc-v{font-size:1.4rem;}
+  /* Quick access — 2 por linha */
+  .quick-grid{grid-template-columns:repeat(2,1fr);}
+  .quick-btn{padding:14px 8px;}
+  .qb-icon{font-size:1.4rem;}
+  .qb-label{font-size:.72rem;}
+  /* Topbar */
+  .tb-title{font-size:.85rem;}
+  /* Seções */
+  .sec{font-size:.7rem;}
+  /* Cards */
+  .card{padding:12px;}
+  /* Tabela de timeline */
+  .timeline-wrap{overflow-x:auto;}
+  /* Modal full-width */
+  .modal{width:100%;max-width:100%;border-radius:18px 18px 0 0;margin-top:auto;max-height:92vh;}
+  .modal-bg{align-items:flex-end;padding:0;}
 }
 @media(max-width:480px){
-  .member-grid{grid-template-columns:repeat(2,1fr);}
-  .hero-metrics{grid-template-columns:1fr;}
-  .login-hero h1{font-size:2.2rem;}
+  /* Login */
+  #login-screen{padding:14px;}
+  .login-panel{padding:16px 14px;border-radius:22px;}
+  .login-panel h2{font-size:1.15rem;}
+  .member-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .member-card{padding:12px;min-height:120px;border-radius:14px;}
+  .mc-avatar{width:38px;height:38px;font-size:.7rem;border-radius:10px;margin-bottom:6px;}
+  .member-card h3{font-size:.82rem;}
+  .member-card p{font-size:.62rem;}
+  .mc-tags{display:none;} /* esconde tags no mobile para economizar espaço */
+  /* App interno */
+  .panel{padding:10px 8px;}
+  .stats{grid-template-columns:repeat(2,1fr);gap:6px;}
+  .sc{padding:10px;}
+  .sc-l{font-size:.62rem;}
+  .sc-v{font-size:1.2rem;}
+  .sc-s{font-size:.58rem;}
+  /* Home */
+  .home-rot-item{padding:10px;}
+  .home-trilha{padding:14px;}
+  /* Rotinas */
+  .rot-tabs{flex-wrap:wrap;gap:4px;}
+  .ev-type-btn{font-size:.7rem;padding:5px 10px;}
+  /* Formulários */
+  .inp,.f-in{font-size:16px !important;} /* evita zoom automático no iOS */
 }
 </style>
 </head>
