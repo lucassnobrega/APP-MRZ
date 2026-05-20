@@ -1526,7 +1526,7 @@ function openTask(id){
   if(editingTask)renderTaskModal(editingTask);
 }
 function closeTaskModal(){document.getElementById('task-modal').classList.remove('show');}
-function openModal(){document.getElementById('gen-modal').classList.add('show');}
+function openModal(html){const b=document.getElementById('modal-body');if(b&&html)b.innerHTML=html;document.getElementById('gen-modal').classList.add('show');}
 function closeModal(){document.getElementById('gen-modal').classList.remove('show');}
 
 function renderTaskModal(t){
