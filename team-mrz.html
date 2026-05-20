@@ -1003,7 +1003,8 @@ function fmtBRL(n){return'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFract
   setSdot('loading');
   // Show login immediately using local cache while Firebase connects
   const loc=loadLocal();
-  if(loc){S=migrateState(loc);buildLoginGrid();}
+  if(loc){S=migrateState(loc);}else{S=defState();}
+  buildLoginGrid();
   // Connect Firebase real-time listener
   _db.ref(_FBKEY).on('value',snap=>{
     const fb=snap.val();
@@ -1165,29 +1166,32 @@ function goPanel(id){
   renderPanel(id);
 }
 function renderPanel(id){
-  switch(id){
-    case 'home':renderHome();break;
-    case 'calendar':renderCalendar();break;
-    case 'tasks':renderTasks();break;
-    case 'trilha':renderTrilha();break;
-    case 'rotinas':renderRotinas();break;
-    case 'flow':renderFlow();break;
-    case 'report':renderReport();break;
-    case 'erros-caixa':renderErrosCaixa();break;
-    case 'occ':renderOcc();break;
-    case 'cotacao':renderCotacao();break;
-    case 'campanhas':renderCampanhas();break;
-    case 'insights':renderInsights();break;
-    case 'log':renderLog();break;
-    case 'team':renderTeam();break;
-    case 'queue':renderQueue();break;
-    case 'processos':renderProcessos();break;
-    case 'fornecedores':renderFornecedores();break;
-    case 'projetos':renderProjetos();break;
-    case 'timeline':renderTimeline();break;
-    case 'gestao':renderGestao();break;
-    case 'contas':renderContasPagar();break;
-  }
+  if(!S){setTimeout(()=>renderPanel(id),400);return;}
+  try{
+    switch(id){
+      case 'home':renderHome();break;
+      case 'calendar':renderCalendar();break;
+      case 'tasks':renderTasks();break;
+      case 'trilha':renderTrilha();break;
+      case 'rotinas':renderRotinas();break;
+      case 'flow':renderFlow();break;
+      case 'report':renderReport();break;
+      case 'erros-caixa':renderErrosCaixa();break;
+      case 'occ':renderOcc();break;
+      case 'cotacao':renderCotacao();break;
+      case 'campanhas':renderCampanhas();break;
+      case 'insights':renderInsights();break;
+      case 'log':renderLog();break;
+      case 'team':renderTeam();break;
+      case 'queue':renderQueue();break;
+      case 'processos':renderProcessos();break;
+      case 'fornecedores':renderFornecedores();break;
+      case 'projetos':renderProjetos();break;
+      case 'timeline':renderTimeline();break;
+      case 'gestao':renderGestao();break;
+      case 'contas':renderContasPagar();break;
+    }
+  }catch(e){console.error('renderPanel error:',id,e);const el=document.getElementById('p-'+id);if(el)el.innerHTML='<div style="padding:32px;color:var(--muted);text-align:center">Carregando...</div>';setTimeout(()=>renderPanel(id),800);}
 }
 
 // ══════════════════════════════════════
