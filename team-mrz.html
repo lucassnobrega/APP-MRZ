@@ -973,9 +973,8 @@ function _fbSave(){_db.ref(_FBKEY).set(S).catch(e=>console.warn('Firebase write:
 function reRenderAll(){
   if(!me)return;
   try{buildSidebar();}catch(e){}
-  try{renderHome();}catch(e){}
-  const fns={tasks:renderTasks,calendar:renderCalendar,rotinas:renderRotinas,contas:renderContasPagar,team:renderTeam,status:renderStatus,flow:renderFlow,occ:renderOcc,report:renderReport,cotacao:renderCotacao,fornecedores:renderFornecedores,campanhas:renderCampanhas,insights:renderInsights,log:renderLog,trilha:renderTrilha,projetos:renderProjetos};
-  if(curPanel&&fns[curPanel])try{fns[curPanel]();}catch(e){}
+  renderPanel('home');
+  if(curPanel&&curPanel!=='home')renderPanel(curPanel);
 }
 
 function defState(){return{v:7,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,lastUp:null};}
@@ -1198,11 +1197,12 @@ function renderPanel(id){
 // HOME
 // ══════════════════════════════════════
 function renderHome(){
+  if(!S||!me)return;
   const m=M[me];const wk=weekId();const td=todayDay();
-  const myTasks=S.tasks.filter(t=>t.assignees.includes(me));
+  const myTasks=(S.tasks||[]).filter(t=>(t.assignees||[]).includes(me));
   const doneTasks=myTasks.filter(t=>t.status==='aprovado'||t.status==='done').length;
   const doingTasks=myTasks.filter(t=>t.status==='doing').length;
-  const myPendApr=S.tasks.filter(t=>t.approvalReq&&t.status==='doing'&&APPROVERS.includes(me)).length;
+  const myPendApr=(S.tasks||[]).filter(t=>t.approvalReq&&t.status==='doing'&&APPROVERS.includes(me)).length;
   const dow=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][new Date().getDay()];
 
   // Status ativo
@@ -1226,15 +1226,16 @@ function renderHome(){
 
   const mural=(S.mural||[]).filter(p=>p.pinned).slice(0,2);
 
+  const safeHtml=(fn)=>{try{return fn();}catch(e){console.warn('renderHome sub-error:',e);return'';}};
   document.getElementById('p-home').innerHTML=`
     <div style="margin-bottom:18px;">
       <div style="font-size:1.55rem;font-weight:600;letter-spacing:.01em;font-family:var(--serif);font-style:italic;">${dow}, <span style="color:var(--gold2)">${m.name.split(' ')[0]}</span>. ${m.icon||''}</div>
       <div style="font-size:.78rem;color:var(--muted);margin-top:5px;letter-spacing:.04em;text-transform:uppercase;font-size:.65rem;">${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
     </div>
     ${alertHtml}
-    ${homeQuickHtml()}
-    ${homeTrilhaHtml()}
-    ${homeRotinasHtml()}
+    ${safeHtml(homeQuickHtml)}
+    ${safeHtml(homeTrilhaHtml)}
+    ${safeHtml(homeRotinasHtml)}
     <div class="stats">
       <div class="sc gold"><div class="sc-l">Minhas Tarefas</div><div class="sc-v">${myTasks.length}</div><div class="sc-s">${doingTasks} em andamento</div></div>
       <div class="sc green"><div class="sc-l">Concluídas</div><div class="sc-v">${doneTasks}</div><div class="sc-s">esta semana</div></div>
@@ -1243,9 +1244,9 @@ function renderHome(){
     </div>
     ${statusHtml?'<div class="sec">Status Atual</div>'+statusHtml:''}
     ${mural.length?`<div class="sec">📌 Mural Fixado</div>`+mural.map(p=>{const am=M[p.author];return`<div class="mural-post pinned"><div class="mp-hd"><div class="mp-av" style="background:${am?.color||'#888'}33">${am?.icon||'?'}</div><span class="mp-author">${am?.name||'?'}</span><span class="mp-pin-icon">📌</span><span class="mp-date">${fmtDate(p.date)}</span></div><div class="mp-text">${esc(p.text)}</div></div>`;}).join(''):''}
-    ${calEventsHomeHtml()}
+    ${safeHtml(calEventsHomeHtml)}
     <div class="sec">Tarefas de Hoje</div>
-    ${todayTasksHtml()}
+    ${safeHtml(todayTasksHtml)}
   `;
 }
 
@@ -1435,6 +1436,7 @@ let _dragId=null;
 function pendingAll(){return(S.tasks||[]).filter(t=>t.status==='review').length;} // tasks awaiting devolutiva
 
 function renderTasks(){
+  if(!S||!me)return;
   const isL=M[me].isLeader;
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
     <div style="font-size:.74rem;color:var(--muted);">Arraste para mover entre colunas</div>
@@ -3528,6 +3530,7 @@ function delLog(date,id){const k=me+'-'+date;if(!S.logs[k])return;S.logs[k]=S.lo
 // TEAM (leader) / QUEUE
 // ══════════════════════════════════════
 function renderTeam(){
+  if(!S||!me)return;
   const wk=weekId();
   let html=`<div class="sec" style="margin-top:0;">Visão Geral da Equipe</div>`;
   Object.entries(M).filter(([k])=>k!==me).forEach(([k,m])=>{
