@@ -807,7 +807,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
     <div class="main">
       <div class="topbar">
         <div class="tb-left"><button class="hamburger" onclick="toggleSB()">☰</button><span class="tb-title" id="tb-title">Início</span></div>
-        <div class="tb-right"><div class="sdot" id="sdot"></div><button class="tb-btn" onclick="openSync()">☁️ Sync</button><button class="tb-btn gold" onclick="quickPublish()">🚀 Publicar</button></div>
+        <div class="tb-right"><div class="sdot" id="sdot"></div></div>
       </div>
       <div id="p-home" class="panel"></div>
       <div id="p-calendar" class="panel"></div>
@@ -856,22 +856,6 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
   <div class="modal" id="cot-modal-inner"></div>
 </div>
 
-<!-- SYNC MODAL -->
-<div class="modal-bg" id="sync-modal" onclick="if(event.target===this)document.getElementById('sync-modal').classList.remove('show')">
-  <div class="sm-box">
-    <h3>☁️ Sincronização GitHub</h3>
-    <p>Publique no GitHub para que todos vejam os dados atualizados ao abrir o app.</p>
-    <label class="f-lb">Token do GitHub</label>
-    <input class="f-in" type="password" id="gh-tk" placeholder="ghp_xxxxxxxxxxxx" style="margin-top:4px"/>
-    <p style="margin-top:8px;margin-bottom:0;font-size:.71rem;color:var(--muted);">GitHub → Settings → Developer settings → Personal access tokens. Apenas o Lucas precisa configurar.</p>
-    <div id="sync-msg" style="font-size:.74rem;margin-top:8px;min-height:16px;color:var(--muted);"></div>
-    <div style="display:flex;gap:8px;margin-top:14px;">
-      <button class="btn-ghost btn-sm" onclick="document.getElementById('sync-modal').classList.remove('show')">Fechar</button>
-      <button class="btn-gold" style="flex:1" onclick="doPublish()">🚀 Publicar Agora</button>
-    </div>
-    <div class="sync-link">https://lucassnobrega.github.io/SrZanoni---Dashbord/team-mrz.html</div>
-  </div>
-</div>
 
 <!-- PIN CHANGE MODAL -->
 <div class="modal-bg" id="pin-modal" onclick="if(event.target===this)document.getElementById('pin-modal').classList.remove('show')">
@@ -6002,35 +5986,9 @@ async function saveGestaoTask(){
 }
 
 // ══════════════════════════════════════
-// SYNC / GITHUB
+// SYNC — Firebase (indicador de conexão)
 // ══════════════════════════════════════
 function setSdot(st){const d=document.getElementById('sdot');if(!d)return;d.className='sdot'+(st==='ok'?' ok':st==='loading'?' loading':st==='err'?' err':'');}
-function openSync(){document.getElementById('gh-tk').value=localStorage.getItem('gh_tk_t')||'';document.getElementById('sync-msg').textContent='';document.getElementById('sync-modal').classList.add('show');}
-async function quickPublish(){const t=localStorage.getItem('gh_tk_t');if(!t){openSync();return;}await doPublish();}
-async function doPublish(){
-  const token=document.getElementById('gh-tk')?.value.trim()||localStorage.getItem('gh_tk_t');
-  if(!token){const m=document.getElementById('sync-msg');if(m)m.textContent='⚠️ Token obrigatório.';return;}
-  localStorage.setItem('gh_tk_t',token);
-  const msg=document.getElementById('sync-msg');if(msg)msg.textContent='⏳ Publicando...';
-  setSdot('loading');
-  try{
-    const content=JSON.stringify(S,null,2),b64=btoa(unescape(encodeURIComponent(content)));
-    const hdrs={'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
-    let resp=null;
-    for(let i=0;i<3;i++){
-      const get=await fetch(GH_API+'?ref=main&_='+Date.now(),{headers:hdrs,cache:'no-store'});
-      const sha=get.ok?(await get.json()).sha:null;
-      const body={message:'👥 MRZ Team — '+new Date().toLocaleString('pt-BR'),content:b64,branch:'main'};
-      if(sha)body.sha=sha;
-      resp=await fetch(GH_API,{method:'PUT',headers:hdrs,body:JSON.stringify(body)});
-      if(resp.ok)break;
-      if(resp.status!==422||i===2){const e=await resp.json();throw new Error(e.message||'Erro '+resp.status);}
-      await new Promise(r=>setTimeout(r,700));
-    }
-    if(!resp.ok)throw new Error('Falha');
-    setSdot('ok');if(msg)msg.textContent='✅ Publicado!';toast('✅ Dados publicados!');
-  }catch(e){setSdot('err');if(msg)msg.textContent='❌ '+e.message;toast('Erro: '+e.message);}
-}
 
 // TOAST
 function toast(msg,dur=3000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),dur);}
