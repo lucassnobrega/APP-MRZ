@@ -54,16 +54,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .login-panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;}
 .login-panel h2{font-size:1.4rem;letter-spacing:-.035em;}
 .login-panel .hint{font-size:.76rem;color:var(--muted);}
-/* member cards */
-.member-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;}
-.member-card{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:15px;min-height:142px;transition:.2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;cursor:pointer;text-align:left;}
-.member-card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.16);box-shadow:0 12px 35px rgba(0,0,0,.28);}
-.member-card .topline{position:absolute;left:0;right:0;top:0;height:3px;}
-.mc-avatar{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:.8rem;font-weight:800;letter-spacing:.04em;margin-bottom:9px;color:#fff;}
-.member-card h3{font-size:.95rem;font-weight:700;}
-.member-card p{font-size:.7rem;color:var(--muted);margin-top:3px;line-height:1.35;}
-.mc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;}
-.mc-tag{font-size:.62rem;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--muted);border:1px solid rgba(255,255,255,.06);}
+/* member cards (legacy — removed) */
 /* login glass (legacy — hide) */
 .login-glass{display:none;}
 .login-brand{display:none;}
@@ -77,30 +68,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .mc .mc-name{font-size:12px;font-weight:700;color:#fff;}
 .mc .mc-role{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3;}
 
-/* ══ PIN SCREEN ══ */
-#pin-screen{position:fixed;inset:0;z-index:501;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(7,11,19,.94);backdrop-filter:blur(14px);}
-.pin-back{position:absolute;top:20px;left:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--muted);border-radius:10px;padding:7px 16px;font-size:.8rem;cursor:pointer;transition:.2s;}
-.pin-back:hover{color:var(--text);}
-.pin-card{width:min(380px,100%);background:linear-gradient(180deg,#111827,#080c14);border:1px solid rgba(255,255,255,.09);border-radius:28px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.55);text-align:center;}
-.pin-av{width:68px;height:68px;border-radius:22px;display:grid;place-items:center;font-size:2rem;margin:0 auto 12px;}
-.pin-nm{font-size:1.3rem;font-weight:800;letter-spacing:-.03em;}
-.pin-rl{font-size:.78rem;color:var(--muted);margin-top:3px;margin-bottom:24px;}
-.pin-dots{display:flex;gap:12px;justify-content:center;margin:18px 0 22px;}
-.pd{width:14px;height:14px;border-radius:50%;background:var(--panel2,#141b2b);border:1px solid rgba(255,255,255,.16);transition:.2s;}
-.pd.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(197,165,114,.5);}
-.pd.shake{animation:shk .35s ease;}
-@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 10px;}
-.nb{height:58px;border-radius:16px;background:rgba(20,27,43,1);border:1px solid rgba(255,255,255,.08);font-size:1.1rem;font-weight:800;cursor:pointer;transition:.2s cubic-bezier(.4,0,.2,1);}
-.nb:hover{background:rgba(25,34,53,1);border-color:rgba(255,255,255,.16);}
-.nb:active{transform:scale(.93);}
-.nb.del{font-size:.9rem;color:var(--muted);}
-.pin-actions{display:flex;justify-content:space-between;margin-top:12px;}
-.link-btn{background:none;border:none;color:var(--muted);font-size:.78rem;cursor:pointer;padding:4px 8px;}
-.link-btn:hover{color:var(--text);}
-.pin-hint{font-size:.73rem;color:var(--muted);margin-top:10px;}
-.pin-hint a{color:var(--gold);cursor:pointer;}
-.pin-err{color:#fca5a5;font-size:.78rem;margin-top:10px;min-height:20px;}
+/* ══ LOGIN FORM ══ */
+.login-form-area{display:flex;flex-direction:column;gap:0;margin-top:8px;}
+.login-form-area .f-grp{margin-bottom:12px;}
 
 /* ══ CALENDÁRIO ══ */
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
@@ -678,7 +648,6 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 @media(max-width:900px){
   .login-shell{grid-template-columns:1fr;}
   .login-hero{display:none;}
-  .member-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
 }
 @media(max-width:768px){
   /* Sidebar */
@@ -728,12 +697,6 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
   #login-screen{padding:14px;}
   .login-panel{padding:16px 14px;border-radius:22px;}
   .login-panel h2{font-size:1.15rem;}
-  .member-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
-  .member-card{padding:12px;min-height:120px;border-radius:14px;}
-  .mc-avatar{width:38px;height:38px;font-size:.7rem;border-radius:10px;margin-bottom:6px;}
-  .member-card h3{font-size:.82rem;}
-  .member-card p{font-size:.62rem;}
-  .mc-tags{display:none;}
   /* App interno */
   .panel{padding:10px 8px;}
   .stats{grid-template-columns:repeat(2,1fr);gap:6px;}
@@ -779,7 +742,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <p>Sistema operacional do escritório: processos, demandas, aprovações, cotações, relatórios semanais e gestão da execução — tudo em um lugar.</p>
       <div class="hero-pill-row">
         <div class="hero-pill">Cockpit individual</div>
-        <div class="hero-pill">PIN por membro</div>
+        <div class="hero-pill">Login com senha</div>
         <div class="hero-pill">Comprovantes e anexos</div>
         <div class="hero-pill">Melhoria contínua</div>
         <div class="hero-pill">Relatório semanal</div>
@@ -795,10 +758,22 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div class="login-panel-head">
         <div>
           <h2>Entrar no escritório</h2>
-          <div class="hint">Selecione seu perfil e insira o PIN</div>
+          <div class="hint">Use seu email e senha para acessar</div>
         </div>
       </div>
-      <div class="member-grid" id="member-grid"></div>
+      <div class="login-form-area">
+        <div class="f-grp">
+          <label class="f-lb">Email</label>
+          <input class="f-in" type="email" id="login-email" placeholder="nome@grupomrz.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-pwd').focus()">
+        </div>
+        <div class="f-grp" style="position:relative;">
+          <label class="f-lb">Senha</label>
+          <input class="f-in" type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+          <button type="button" onclick="togglePwdVis()" style="position:absolute;right:12px;bottom:11px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 4px;">👁</button>
+        </div>
+        <div id="login-err" style="font-size:.75rem;color:var(--red);min-height:18px;margin-top:2px;"></div>
+        <button class="btn-gold" style="width:100%;margin-top:14px;padding:13px;font-size:.95rem;" onclick="doLogin()">Entrar</button>
+      </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;opacity:.38;">
         <div style="font-family:var(--serif);font-size:.95rem;font-weight:600;color:var(--text);letter-spacing:.04em;">LN</div>
         <div style="width:1px;height:18px;background:var(--line2)"></div>
@@ -808,30 +783,6 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
   </div>
 </div>
 
-<!-- ══ PIN ══ -->
-<div id="pin-screen">
-  <button class="pin-back" onclick="backLogin()">← Voltar</button>
-  <div class="pin-card">
-    <div class="pin-av" id="pin-av"></div>
-    <div class="pin-nm" id="pin-nm"></div>
-    <div class="pin-rl" id="pin-rl"></div>
-    <div class="pin-dots">
-      <div class="pd" id="pd0"></div><div class="pd" id="pd1"></div>
-      <div class="pd" id="pd2"></div><div class="pd" id="pd3"></div>
-    </div>
-    <div class="numpad">
-      <button class="nb" onclick="pk('1')">1</button><button class="nb" onclick="pk('2')">2</button><button class="nb" onclick="pk('3')">3</button>
-      <button class="nb" onclick="pk('4')">4</button><button class="nb" onclick="pk('5')">5</button><button class="nb" onclick="pk('6')">6</button>
-      <button class="nb" onclick="pk('7')">7</button><button class="nb" onclick="pk('8')">8</button><button class="nb" onclick="pk('9')">9</button>
-      <button class="nb del" onclick="pdel()">←</button><button class="nb" onclick="pk('0')">0</button><button class="nb del" onclick="pinBuf='';updDots()">⌫</button>
-    </div>
-    <div class="pin-actions">
-      <button class="link-btn" onclick="backLogin()">← Voltar</button>
-      <button class="link-btn" onclick="openPinModal()">🔑 Alterar PIN</button>
-    </div>
-    <div class="pin-err" id="pin-err"></div>
-  </div>
-</div>
 
 <!-- ══ APP ══ -->
 <div id="app">
@@ -860,6 +811,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       </div>
       <div class="sb-nav" id="sb-nav"></div>
       <div class="sb-bot">
+        <button class="logout-btn" style="background:rgba(255,255,255,.04);margin-bottom:6px;" onclick="openPinModal()">🔑 Alterar Senha</button>
         <button class="logout-btn" onclick="doLogout()">↩ Sair</button>
         <div class="ln-credit">
           <div class="ln-credit-mark">LN</div>
@@ -894,6 +846,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div id="p-trilha" class="panel"></div>
       <div id="p-rotinas" class="panel"></div>
       <div id="p-contas" class="panel"></div>
+      <div id="p-usuarios" class="panel"></div>
     </div>
   </div>
 </div>
@@ -921,17 +874,17 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 </div>
 
 
-<!-- PIN CHANGE MODAL -->
+<!-- PASSWORD CHANGE MODAL -->
 <div class="modal-bg" id="pin-modal" onclick="if(event.target===this)document.getElementById('pin-modal').classList.remove('show')">
   <div class="sm-box">
-    <h3>Alterar PIN</h3>
-    <p>Novo PIN de 4 dígitos para <span id="pm-nm"></span>.</p>
-    <div class="f-grp"><label class="f-lb">Novo PIN</label><input class="f-in" type="password" id="np1" maxlength="4" placeholder="4 dígitos"/></div>
-    <div class="f-grp"><label class="f-lb">Confirmar PIN</label><input class="f-in" type="password" id="np2" maxlength="4" placeholder="Repita"/></div>
+    <h3>Alterar Senha</h3>
+    <p>Nova senha para <span id="pm-nm"></span>.</p>
+    <div class="f-grp"><label class="f-lb">Nova senha</label><input class="f-in" type="password" id="np1" placeholder="Mínimo 4 caracteres"/></div>
+    <div class="f-grp"><label class="f-lb">Confirmar senha</label><input class="f-in" type="password" id="np2" placeholder="Repita a senha"/></div>
     <div id="pm-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn-ghost btn-sm" onclick="document.getElementById('pin-modal').classList.remove('show')">Cancelar</button>
-      <button class="btn-gold" style="flex:1" onclick="savePin()">Salvar PIN</button>
+      <button class="btn-gold" style="flex:1" onclick="savePin()">Salvar Senha</button>
     </div>
   </div>
 </div>
@@ -943,56 +896,56 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 // MEMBER DATA
 // ══════════════════════════════════════
 const M={
-  carol:{name:'Carol',role:'Marketing · Executor',color:'#f472b6',icon:'CA',
+  carol:{name:'Carol',role:'Marketing · Executor',color:'#f472b6',icon:'CA',email:'srzanoni.mkt@gmail.com',
     daily:['Publicar stories','Responder comentários','Responder mensagens','Verificar insights'],
     weekly:{seg:['Analisar semana anterior','Planejar semana'],
       ter:['Gravação no restaurante','Coletar feedback dos clientes'],
       qua:['Editar conteúdos','Criar posts / reels / stories'],
       qui:['Gravar ofertas e promoções','Configurar campanhas'],
       sex:['Analisar feedbacks','Ajustar estratégia','Registrar aprendizados']}},
-  raquel:{name:'Raquel',role:'Marketing · Líder',color:'#c084fc',icon:'RA',
+  raquel:{name:'Raquel',role:'Marketing · Líder',color:'#c084fc',icon:'RA',email:'raquel@grupomrz.com',
     daily:['Revisar conteúdos publicados','Checar métricas'],
     weekly:{seg:['Alinhamento com Carol'],ter:['Supervisionar gravação'],
       qua:['Revisar e aprovar conteúdos'],qui:['Acompanhar anúncios','Aprovar campanhas'],
       sex:['Analisar resultados','Elaborar relatório','Planejar próxima semana']}},
-  nelci:{name:'Nelci',role:'Financeiro · Caixa',color:'#34d399',icon:'NE',
+  nelci:{name:'Nelci',role:'Financeiro · Caixa',color:'#34d399',icon:'NE',email:'grupomrz.consiliacao@gmail.com',
     daily:[],
     weekly:{seg:['Conferir caixa Raz (dia anterior)','Conferir caixa Zanoni Lago'],
       ter:['Conferir caixas Maringá','Conferir caixas de segunda'],
       qua:['Conferir caixas de terça','Conferir PagSeguro'],qui:['Conferir iFood'],
       sex:['Consolidação bancária (Pix, boletos, faturas)']}},
-  marco:{name:'Marco',role:'Financeiro · Contas a Pagar',color:'#60a5fa',icon:'MA',
+  marco:{name:'Marco',role:'Financeiro · Contas a Pagar',color:'#60a5fa',icon:'MA',email:'marco@grupomrz.com',
     daily:['Verificar DDA','Lançar notas fiscais','Executar pagamentos urgentes'],
     weekly:{seg:['DDA semanal completo','Listar pagamentos','Mapear pendências','Alertar quem não lançou'],
       ter:['Cobrar documentos pendentes','Resolver boletos com erro'],
       qua:['Executar pagamentos programados','Registrar comprovantes'],
       qui:['Revisar pagamentos','Verificar inconsistências'],
       sex:['Planejar semana seguinte','Verificar limites bancários']}},
-  carlos:{name:'Carlos',role:'Compras',color:'#fb923c',icon:'CR',
+  carlos:{name:'Carlos',role:'Compras',color:'#fb923c',icon:'CR',email:'carlos@grupomrz.com',
     daily:[],
     weekly:{seg:['Fazer cotações','Emitir pedidos'],
       ter:['Mapear fornecedores potenciais'],
       qua:['Analisar variação de preço de carnes','Verificar ruptura/excesso'],
       qui:['Acompanhar recebimentos','Registrar ressalvas'],
       sex:['Follow-up fornecedores','Elaborar relatório de compras']}},
-  iza:{name:'Iza',role:'RH · Administrativo',color:'#f59e0b',icon:'IZ',
+  iza:{name:'Iza',role:'RH · Administrativo',color:'#f59e0b',icon:'IZ',email:'srzanoni.ldn_rh@hotmail.com',
     daily:['Lançar notas fiscais no sistema','Digitalizar documentos'],
     weekly:{seg:['Verificar ponto dos funcionários'],ter:['Atualizar cadastros'],
       qua:['Digitalizar e arquivar documentos'],qui:['Lançamentos RH'],
       sex:['Verificar pendências','Fechar contas sem boleto (dia 5)']}},
-  bruna:{name:'Bruna',role:'Líder do Escritório',color:'#a78bfa',icon:'BR',isLeader:true,
+  bruna:{name:'Bruna',role:'Líder do Escritório',color:'#a78bfa',icon:'BR',isLeader:true,email:'srzanoni.londrina@hotmail.com',
     daily:['Checar pendências críticas','Validar aprovações pendentes'],
     weekly:{seg:['Mapear pendências','Definir prioridades','Distribuir demandas'],
       ter:['Revisar processos internos','Atualizar fluxos'],
       qua:['Análise financeira / DRE','Preparar resumo para o CEO'],
       qui:['Gerenciar demandas cruzadas'],
       sex:['Reunião individual: Compras','Reunião individual: Financeiro','Reunião individual: Marketing']}},
-  marlon:{name:'Marlon',role:'CEO',color:'#f43f5e',icon:'ML',isLeader:true,
+  marlon:{name:'Marlon',role:'CEO',color:'#f43f5e',icon:'ML',isLeader:true,email:'marlonzanoni@hotmail.com',
     daily:['Ler resumo do escritório','Validar aprovações'],
     weekly:{seg:['Definir prioridades','Validar demandas'],ter:[],
       qua:['Revisar DRE','Analisar indicadores'],qui:['Aprovar demandas maiores'],
       sex:['Avaliar resultados','Planejar com Bruna']}},
-  lucas:{name:'Lucas',role:'Consultor',color:'#22d3ee',icon:'LC',isLeader:true,
+  lucas:{name:'Lucas',role:'Consultor',color:'#22d3ee',icon:'LC',isLeader:true,email:'lucas@grupomrz.com',
     daily:[],
     weekly:{seg:['Revisão geral do escritório'],ter:[],qua:['Análise financeira'],
       qui:[],sex:['Revisar aprovações','Planejamento estratégico']}}
@@ -1025,7 +978,7 @@ const DN={seg:'Segunda',ter:'Terça',qua:'Quarta',qui:'Quinta',sex:'Sexta'};
 const GH_RAW='https://raw.githubusercontent.com/lucassnobrega/SrZanoni---Dashbord/main/team-data.json';
 const GH_API='https://api.github.com/repos/lucassnobrega/SrZanoni---Dashbord/contents/team-data.json';
 const SK='mrz_team_v3';
-let S=null,me=null,curPanel='home',pinBuf='',pinTgt=null,toastT=null,cotRows=[],editingTask=null;
+let S=null,me=null,curPanel='home',toastT=null,cotRows=[],editingTask=null;
 
 // ══ FIREBASE ══
 const _fbConfig={apiKey:"AIzaSyAFgnVtki4ghHVmcfKpFWNLDrYW5GtDxHM",authDomain:"mrz-team.firebaseapp.com",databaseURL:"https://mrz-team-default-rtdb.firebaseio.com",projectId:"mrz-team",storageBucket:"mrz-team.firebasestorage.app",messagingSenderId:"547015390528",appId:"1:547015390528:web:d31ad094b10a699c6476a5"};
@@ -1041,7 +994,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:7,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,lastUp:null};}
+function defState(){return{v:7,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1066,6 +1019,9 @@ function migrateState(d){
   if(!Array.isArray(d.rotinas.defs))d.rotinas.defs=defRotinas();
   if(!d.rotinas.completions||typeof d.rotinas.completions!=='object')d.rotinas.completions={};
   if(!d.contasPagar)d.contasPagar=null;
+  if(!Array.isArray(d.customUsers))d.customUsers=[];
+  if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
+  if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
   d.v=7;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
@@ -1081,6 +1037,17 @@ function fmtTime(){return new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',
 function slug(s){return s.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_');}
 function uid(){return 'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
 function pinHash(p){return btoa(p+'mrz26_team');}
+function pwdHash(p){return btoa(encodeURIComponent(p)+'mrz26_pwd_v2');}
+// Mescla usuários customizados em M para que todo código M[id] funcione
+function syncCustomUsers(){
+  if(!S||!Array.isArray(S.customUsers))return;
+  S.customUsers.forEach(u=>{
+    if(!u||!u.id)return;
+    M[u.id]={name:u.name,role:u.role,color:u.color,icon:u.icon,
+      email:u.email,isLeader:u.isLeader||false,daily:[],weekly:{}};
+  });
+}
+function getMem(id){return M[id]||null;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtBRL(n){return'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
@@ -1102,6 +1069,7 @@ function fmtBRL(n){return'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFract
         S=migrateState(fb);
         localStorage.setItem(SK,JSON.stringify(S));
       }
+      syncCustomUsers();
       _fbReady=true;
       setSdot('ok');
       if(me)reRenderAll();
@@ -1109,6 +1077,7 @@ function fmtBRL(n){return'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFract
     }else{
       // Firebase empty — push local data up
       if(!S){S=loc?migrateState(loc):defState();}
+      syncCustomUsers();
       _fbReady=true;
       setSdot('ok');
       _fbSave();
@@ -1124,10 +1093,9 @@ function fmtBRL(n){return'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFract
 })();
 
 // ══════════════════════════════════════
-// LOGIN / PIN
+// LOGIN — EMAIL + SENHA
 // ══════════════════════════════════════
 function buildLoginGrid(){
-  // update hero metrics
   if(S){
     const open=(S.tasks||[]).filter(t=>t.status!=='done').length;
     const approvals=(S.tasks||[]).filter(t=>t.needsApproval&&t.status!=='done').length;
@@ -1136,58 +1104,54 @@ function buildLoginGrid(){
     document.getElementById('loginApprovals').textContent=approvals;
     document.getElementById('loginIssues').textContent=issues;
   }
-  document.getElementById('member-grid').innerHTML=Object.entries(M).map(([k,m])=>`
-    <div class="member-card" onclick="selectMember('${k}')">
-      <div class="topline" style="background:${m.color}"></div>
-      <div class="mc-avatar" style="background:${m.color}22">${m.icon}</div>
-      <h3>${m.name.split(' ')[0]}</h3>
-      <p>${m.role}</p>
-      <div class="mc-tags">
-        ${m.isLeader?'<span class="mc-tag" style="color:var(--gold);border-color:rgba(197,165,114,.22)">Liderança</span>':''}
-        <span class="mc-tag">${m.daily?m.daily[0]||'':'Escritório'}</span>
-      </div>
-    </div>`).join('');
+  // Clear any previous error
+  const errEl=document.getElementById('login-err');
+  if(errEl)errEl.textContent='';
 }
-
-function selectMember(k){
-  pinTgt=k;pinBuf='';const m=M[k];
-  document.getElementById('pin-av').textContent=m.icon;
-  document.getElementById('pin-av').style.background=m.color+'33';
-  document.getElementById('pin-nm').textContent=m.name;
-  document.getElementById('pin-rl').textContent=m.role;
-  document.getElementById('pin-err').textContent='';
-  updDots();
+function togglePwdVis(){
+  const el=document.getElementById('login-pwd');
+  el.type=el.type==='password'?'text':'password';
+}
+function doLogin(){
+  const emailEl=document.getElementById('login-email');
+  const pwdEl=document.getElementById('login-pwd');
+  const errEl=document.getElementById('login-err');
+  const email=(emailEl.value||'').trim().toLowerCase();
+  const pwd=pwdEl.value||'';
+  errEl.textContent='';
+  if(!email||!pwd){errEl.textContent='Preencha email e senha.';return;}
+  // S.userEmail sobrescreve o email fixo de M
+  const found=Object.entries(M).find(([k,m])=>{
+    const eff=(S&&S.userEmail&&S.userEmail[k])||m.email||'';
+    return eff.toLowerCase()===email;
+  });
+  if(!found){errEl.textContent='Email não encontrado.';return;}
+  const [k]=found;
+  // Check new pwdHash first, fallback to legacy pinHash for old accounts
+  const stored=(S&&S.pins||{})[k];
+  const defaultOk=pwdHash('mrz2026');
+  if(!stored){
+    // No stored password — accept default
+    if(pwdHash(pwd)!==defaultOk){errEl.textContent='Senha incorreta. Padrão: mrz2026';return;}
+  } else {
+    if(pwdHash(pwd)!==stored&&pinHash(pwd)!==stored){errEl.textContent='Senha incorreta.';return;}
+  }
+  pwdEl.value='';
   document.getElementById('login-screen').style.display='none';
-  document.getElementById('pin-screen').style.display='flex';
-}
-function backLogin(){pinBuf='';pinTgt=null;document.getElementById('login-screen').style.display='';document.getElementById('pin-screen').style.display='none';}
-function pk(d){if(!d||pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)verPin();}
-function pdel(){if(pinBuf.length>0){pinBuf=pinBuf.slice(0,-1);updDots();}}
-document.addEventListener('keydown',function(e){
-  const pinVisible=document.getElementById('pin-screen').style.display==='flex';
-  if(!pinVisible)return;
-  if(e.key>='0'&&e.key<='9'){pk(e.key);}
-  else if(e.key==='Backspace'){pdel();}
-  else if(e.key==='Escape'){backLogin();}
-});
-function updDots(){for(let i=0;i<4;i++){const el=document.getElementById('pd'+i);el.classList.toggle('on',i<pinBuf.length);el.classList.remove('shake');}}
-function verPin(){
-  const stored=(S.pins||{})[pinTgt]||pinHash('1234');
-  if(pinHash(pinBuf)===stored){document.getElementById('pin-screen').style.display='none';enterApp(pinTgt);}
-  else{document.getElementById('pin-err').textContent='PIN incorreto.';for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.add('shake');setTimeout(()=>{pinBuf='';updDots();},600);}
+  enterApp(k);
 }
 function openPinModal(){
-  if(!pinTgt)return;
-  document.getElementById('pm-nm').textContent=M[pinTgt]?.name||'';
+  if(!me)return;
+  document.getElementById('pm-nm').textContent=M[me]?.name||'';
   document.getElementById('np1').value='';document.getElementById('np2').value='';document.getElementById('pm-err').textContent='';
   document.getElementById('pin-modal').classList.add('show');
 }
 function savePin(){
   const p1=document.getElementById('np1').value,p2=document.getElementById('np2').value;
-  if(!/^\d{4}$/.test(p1)){document.getElementById('pm-err').textContent='Use 4 dígitos.';return;}
-  if(p1!==p2){document.getElementById('pm-err').textContent='PINs não coincidem.';return;}
-  if(!S.pins)S.pins={};S.pins[pinTgt]=pinHash(p1);saveLocal();
-  toast('PIN alterado!');document.getElementById('pin-modal').classList.remove('show');
+  if(!p1||p1.length<4){document.getElementById('pm-err').textContent='Mínimo 4 caracteres.';return;}
+  if(p1!==p2){document.getElementById('pm-err').textContent='Senhas não coincidem.';return;}
+  if(!S.pins)S.pins={};S.pins[me]=pwdHash(p1);saveLocal();
+  toast('Senha alterada!');document.getElementById('pin-modal').classList.remove('show');
 }
 
 // ══════════════════════════════════════
@@ -1201,7 +1165,7 @@ function enterApp(k){
   document.getElementById('sb-rl').textContent=m.role;
   buildSidebar();goPanel('home');
 }
-function doLogout(){me=null;pinBuf='';pinTgt=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='';buildLoginGrid();}
+function doLogout(){me=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='';buildLoginGrid();}
 function toggleSB(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sb-ov').classList.toggle('open');}
 function closeSB(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-ov').classList.remove('open');}
 
@@ -1229,12 +1193,21 @@ const NAV_ITEMS=[
 ];
 
 function buildSidebar(){
-  const isL=M[me].isLeader;
+  const isL=M[me]?.isLeader||false;
+  const customPerms=S&&S.userPerms&&S.userPerms[me]; // array de IDs permitidos, ou undefined
   let html='';let lastGrp='';
-  NAV_ITEMS.forEach(item=>{
-    if(item.exclude&&item.exclude.includes(me))return;
-    if(item.roles&&!item.roles.includes(me)&&!isL)return;
-    if(item.leader&&!isL&&!(item.extra&&item.extra.includes(me)))return;
+  // Sempre mostrar o painel de Usuários para líderes
+  const navAll=[...NAV_ITEMS,{id:'usuarios',label:'Usuários',grp:'Gestão',leader:true}];
+  navAll.forEach(item=>{
+    if(customPerms){
+      // Usuário com permissões customizadas: mostrar só o que está na lista
+      if(!customPerms.includes(item.id))return;
+    } else {
+      // Lógica padrão
+      if(item.exclude&&item.exclude.includes(me))return;
+      if(item.roles&&!item.roles.includes(me)&&!isL)return;
+      if(item.leader&&!isL&&!(item.extra&&item.extra.includes(me)))return;
+    }
     if(item.grp!==lastGrp){html+=`<div class="nav-grp">${item.grp}</div>`;lastGrp=item.grp;}
     const badge=item.id==='queue'?pendingAll():0;
     html+=`<button class="ni" id="ni-${item.id}" onclick="goPanel('${item.id}')">
@@ -1244,12 +1217,14 @@ function buildSidebar(){
   document.getElementById('sb-nav').innerHTML=html;
 }
 
+const NAV_ALL_IDS=[...NAV_ITEMS.map(n=>n.id),'usuarios'];
 function goPanel(id){
   curPanel=id;
-  NAV_ITEMS.forEach(n=>{document.getElementById('ni-'+n.id)?.classList.remove('on');document.getElementById('p-'+n.id)?.classList.remove('on');});
+  NAV_ALL_IDS.forEach(nid=>{document.getElementById('ni-'+nid)?.classList.remove('on');document.getElementById('p-'+nid)?.classList.remove('on');});
   document.getElementById('ni-'+id)?.classList.add('on');
   document.getElementById('p-'+id)?.classList.add('on');
-  document.getElementById('tb-title').textContent=NAV_ITEMS.find(n=>n.id===id)?.label||id;
+  const lbl={...Object.fromEntries(NAV_ITEMS.map(n=>[n.id,n.label])),usuarios:'Usuários'};
+  document.getElementById('tb-title').textContent=lbl[id]||id;
   closeSB();
   renderPanel(id);
 }
@@ -1276,6 +1251,7 @@ function renderPanel(id){
     case 'timeline':renderTimeline();break;
     case 'gestao':renderGestao();break;
     case 'contas':renderContasPagar();break;
+    case 'usuarios':renderUsuarios();break;
   }
 }
 
@@ -2752,9 +2728,11 @@ function renderCalendar(){
       </div>
       <button class="btn-sm" onclick="calYear=new Date().getFullYear();calMonth=new Date().getMonth();renderCalendar()">Hoje</button>
     </div>
-    <div class="cal-grid">
-      ${dayNames.map(d=>`<div class="cal-day-hdr">${d}</div>`).join('')}
-      ${cells}
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <div class="cal-grid" style="min-width:560px;">
+        ${dayNames.map(d=>`<div class="cal-day-hdr">${d}</div>`).join('')}
+        ${cells}
+      </div>
     </div>
     ${upcoming.length?`<div style="margin-top:22px"><div class="sec">Próximos eventos</div>${upcoming.map(e=>`<div class="camp-card" style="display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;" onclick="openCalEventDetail('${e.id}')"><div><div class="cal-ev tipo-${e.tipo}" style="display:inline-block;margin:0 0 4px">${esc(TIPO_LABEL[e.tipo]||e.tipo)}</div><div style="font-size:.9rem;font-weight:600">${esc(e.title)}</div>${e.desc?`<div class="small">${esc(e.desc)}</div>`:''}</div><div style="margin-left:auto;font-size:.78rem;color:var(--muted)">${fmtDate(e.date)}</div>${e.member===me?`<button class="icon-btn" onclick="event.stopPropagation();delCalEvent('${e.id}')">×</button>`:''}</div>`).join('')}</div>`:''}
     <div class="sec" style="margin-top:28px">Legenda</div>
@@ -6085,6 +6063,240 @@ function setSdot(st){const d=document.getElementById('sdot');if(!d)return;d.clas
 
 // TOAST
 function toast(msg,dur=3000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),dur);}
+
+// ══════════════════════════════════════
+// GESTÃO DE USUÁRIOS
+// ══════════════════════════════════════
+const USER_COLORS=['#f472b6','#c084fc','#34d399','#60a5fa','#fb923c','#f59e0b','#a78bfa','#f43f5e','#22d3ee','#4ade80','#facc15','#e879f9'];
+const PANEL_OPTS=[
+  {id:'home',label:'Início'},{id:'calendar',label:'Calendário'},{id:'tasks',label:'Tarefas'},
+  {id:'report',label:'Relatório Semanal'},{id:'campanhas',label:'Campanhas'},{id:'insights',label:'Insights'},
+  {id:'cotacao',label:'Cotação'},{id:'fornecedores',label:'Fornecedores'},{id:'erros-caixa',label:'Erros de Caixa'},
+  {id:'occ',label:'Ocorrências'},{id:'log',label:'Registro Diário'},{id:'trilha',label:'Trilha'},
+  {id:'rotinas',label:'Rotinas'},{id:'mural',label:'Mural'},{id:'team',label:'Visão da Equipe'},
+  {id:'queue',label:'Aprovações'},{id:'processos',label:'Processos'},{id:'projetos',label:'Projetos'},
+  {id:'timeline',label:'Timeline'},{id:'gestao',label:'Painel CEO'},{id:'contas',label:'Contas a Pagar'},
+];
+
+function renderUsuarios(){
+  if(!S||!me)return;
+  const el=document.getElementById('p-usuarios');if(!el)return;
+  if(!M[me]?.isLeader){el.innerHTML='<div class="card" style="padding:24px;color:var(--muted);">Acesso restrito.</div>';return;}
+  // Todos os membros: fixos + customizados
+  const allIds=Object.keys(M);
+  el.innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Gestão de Usuários</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">Gerencie membros e suas permissões de acesso</div>
+    </div>
+    <button class="btn-gold btn-sm" onclick="openNewUserModal()">+ Novo Usuário</button>
+  </div>
+  <div style="display:grid;gap:10px;">
+    ${allIds.map(uid=>{
+      const u=M[uid];if(!u)return'';
+      const isCustom=!!(S.customUsers||[]).find(c=>c.id===uid);
+      const hasCustomPerms=!!(S.userPerms||{})[uid];
+      const pwdSet=!!(S.pins||{})[uid];
+      return`<div class="card" style="padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="width:42px;height:42px;border-radius:12px;background:${u.color}22;display:grid;place-items:center;font-size:.75rem;font-weight:800;color:${u.color};flex-shrink:0;">${u.icon}</div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-weight:700;font-size:.9rem;">${esc(u.name)}${u.isLeader?'<span style="font-size:.6rem;color:var(--gold);background:rgba(197,165,114,.12);border-radius:999px;padding:2px 7px;margin-left:6px;">Líder</span>':''}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:1px;">${esc(u.role)} · ${esc((S.userEmail||{})[uid]||u.email||'—')}</div>
+          <div style="font-size:.67rem;margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
+            ${hasCustomPerms?'<span style="background:rgba(96,165,250,.1);color:#60a5fa;border-radius:999px;padding:2px 7px;">Permissões customizadas</span>':'<span style="background:rgba(255,255,255,.05);color:var(--muted);border-radius:999px;padding:2px 7px;">Acesso padrão</span>'}
+            ${pwdSet?'<span style="background:rgba(52,211,153,.08);color:#34d399;border-radius:999px;padding:2px 7px;">Senha definida</span>':'<span style="background:rgba(251,146,60,.1);color:#fb923c;border-radius:999px;padding:2px 7px;">Senha padrão (mrz2026)</span>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn-ghost btn-sm" onclick="openPermModal('${uid}')">🔒 Permissões</button>
+          <button class="btn-ghost btn-sm" onclick="openResetPwdModal('${uid}')">🔑 Senha</button>
+          <button class="btn-ghost btn-sm" onclick="openEditEmailModal('${uid}')">✉️ Email</button>
+          ${isCustom?`<button class="btn-ghost btn-sm" style="color:var(--red);" onclick="deleteCustomUser('${uid}')">🗑</button>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── Modal: Novo Usuário ──
+function openNewUserModal(){
+  const colorOpts=USER_COLORS.map((c,i)=>`<div onclick="selectUColor('${c}',this)" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent;transition:.15s;" data-c="${c}"></div>`).join('');
+  openModal(`
+    <h3 style="margin-bottom:16px;">Novo Usuário</h3>
+    <div class="f-grp"><label class="f-lb">Nome completo</label><input class="f-in" id="nu-name" placeholder="Ex: Ana Lima"></div>
+    <div class="f-grp"><label class="f-lb">Cargo / Função</label><input class="f-in" id="nu-role" placeholder="Ex: Financeiro · Analista"></div>
+    <div class="f-grp"><label class="f-lb">Email de acesso</label><input class="f-in" type="email" id="nu-email" placeholder="nome@grupomrz.com"></div>
+    <div class="f-grp"><label class="f-lb">Senha inicial</label><input class="f-in" type="password" id="nu-pwd" placeholder="Mínimo 4 caracteres"></div>
+    <div class="f-grp">
+      <label class="f-lb">Cor</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;" id="nu-colors">${colorOpts}</div>
+      <input type="hidden" id="nu-color" value="${USER_COLORS[0]}">
+    </div>
+    <div class="f-grp">
+      <label class="f-lb">É líder (acesso completo)?</label>
+      <select class="f-in" id="nu-leader"><option value="0">Não — permissões customizadas</option><option value="1">Sim — acesso total de liderança</option></select>
+    </div>
+    <div id="nu-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="saveNewUser()">Criar Usuário</button>
+  `);
+  // Selecionar primeira cor por padrão
+  setTimeout(()=>{const first=document.querySelector('#nu-colors div');if(first)first.style.borderColor='#fff';},50);
+}
+function selectUColor(c,el){
+  document.getElementById('nu-color').value=c;
+  document.querySelectorAll('#nu-colors div').forEach(d=>d.style.borderColor='transparent');
+  el.style.borderColor='#fff';
+}
+function saveNewUser(){
+  const name=(document.getElementById('nu-name').value||'').trim();
+  const role=(document.getElementById('nu-role').value||'').trim();
+  const email=(document.getElementById('nu-email').value||'').trim().toLowerCase();
+  const pwd=document.getElementById('nu-pwd').value||'';
+  const color=document.getElementById('nu-color').value;
+  const isLeaderVal=document.getElementById('nu-leader').value==='1';
+  const errEl=document.getElementById('nu-err');
+  if(!name){errEl.textContent='Nome obrigatório.';return;}
+  if(!email||!email.includes('@')){errEl.textContent='Email inválido.';return;}
+  if(pwd.length<4){errEl.textContent='Senha mínima de 4 caracteres.';return;}
+  // Checar email duplicado
+  if(Object.values(M).some(m=>m.email&&m.email.toLowerCase()===email)){errEl.textContent='Email já cadastrado.';return;}
+  const id='u_'+Date.now().toString(36);
+  const icon=name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'US';
+  const newUser={id,name,role,email,color,icon,isLeader:isLeaderVal};
+  if(!S.customUsers)S.customUsers=[];
+  S.customUsers.push(newUser);
+  // Salvar senha
+  if(!S.pins)S.pins={};
+  S.pins[id]=pwdHash(pwd);
+  // Se não é líder, definir permissões padrão (home, calendar, tasks, rotinas)
+  if(!isLeaderVal){
+    if(!S.userPerms)S.userPerms={};
+    S.userPerms[id]=['home','calendar','tasks','rotinas','trilha','occ'];
+  }
+  syncCustomUsers();
+  saveLocal();
+  closeModal();
+  toast(`Usuário ${name} criado!`);
+  renderUsuarios();
+}
+
+// ── Modal: Permissões ──
+function openPermModal(uid){
+  const u=M[uid];if(!u)return;
+  const currentPerms=(S.userPerms||{})[uid];
+  const isCustom=!!currentPerms;
+  const permsArr=currentPerms||PANEL_OPTS.map(p=>p.id); // se não tem customização, todos marcados
+  const checkboxes=PANEL_OPTS.map(p=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:.84rem;">
+      <input type="checkbox" id="perm-${p.id}" ${permsArr.includes(p.id)?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);">
+      ${esc(p.label)}
+    </label>`).join('');
+  openModal(`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div style="width:38px;height:38px;border-radius:10px;background:${u.color}22;display:grid;place-items:center;font-size:.72rem;font-weight:800;color:${u.color};">${u.icon}</div>
+      <div>
+        <div style="font-weight:700;">${esc(u.name)}</div>
+        <div style="font-size:.72rem;color:var(--muted);">Selecione quais painéis este usuário pode acessar</div>
+      </div>
+    </div>
+    <div style="max-height:380px;overflow-y:auto;margin-bottom:14px;">${checkboxes}</div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-ghost btn-sm" onclick="clearUserPerms('${uid}')">Acesso padrão</button>
+      <button class="btn-gold" style="flex:1;" onclick="saveUserPerms('${uid}')">Salvar Permissões</button>
+    </div>
+  `);
+}
+function saveUserPerms(uid){
+  const selected=PANEL_OPTS.filter(p=>{const el=document.getElementById('perm-'+p.id);return el&&el.checked;}).map(p=>p.id);
+  if(!S.userPerms)S.userPerms={};
+  S.userPerms[uid]=selected;
+  saveLocal();
+  closeModal();
+  toast('Permissões salvas!');
+  if(uid===me){buildSidebar();}
+  renderUsuarios();
+}
+function clearUserPerms(uid){
+  if(!S.userPerms)S.userPerms={};
+  delete S.userPerms[uid];
+  saveLocal();
+  closeModal();
+  toast('Permissões resetadas para o padrão.');
+  renderUsuarios();
+}
+
+// ── Modal: Redefinir Senha ──
+function openResetPwdModal(uid){
+  const u=M[uid];if(!u)return;
+  openModal(`
+    <h3 style="margin-bottom:4px;">Redefinir Senha</h3>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:16px;">${esc(u.name)} · ${esc(u.email||'')}</div>
+    <div class="f-grp"><label class="f-lb">Nova senha</label><input class="f-in" type="password" id="rp-pwd1" placeholder="Mínimo 4 caracteres"></div>
+    <div class="f-grp"><label class="f-lb">Confirmar senha</label><input class="f-in" type="password" id="rp-pwd2" placeholder="Repita a senha"></div>
+    <div id="rp-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:10px;" onclick="saveResetPwd('${uid}')">Salvar Nova Senha</button>
+  `);
+}
+function saveResetPwd(uid){
+  const p1=document.getElementById('rp-pwd1').value;
+  const p2=document.getElementById('rp-pwd2').value;
+  const errEl=document.getElementById('rp-err');
+  if(!p1||p1.length<4){errEl.textContent='Mínimo 4 caracteres.';return;}
+  if(p1!==p2){errEl.textContent='Senhas não coincidem.';return;}
+  if(!S.pins)S.pins={};
+  S.pins[uid]=pwdHash(p1);
+  saveLocal();
+  closeModal();
+  toast('Senha redefinida!');
+  renderUsuarios();
+}
+
+// ── Deletar usuário customizado ──
+// ── Modal: Editar Email ──
+function openEditEmailModal(uid){
+  const u=M[uid];if(!u)return;
+  const currentEmail=(S.userEmail||{})[uid]||u.email||'';
+  openModal(`
+    <h3 style="margin-bottom:4px;">Editar Email</h3>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:16px;">${esc(u.name)}</div>
+    <div class="f-grp">
+      <label class="f-lb">Email de acesso</label>
+      <input class="f-in" type="email" id="ee-email" value="${esc(currentEmail)}" placeholder="email@dominio.com">
+    </div>
+    <div id="ee-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:10px;" onclick="saveEditEmail('${uid}')">Salvar Email</button>
+  `);
+}
+function saveEditEmail(uid){
+  const email=(document.getElementById('ee-email').value||'').trim().toLowerCase();
+  const errEl=document.getElementById('ee-err');
+  if(!email||!email.includes('@')){errEl.textContent='Email inválido.';return;}
+  // Checar duplicata em outros usuários
+  const conflict=Object.entries(M).find(([k,m])=>{
+    if(k===uid)return false;
+    const eff=(S.userEmail||{})[k]||m.email||'';
+    return eff.toLowerCase()===email;
+  });
+  if(conflict){errEl.textContent='Este email já está em uso por outro usuário.';return;}
+  if(!S.userEmail)S.userEmail={};
+  S.userEmail[uid]=email;
+  saveLocal();
+  closeModal();
+  toast('Email atualizado!');
+  renderUsuarios();
+}
+
+function deleteCustomUser(uid){
+  if(!confirm('Remover este usuário? Esta ação não pode ser desfeita.'))return;
+  S.customUsers=(S.customUsers||[]).filter(u=>u.id!==uid);
+  if(S.userPerms)delete S.userPerms[uid];
+  if(S.pins)delete S.pins[uid];
+  delete M[uid];
+  saveLocal();
+  toast('Usuário removido.');
+  renderUsuarios();
+}
 
 </script>
 </body>
