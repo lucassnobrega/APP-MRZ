@@ -25,52 +25,46 @@ html,body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,san
 button,input,select,textarea{font:inherit;color:inherit}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:9px}
 
-/* ══ ANIMATED LOGIN ══ */
-/* ── LOGIN PREMIUM ── */
-#login-screen{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:28px;background:linear-gradient(120deg,rgba(11,10,9,.98),rgba(15,12,10,.95)),radial-gradient(circle at 18% 22%,rgba(201,169,110,.15),transparent 40%);}
-.login-bg{display:none;}
-.orb{position:absolute;border-radius:50%;filter:blur(90px);animation:orbFloat 12s ease-in-out infinite;}
-.o1{width:500px;height:500px;background:radial-gradient(circle,rgba(197,165,114,.25),transparent 70%);top:-150px;left:-150px;animation-duration:14s;}
-.o2{width:400px;height:400px;background:radial-gradient(circle,rgba(99,102,241,.2),transparent 70%);bottom:-100px;right:-100px;animation-delay:-5s;animation-duration:11s;}
-.o3{width:300px;height:300px;background:radial-gradient(circle,rgba(34,211,238,.15),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:-8s;}
-@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.08)}66%{transform:translate(-25px,20px) scale(.93)}}
-/* login shell: hero + panel */
-.login-shell{width:min(1160px,100%);display:grid;grid-template-columns:1.05fr 1.35fr;gap:24px;align-items:stretch;}
-.login-hero{background:linear-gradient(160deg,rgba(197,165,114,.16),rgba(15,21,34,.72) 42%,rgba(15,21,34,.96));border:1px solid rgba(197,165,114,.22);border-radius:28px;padding:34px;box-shadow:0 30px 90px rgba(0,0,0,.55);position:relative;overflow:hidden;}
-.login-hero::before{content:'';position:absolute;right:-120px;bottom:-120px;width:320px;height:320px;border:44px solid rgba(197,165,114,.08);border-radius:50%;}
-.login-hero::after{content:'';position:absolute;left:34px;bottom:30px;width:110px;height:4px;border-radius:999px;background:linear-gradient(90deg,var(--gold),transparent);}
-.lb-badge{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--gold),var(--gold2));display:grid;place-items:center;font-size:22px;box-shadow:0 0 24px rgba(197,165,114,.3);}
-.login-hero h1{font-size:2.6rem;line-height:1.08;letter-spacing:.01em;margin:10px 0 10px;}
-.login-hero h1 span{background:linear-gradient(135deg,var(--gold),var(--gold2),#f5dfa0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.login-hero>p{color:var(--muted);font-size:.98rem;line-height:1.65;max-width:520px;}
-.hero-pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;}
-.hero-pill{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);border-radius:999px;padding:7px 12px;font-size:.76rem;color:#dbe5f2;}
-.hero-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:30px;}
-.hero-metric{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px;}
-.hero-metric b{display:block;font-size:1.5rem;letter-spacing:-.04em;color:var(--gold2);}
-.hero-metric span{font-size:.7rem;color:var(--muted);display:block;margin-top:2px;}
-/* panel (member grid side) */
-.login-panel{background:rgba(15,21,34,.88);border:1px solid rgba(255,255,255,.085);border-radius:28px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.55);backdrop-filter:blur(18px);}
-.login-panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;}
-.login-panel h2{font-size:1.4rem;letter-spacing:-.035em;}
-.login-panel .hint{font-size:.76rem;color:var(--muted);}
-/* member cards (legacy — removed) */
-/* login glass (legacy — hide) */
-.login-glass{display:none;}
-.login-brand{display:none;}
-.mc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 8px 12px;text-align:center;cursor:pointer;transition:var(--tr);position:relative;overflow:hidden;}
-.mc::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.03));opacity:0;transition:var(--tr);}
-.mc:hover{border-color:rgba(197,165,114,.35);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.3);}
-.mc:hover::before{opacity:1;}
-.mc:active{transform:translateY(0) scale(.97);}
-.mc .mc-dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;}
-.mc .mc-icon{font-size:28px;line-height:1;margin-bottom:7px;}
-.mc .mc-name{font-size:12px;font-weight:700;color:#fff;}
-.mc .mc-role{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3;}
+/* ══ LOGIN ══ */
+#login-screen{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;background:#080c14;overflow:hidden;}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);animation:orbFloat 14s ease-in-out infinite;pointer-events:none;}
+.o1{width:600px;height:600px;background:radial-gradient(circle,rgba(197,165,114,.18),transparent 70%);top:-200px;left:-200px;}
+.o2{width:500px;height:500px;background:radial-gradient(circle,rgba(99,102,241,.12),transparent 70%);bottom:-150px;right:-150px;animation-delay:-6s;animation-duration:11s;}
+.o3{width:350px;height:350px;background:radial-gradient(circle,rgba(197,165,114,.08),transparent 70%);top:60%;left:60%;animation-delay:-10s;animation-duration:18s;}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-25px) scale(1.06)}66%{transform:translate(-20px,18px) scale(.94)}}
 
-/* ══ LOGIN FORM ══ */
-.login-form-area{display:flex;flex-direction:column;gap:0;margin-top:8px;}
-.login-form-area .f-grp{margin-bottom:12px;}
+/* card central */
+.login-card{position:relative;z-index:2;width:min(400px,100%);background:rgba(13,18,30,.92);border:1px solid rgba(197,165,114,.18);border-radius:28px;padding:38px 32px 32px;box-shadow:0 40px 100px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03);backdrop-filter:blur(24px);text-align:center;}
+/* logo container */
+.lc-logo-wrap{width:82px;height:82px;border-radius:22px;background:linear-gradient(145deg,rgba(197,165,114,.18),rgba(197,165,114,.06));border:1px solid rgba(197,165,114,.28);display:grid;place-items:center;margin:0 auto 18px;box-shadow:0 8px 32px rgba(197,165,114,.12);}
+.lc-brand{font-family:var(--serif);font-size:1.65rem;font-weight:700;font-style:italic;letter-spacing:.01em;line-height:1;margin-bottom:5px;background:linear-gradient(135deg,#e8d5a3,var(--gold),#c9a96e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.lc-sub{font-size:.68rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:30px;opacity:.7;}
+/* divider */
+.lc-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(197,165,114,.22),transparent);margin-bottom:26px;}
+/* form fields */
+.lc-field{text-align:left;margin-bottom:14px;}
+.lc-label{display:block;font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;opacity:.8;}
+.lc-input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:13px 14px;font-size:.95rem;color:var(--text);outline:none;transition:.2s;font-family:inherit;}
+.lc-input::placeholder{color:rgba(255,255,255,.22);}
+.lc-input:focus{border-color:rgba(197,165,114,.5);background:rgba(197,165,114,.05);box-shadow:0 0 0 3px rgba(197,165,114,.08);}
+.lc-pwd-wrap{position:relative;}
+.lc-pwd-wrap .lc-input{padding-right:44px;}
+.lc-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:.85rem;opacity:.6;transition:.2s;}
+.lc-eye:hover{opacity:1;}
+/* error */
+.lc-err{font-size:.74rem;color:#fca5a5;min-height:16px;margin-bottom:6px;text-align:left;}
+/* entrar button */
+.lc-btn{width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--gold),var(--gold2),#b8923a);border:none;color:#000;font-size:.88rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:.2s;box-shadow:0 4px 20px rgba(197,165,114,.3);margin-top:6px;}
+.lc-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(197,165,114,.4);}
+.lc-btn:active{transform:translateY(0);}
+/* crédito */
+.lc-credit{margin-top:26px;padding-top:20px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;gap:8px;opacity:.3;}
+.lc-credit-mark{font-family:var(--serif);font-size:.88rem;font-weight:700;letter-spacing:.06em;}
+.lc-credit-div{width:1px;height:14px;background:rgba(255,255,255,.3);}
+.lc-credit-txt{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;line-height:1.5;color:var(--muted);}
+
+/* IDs ocultos de compatibilidade */
+#loginOpenTasks,#loginApprovals,#loginIssues{display:none;}
 
 /* ══ CALENDÁRIO ══ */
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
@@ -646,8 +640,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 
 /* ══ MOBILE RESPONSIVO ══ */
 @media(max-width:900px){
-  .login-shell{grid-template-columns:1fr;}
-  .login-hero{display:none;}
+  .login-card{padding:30px 22px 26px;}
 }
 @media(max-width:768px){
   /* Sidebar */
@@ -694,9 +687,10 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 }
 @media(max-width:480px){
   /* Login */
-  #login-screen{padding:14px;}
-  .login-panel{padding:16px 14px;border-radius:22px;}
-  .login-panel h2{font-size:1.15rem;}
+  #login-screen{padding:16px;}
+  .login-card{padding:28px 18px 22px;border-radius:22px;}
+  .lc-logo-wrap{width:70px;height:70px;}
+  .lc-brand{font-size:1.4rem;}
   /* App interno */
   .panel{padding:10px 8px;}
   .stats{grid-template-columns:repeat(2,1fr);gap:6px;}
@@ -727,60 +721,56 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 
 <!-- ══ LOGIN ══ -->
 <div id="login-screen">
-  <div class="login-shell">
-    <section class="login-hero">
-      <!-- MRZ Logo -->
-      <svg width="72" height="72" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:4px">
-        <rect x="6" y="6" width="44" height="4.5" rx="1" fill="white"/>
-        <rect x="6" y="6" width="4.5" height="48" rx="1" fill="white"/>
-        <rect x="6" y="49.5" width="35" height="4.5" rx="1" fill="white"/>
-        <rect x="16" y="16" rx="1.5" width="28" height="5.5" fill="white"/>
-        <polygon points="40,21.5 18,40 13,38 35,19" fill="white"/>
-        <rect x="13" y="38" rx="1.5" width="28" height="5.5" fill="white"/>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+
+  <div class="login-card">
+    <!-- Logo MRZ -->
+    <div class="lc-logo-wrap">
+      <svg width="48" height="48" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="6" width="44" height="4.5" rx="1" fill="url(#lg)"/>
+        <rect x="6" y="6" width="4.5" height="48" rx="1" fill="url(#lg)"/>
+        <rect x="6" y="49.5" width="35" height="4.5" rx="1" fill="url(#lg)"/>
+        <rect x="16" y="16" rx="1.5" width="28" height="5.5" fill="url(#lg)"/>
+        <polygon points="40,21.5 18,40 13,38 35,19" fill="url(#lg)"/>
+        <rect x="13" y="38" rx="1.5" width="28" height="5.5" fill="url(#lg)"/>
+        <defs><linearGradient id="lg" x1="6" y1="6" x2="50" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#e8d5a3"/><stop offset="1" stop-color="#c9a96e"/></linearGradient></defs>
       </svg>
-      <h1 style="font-family:var(--serif);font-style:italic;font-weight:600;letter-spacing:.01em;font-size:2.6rem;line-height:1.1;margin-top:10px;">Grupo <span>MRZ</span></h1>
-      <p>Sistema operacional do escritório: processos, demandas, aprovações, cotações, relatórios semanais e gestão da execução — tudo em um lugar.</p>
-      <div class="hero-pill-row">
-        <div class="hero-pill">Cockpit individual</div>
-        <div class="hero-pill">Login com senha</div>
-        <div class="hero-pill">Comprovantes e anexos</div>
-        <div class="hero-pill">Melhoria contínua</div>
-        <div class="hero-pill">Relatório semanal</div>
-        <div class="hero-pill">Cotação inteligente</div>
+    </div>
+
+    <div class="lc-brand">Grupo MRZ</div>
+    <div class="lc-sub">Sistema de Gestão Interno</div>
+    <div class="lc-divider"></div>
+
+    <!-- Campos -->
+    <div class="lc-field">
+      <label class="lc-label">Email</label>
+      <input class="lc-input" type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-pwd').focus()">
+    </div>
+    <div class="lc-field">
+      <label class="lc-label">Senha</label>
+      <div class="lc-pwd-wrap">
+        <input class="lc-input" type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="lc-eye" type="button" onclick="togglePwdVis()">👁</button>
       </div>
-      <div class="hero-metrics">
-        <div class="hero-metric"><b id="loginOpenTasks">—</b><span>demandas abertas</span></div>
-        <div class="hero-metric"><b id="loginApprovals">—</b><span>aprovações pendentes</span></div>
-        <div class="hero-metric"><b id="loginIssues">—</b><span>erros em processos</span></div>
-      </div>
-    </section>
-    <section class="login-panel">
-      <div class="login-panel-head">
-        <div>
-          <h2>Entrar no escritório</h2>
-          <div class="hint">Use seu email e senha para acessar</div>
-        </div>
-      </div>
-      <div class="login-form-area">
-        <div class="f-grp">
-          <label class="f-lb">Email</label>
-          <input class="f-in" type="email" id="login-email" placeholder="nome@grupomrz.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-pwd').focus()">
-        </div>
-        <div class="f-grp" style="position:relative;">
-          <label class="f-lb">Senha</label>
-          <input class="f-in" type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-          <button type="button" onclick="togglePwdVis()" style="position:absolute;right:12px;bottom:11px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 4px;">👁</button>
-        </div>
-        <div id="login-err" style="font-size:.75rem;color:var(--red);min-height:18px;margin-top:2px;"></div>
-        <button class="btn-gold" style="width:100%;margin-top:14px;padding:13px;font-size:.95rem;" onclick="doLogin()">Entrar</button>
-      </div>
-      <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;opacity:.38;">
-        <div style="font-family:var(--serif);font-size:.95rem;font-weight:600;color:var(--text);letter-spacing:.04em;">LN</div>
-        <div style="width:1px;height:18px;background:var(--line2)"></div>
-        <div style="font-size:.58rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;line-height:1.4;">Consultoria<br>Empresarial</div>
-      </div>
-    </section>
+    </div>
+
+    <div class="lc-err" id="login-err"></div>
+    <button class="lc-btn" onclick="doLogin()">Entrar</button>
+
+    <!-- Crédito -->
+    <div class="lc-credit">
+      <div class="lc-credit-mark">LN</div>
+      <div class="lc-credit-div"></div>
+      <div class="lc-credit-txt">Consultoria<br>Empresarial</div>
+    </div>
   </div>
+
+  <!-- IDs de compatibilidade ocultos -->
+  <span id="loginOpenTasks" style="display:none"></span>
+  <span id="loginApprovals" style="display:none"></span>
+  <span id="loginIssues" style="display:none"></span>
 </div>
 
 
