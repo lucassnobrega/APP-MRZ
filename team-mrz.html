@@ -1032,7 +1032,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:7,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
+function defState(){return{v:9,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1056,11 +1056,13 @@ function migrateState(d){
   if(!d.rotinas||typeof d.rotinas!=='object')d.rotinas={defs:defRotinas(),completions:{}};
   if(!Array.isArray(d.rotinas.defs))d.rotinas.defs=defRotinas();
   if(!d.rotinas.completions||typeof d.rotinas.completions!=='object')d.rotinas.completions={};
+  // v9: força atualização das defs de rotinas (rotinas completas do Carlos — Compras)
+  if(!d.v||d.v<9)d.rotinas.defs=defRotinas();
   if(!d.contasPagar)d.contasPagar=null;
   if(!Array.isArray(d.customUsers))d.customUsers=[];
   if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
   if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
-  d.v=7;return d;
+  d.v=9;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -4151,14 +4153,39 @@ const TRL_COLORS={
 
 /* ===== ROTINAS ===== */
 function defRotinas(){return[
-  // CARLOS - Compras
-  {id:'rot001',titulo:'Cotação e Pedidos',desc:'Atualizar painel de preços com cotações recebidas, negociar com fornecedores e registrar preço negociado. Fechar pedido conforme estoque mínimo/máximo e imprimir para o gestor/estoquista.',assignees:['carlos'],freq:'semanal',diaSemana:1,icon:'🛒',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Fornecedores contatados (quantidade)',tipo:'number'},{id:'cf2',label:'Houve negociação de preço?',tipo:'sim-nao'},{id:'cf3',label:'Pedido impresso e entregue ao gestor?',tipo:'sim-nao'}]},
-  {id:'rot002',titulo:'Recebimento e Ressalvas',desc:'Apoiar conferência de recebimento: conferir quantidade, qualidade e nota fiscal vs. pedido. Tratar faltas, trocas, abatimentos e devoluções. Registrar ocorrências por fornecedor.',assignees:['carlos'],freq:'semanal',diaSemana:4,icon:'📦',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Houve ressalva?',tipo:'sim-nao'},{id:'cf2',label:'Fornecedor com problema',tipo:'text'}]},
-  {id:'rot003',titulo:'Relatório Mensal de Compras',desc:'Consolidar relatório mensal: evolução de preços, novos fornecedores testados e metas do período. Enviar para Marlon.',assignees:['carlos'],freq:'mensal',diaMes:28,icon:'📊',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Média de preço das carnes vs. mês anterior',tipo:'text'},{id:'cf2',label:'Novos fornecedores testados',tipo:'number'},{id:'cf3',label:'Redução de custo obtida (R$)',tipo:'text'}]},
-  // MARCO - Financeiro
-  {id:'rot004',titulo:'Organização da Semana Financeira',desc:'Conferir DDA da semana. Listar todos os pagamentos previstos. Mapear pendências e alertar responsáveis que não lançaram nota.',assignees:['marco'],freq:'semanal',diaSemana:1,icon:'💰',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências identificadas',tipo:'text'},{id:'cf2',label:'Notas em aberto (quantidade)',tipo:'number'}]},
-  {id:'rot005',titulo:'Pagamentos Programados',desc:'Executar pagamentos organizados da semana. Salvar comprovantes com padrão de nomenclatura. Atualizar sistema após cada pagamento.',assignees:['marco'],freq:'semanal',diaSemana:3,icon:'💳',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Total pago no dia (R$)',tipo:'text'},{id:'cf2',label:'Alguma trava ou problema?',tipo:'sim-nao'}]},
-  {id:'rot006',titulo:'Fechamento Financeiro do Mês',desc:'Conferir todos os pagamentos realizados no mês. Verificar DDA suspeitos. Consolidar extrato. Preparar resumo para diretoria.',assignees:['marco'],freq:'mensal',diaMes:5,icon:'📋',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Saldo final conferido?',tipo:'sim-nao'},{id:'cf2',label:'Pendências para o próximo mês',tipo:'text'}]},
+  // ── CARLOS — COMPRAS ──────────────────────────────────────────────
+  // DIÁRIA
+  {id:'rot038',titulo:'Foto do Estoque às 17h',desc:'Todo dia até as 17h (máximo): os estoquistas de cada unidade tiram fotos de todo o estoque e enviam para o grupo. REGRA: ninguém pode ir embora antes de enviar as fotos. Carlos é o responsável por cobrar e confirmar o envio de todas as unidades.',assignees:['carlos'],freq:'diaria',icon:'📸',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Raz Alameda enviou?',tipo:'sim-nao'},{id:'cf2',label:'Zanoni Lago enviou?',tipo:'sim-nao'},{id:'cf3',label:'Raz Mercadão enviou?',tipo:'sim-nao'},{id:'cf4',label:'Zanoni Maringá enviou?',tipo:'sim-nao'},{id:'cf5',label:'Alguma unidade atrasou?',tipo:'sim-nao'}]},
+  // SEMANAIS
+  {id:'rot001',titulo:'Segunda — Cotação e Pedidos por CNPJ',desc:'Atualizar painel de preços (grupos de WhatsApp + fornecedores diretos). Negociar e registrar o "preço negociado". Fechar pedido para CADA loja/CNPJ separadamente — cada unidade tem estoque próprio em local diferente. Pedido conforme mínimo/máximo de cada estoque. Imprimir e deixar com gestor/estoquista de cada unidade. ATENÇÃO: mercados (não perecíveis) são compras quinzenais — verificar agenda. CEASA e CARNES: Rogério faz a compra na madrugada de quarta para quinta (de madrugada). Carlos supervisiona o processo enquanto Rogério está em aprendizado.',assignees:['carlos'],freq:'semanal',diaSemana:1,icon:'🛒',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pedido Raz Alameda fechado?',tipo:'sim-nao'},{id:'cf2',label:'Pedido Zanoni Lago fechado?',tipo:'sim-nao'},{id:'cf3',label:'Pedido Raz Mercadão fechado?',tipo:'sim-nao'},{id:'cf4',label:'Pedido Zanoni Maringá fechado?',tipo:'sim-nao'},{id:'cf5',label:'Preço negociado registrado?',tipo:'sim-nao'},{id:'cf6',label:'Pedidos impressos e entregues?',tipo:'sim-nao'}]},
+  {id:'rot035',titulo:'Terça — Desenvolvimento de Fornecedores',desc:'Busca ativa: contatar 1 a 2 fornecedores potenciais por semana (prioridade carnes e Ceasa). Solicitar amostra, tabela de preços e condições comerciais. Registrar tudo no pipeline de fornecedores do sistema. Objetivo: sempre ter alternativa para os fornecedores atuais.',assignees:['carlos'],freq:'semanal',diaSemana:2,icon:'🤝',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Fornecedores contatados',tipo:'number'},{id:'cf2',label:'Houve amostra ou tabela recebida?',tipo:'sim-nao'},{id:'cf3',label:'Registrado no pipeline?',tipo:'sim-nao'},{id:'cf4',label:'Categoria prospectada',tipo:'text'}]},
+  {id:'rot036',titulo:'Quarta — Revisão de CMV e Estratégia',desc:'Revisar variação de preço das carnes vs. semana anterior. Checar se houve ruptura (falta de produto) ou excesso em alguma unidade. Ajustar estratégia de compra: volume, fornecedor, frequência. Registrar decisão tomada.',assignees:['carlos'],freq:'semanal',diaSemana:3,icon:'📊',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Variação de preço das carnes (%)',tipo:'text'},{id:'cf2',label:'Houve ruptura de produto?',tipo:'sim-nao'},{id:'cf3',label:'Unidade com ruptura',tipo:'text'},{id:'cf4',label:'Houve excesso?',tipo:'sim-nao'},{id:'cf5',label:'Ajuste de estratégia necessário?',tipo:'sim-nao'},{id:'cf6',label:'Decisão tomada',tipo:'text'}]},
+  {id:'rot002',titulo:'Quinta — Recebimentos, Conferência e Ressalvas',desc:'Conferir se TODOS os pedidos da semana foram entregues em todas as unidades. CEASA e CARNES: Rogério fez a compra na madrugada (quarta para quinta) — conferir se tudo chegou corretamente ao amanhecer. Apoiar conferência de recebimento: quantidade, qualidade, NF vs. pedido. REGRAS DE RECEBIMENTO: não receber fora do horário estabelecido. Tudo deve estar assinado, carimbado e com horário de recebimento anotado. Tratar faltas, trocas, abatimentos e devoluções. Registrar ocorrências por fornecedor. Verificar validades e aplicar rodízio (mais antigo na frente, mais novo atrás).',assignees:['carlos'],freq:'semanal',diaSemana:4,icon:'📦',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todos os pedidos foram entregues?',tipo:'sim-nao'},{id:'cf2',label:'Pedido(s) não entregue(s)',tipo:'text'},{id:'cf3',label:'Houve ressalva?',tipo:'sim-nao'},{id:'cf4',label:'Fornecedor com problema',tipo:'text'},{id:'cf5',label:'NFs assinadas, carimbadas e com horário?',tipo:'sim-nao'},{id:'cf6',label:'Validades verificadas?',tipo:'sim-nao'},{id:'cf7',label:'Rodízio feito?',tipo:'sim-nao'}]},
+  {id:'rot037',titulo:'Sexta — Parcerias e Relatório Semanal',desc:'Follow-up com fornecedores-chave: conferir pendências, prazos e aberturas de negociação. Consolidar relatório semanal de compras (1 página) com variações de preço, ocorrências e destaques. Preparar pauta para eventual renegociação com Marlon.',assignees:['carlos'],freq:'semanal',diaSemana:5,icon:'🤜',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Follow-up com fornecedores feito?',tipo:'sim-nao'},{id:'cf2',label:'Relatório semanal consolidado?',tipo:'sim-nao'},{id:'cf3',label:'Destaque da semana',tipo:'text'}]},
+  // QUINZENAL
+  {id:'rot039',titulo:'Verificação de Validades e Rodízio',desc:'A cada quinzena: fazer varredura completa de validades em todas as unidades. Registrar itens próximos ao vencimento (menos de 15 dias). Aplicar rodízio correto: produto mais antigo sempre na frente. Alertar gestor sobre itens com risco de perda.',assignees:['carlos'],freq:'quinzenal',diaSemana:3,icon:'🔍',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Itens próximos ao vencimento',tipo:'number'},{id:'cf2',label:'Produto com maior risco',tipo:'text'},{id:'cf3',label:'Rodízio aplicado em todas as unidades?',tipo:'sim-nao'},{id:'cf4',label:'Gestor alertado sobre perdas?',tipo:'sim-nao'}]},
+  // MENSAIS
+  {id:'rot040',titulo:'Dia 30 — Valores de Consumo sem NF',desc:'Dia 30 de cada mês: contatar todos os fornecedores e pedir os valores de tudo que foi consumido sem nota fiscal (somente com notinha). Consolidar os valores por fornecedor. Encaminhar para Marco lançar o pagamento até o dia 5 do mês seguinte.',assignees:['carlos'],freq:'mensal',diaMes:30,icon:'📬',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Fornecedores contatados?',tipo:'sim-nao'},{id:'cf2',label:'Todos os valores recebidos?',tipo:'sim-nao'},{id:'cf3',label:'Total de consumo sem NF (R$)',tipo:'text'},{id:'cf4',label:'Encaminhado para Marco?',tipo:'sim-nao'}]},
+  {id:'rot003',titulo:'Dia 28 — Relatório Mensal e Renegociação',desc:'Consolidar relatório mensal de compras: evolução de preços, novos fornecedores testados e metas do período. Preparar pauta de renegociação para reunião bimestral com Marlon (reunião com grande fornecedor + negociação estratégica + teste de novo fornecedor como meta obrigatória). Enviar relatório para Marlon.',assignees:['carlos'],freq:'mensal',diaMes:28,icon:'📋',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Média de preço das carnes vs. mês anterior',tipo:'text'},{id:'cf2',label:'Novos fornecedores testados',tipo:'number'},{id:'cf3',label:'Redução de custo obtida (R$)',tipo:'text'},{id:'cf4',label:'Pauta de renegociação preparada?',tipo:'sim-nao'},{id:'cf5',label:'Relatório enviado para Marlon?',tipo:'sim-nao'}]},
+  // MARCO — DIÁRIAS
+  {id:'rot004d_manha',titulo:'Lançamentos da Manhã (Loja por Loja)',desc:'MANHÃ: Acessar os lançamentos de cada loja. Boleto: colocar na caixinha. Se for só nota: colocar na gaveta correta. Verificar se as notas têm carimbo, data e assinatura — se não tiver, cobrar do gerente. Conferir notas do robô. Pegar fotos das notinhas dos grupos e fazer upload.',assignees:['marco'],freq:'diaria',icon:'🌅',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todas as lojas lançadas?',tipo:'sim-nao'},{id:'cf2',label:'Notas sem carimbo/assinatura?',tipo:'sim-nao'},{id:'cf3',label:'Notas do robô conferidas?',tipo:'sim-nao'},{id:'cf4',label:'Notinhas dos grupos subidas?',tipo:'sim-nao'}]},
+  {id:'rot004d_tarde',titulo:'Pagamentos e Conferência da Tarde',desc:'TARDE: Executar os pagamentos do dia. Conferir o que tem que pagar antecipado. Avaliar pendências de DDA. Após lançar, carimbar as notas e organizar nas gavetas corretas (atenção para a gaveta certa de cada loja).',assignees:['marco'],freq:'diaria',icon:'🌆',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pagamentos do dia executados?',tipo:'sim-nao'},{id:'cf2',label:'Pagamentos antecipados conferidos?',tipo:'sim-nao'},{id:'cf3',label:'Notas carimbadas e nas gavetas corretas?',tipo:'sim-nao'}]},
+  {id:'rot020',titulo:'Salvar Comprovantes Diários',desc:'Todos os dias: salvar comprovantes de todas as despesas fixas e pagamentos via PIX realizados durante o dia. Nomear seguindo o padrão estabelecido.',assignees:['marco'],freq:'diaria',icon:'📎',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Quantidade de comprovantes salvos',tipo:'number'},{id:'cf2',label:'Algum pagamento sem comprovante?',tipo:'sim-nao'}]},
+  // MARCO — SEMANAIS
+  {id:'rot004',titulo:'Segunda — Organização da Semana',desc:'Conferir DDA da semana completa. Listar todos os pagamentos previstos. Mapear pendências abertas. Alertar responsáveis que não lançaram nota.',assignees:['marco'],freq:'semanal',diaSemana:1,icon:'📅',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DDA conferido?',tipo:'sim-nao'},{id:'cf2',label:'Pagamentos listados?',tipo:'sim-nao'},{id:'cf3',label:'Pendências mapeadas',tipo:'text'},{id:'cf4',label:'Responsáveis alertados sobre notas?',tipo:'sim-nao'}]},
+  {id:'rot004b',titulo:'Terça — Validação de Documentos',desc:'Conferir documentos pendentes das lojas. Resolver boletos com erro. Solicitar segunda via quando necessário. Verificar se alguma nota não chegou e acionar o gerente.',assignees:['marco'],freq:'semanal',diaSemana:2,icon:'✅',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Documentos pendentes resolvidos?',tipo:'sim-nao'},{id:'cf2',label:'Boletos com erro',tipo:'number'},{id:'cf3',label:'Alguma nota não chegou?',tipo:'sim-nao'}]},
+  {id:'rot005',titulo:'Quarta — Pagamentos Programados',desc:'Executar todos os pagamentos organizados da semana. Salvar comprovantes com nomenclatura padrão. Atualizar sistema após cada pagamento. Carimbar notas lançadas.',assignees:['marco'],freq:'semanal',diaSemana:3,icon:'💳',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Total pago no dia (R$)',tipo:'text'},{id:'cf2',label:'Comprovantes salvos?',tipo:'sim-nao'},{id:'cf3',label:'Sistema atualizado?',tipo:'sim-nao'}]},
+  {id:'rot004c',titulo:'Quinta — Conferência & Segurança',desc:'Revisar todos os pagamentos feitos na semana. Conferir inconsistências entre o lançado e o realizado. Verificar DDA suspeitos.',assignees:['marco'],freq:'semanal',diaSemana:4,icon:'🔐',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pagamentos da semana revisados?',tipo:'sim-nao'},{id:'cf2',label:'Inconsistências encontradas?',tipo:'sim-nao'},{id:'cf3',label:'DDA suspeito identificado?',tipo:'sim-nao'}]},
+  {id:'rot017',titulo:'Quinta — Pagar Taon',desc:'Toda quinta-feira: efetuar o pagamento do Taon. Salvar comprovante com nomenclatura padrão e registrar no sistema.',assignees:['marco'],freq:'semanal',diaSemana:4,icon:'💸',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pagamento efetuado?',tipo:'sim-nao'},{id:'cf2',label:'Comprovante salvo?',tipo:'sim-nao'}]},
+  {id:'rot004e',titulo:'Sexta — Planejamento Financeiro',desc:'Ver o que ficou pendente para a próxima semana. Checar limites bancários. Preparar e organizar os pagamentos futuros.',assignees:['marco'],freq:'semanal',diaSemana:5,icon:'📊',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências da semana mapeadas?',tipo:'sim-nao'},{id:'cf2',label:'Limites bancários dentro do esperado?',tipo:'sim-nao'},{id:'cf3',label:'Pagamentos futuros organizados?',tipo:'sim-nao'}]},
+  {id:'rot018',titulo:'Sexta — Conferir Gavetas de Caixa',desc:'Toda sexta: conferir todas as gavetas de caixa das lojas. Cada gaveta precisa ter no mínimo R$ 5.000,00. ATENÇÃO: não é permitido transferir entre gavetas — se precisar de reforço, Bruna faz o saque e deposita na gaveta. Registrar valor de cada gaveta.',assignees:['marco'],freq:'semanal',diaSemana:5,icon:'🏦',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Valor gaveta Raz Alameda (R$)',tipo:'text'},{id:'cf2',label:'Valor gaveta Zanoni Lago (R$)',tipo:'text'},{id:'cf3',label:'Valor gaveta Maringá (R$)',tipo:'text'},{id:'cf4',label:'Alguma gaveta abaixo de R$ 5.000?',tipo:'sim-nao'},{id:'cf5',label:'Saque solicitado para Bruna?',tipo:'sim-nao'}]},
+  {id:'rot019',titulo:'Sexta — Agendar Saque para Segunda',desc:'Se alguma gaveta estiver abaixo de R$ 5.000,00: solicitar para Bruna efetuar o saque e depositar na gaveta correta na segunda-feira. Cada gaveta precisa ter exatamente R$ 5.000,00.',assignees:['marco'],freq:'semanal',diaSemana:5,icon:'🏧',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Saque necessário?',tipo:'sim-nao'},{id:'cf2',label:'Valor a sacar (R$)',tipo:'text'},{id:'cf3',label:'Bruna acionada?',tipo:'sim-nao'}]},
+  // MARCO — MENSAIS
+  {id:'rot006',titulo:'Dia 05 — Fechamento Financeiro',desc:'Pegar as notas do pessoal que precisam ser pagas até o dia 5. Fazer bater a gaveta ao fim do mês. Conferir todos os pagamentos realizados. Verificar DDA suspeitos. Consolidar extrato. Preparar resumo para diretoria.',assignees:['marco'],freq:'mensal',diaMes:5,icon:'📋',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Notas até dia 5 recolhidas?',tipo:'sim-nao'},{id:'cf2',label:'Gaveta batendo?',tipo:'sim-nao'},{id:'cf3',label:'Extrato consolidado?',tipo:'sim-nao'},{id:'cf4',label:'Pendências para o próximo mês',tipo:'text'}]},
+  {id:'rot021',titulo:'Dia 10 — Relatório Fundo de Caixa',desc:'Enviar relatório completo do fundo de caixa com os valores conferidos, extratos e movimentações do período.',assignees:['marco'],freq:'mensal',diaMes:10,icon:'📋',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatório enviado?',tipo:'sim-nao'},{id:'cf2',label:'Observações do período',tipo:'text'}]},
+  {id:'rot022',titulo:'Dia 15 — Comprovantes de Pagamentos',desc:'Consolidar e enviar todos os comprovantes de pagamento do mês — despesas fixas e PIX. Organizar por categoria.',assignees:['marco'],freq:'mensal',diaMes:15,icon:'🧾',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Comprovantes consolidados?',tipo:'sim-nao'},{id:'cf2',label:'Total de despesas fixas (R$)',tipo:'text'},{id:'cf3',label:'Total de PIX realizados (R$)',tipo:'text'}]},
+  {id:'rot033',titulo:'Dia 30 — Pedir Valores de Consumo sem Nota',desc:'Dia 30 de cada mês: pedir para todos os fornecedores os valores de tudo o que foi consumido sem notinha durante o mês. Consolidar e cruzar com o que foi lançado.',assignees:['marco'],freq:'mensal',diaMes:30,icon:'📬',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Fornecedores contatados?',tipo:'sim-nao'},{id:'cf2',label:'Valores recebidos?',tipo:'sim-nao'},{id:'cf3',label:'Total de consumo sem nota (R$)',tipo:'text'}]},
+  {id:'rot034',titulo:'Final do Mês — Fechar Gaveta e Conferir Notas',desc:'Final do mês: fazer bater a gaveta até o último dia. Recolher todas as notas do pessoal que precisam ser pagas até o dia 5 do próximo mês. Organizar planilha de fundo de caixa (documentos, RH, lançamento). Marco separa o dinheiro e envia para os gerentes — incluindo comissão.',assignees:['marco'],freq:'mensal',diaMes:28,icon:'🔒',color:'#3b82f6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Gaveta batendo?',tipo:'sim-nao'},{id:'cf2',label:'Notas do pessoal recolhidas?',tipo:'sim-nao'},{id:'cf3',label:'Planilha de fundo de caixa preenchida?',tipo:'sim-nao'},{id:'cf4',label:'Dinheiro enviado aos gerentes?',tipo:'sim-nao'},{id:'cf5',label:'Comissão separada?',tipo:'sim-nao'}]},
   // NELCI - Caixa
   {id:'rot007',titulo:'Conferência de Caixas — Semana',desc:'Conferir fechamentos de caixa das lojas: Raz Alameda (segunda), Zanoni Lago (segunda), Raz Mercadão e Zanoni Maringá (terça). Registrar divergências.',assignees:['nelci'],freq:'semanal',diaSemana:2,icon:'🧾',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Divergências encontradas?',tipo:'sim-nao'},{id:'cf2',label:'Valor total de divergência (R$)',tipo:'text'},{id:'cf3',label:'Lojas com problema',tipo:'text'}]},
   {id:'rot008',titulo:'Conferência iFood',desc:'Puxar relatórios do iFood de todas as unidades. Comparar o que foi vendido com o que está sendo repassado. Registrar diferenças e abrir ocorrência se necessário.',assignees:['nelci'],freq:'quinzenal',diaSemana:3,icon:'🛵',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Diferença total iFood (R$)',tipo:'text'},{id:'cf2',label:'Origem do desvio identificada?',tipo:'sim-nao'}]},
@@ -4169,10 +4196,24 @@ function defRotinas(){return[
   // CAROL - Marketing
   {id:'rot012',titulo:'Análise e Planejamento Semanal',desc:'Analisar semana anterior: posts, stories, anúncios. Ver o que gerou movimento e o que não funcionou. Planejar conteúdos da semana, ideias de gravação e campanhas.',assignees:['carol'],freq:'semanal',diaSemana:1,icon:'📱',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Post com maior alcance',tipo:'text'},{id:'cf2',label:'Engajamento médio (% ou número)',tipo:'text'},{id:'cf3',label:'Tema principal da semana',tipo:'text'}]},
   {id:'rot013',titulo:'Relatório de Marketing',desc:'Compilar métricas da quinzena: alcance, seguidores, engajamento e conversões dos anúncios. Apresentar para Marlon/Bruna.',assignees:['carol'],freq:'quinzenal',diaSemana:5,icon:'📊',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Novos seguidores',tipo:'number'},{id:'cf2',label:'Alcance total',tipo:'text'},{id:'cf3',label:'Custo por resultado nos anúncios (R$)',tipo:'text'}]},
+  // CARLOS - Contagem de Estoque (antes atribuído ao Rogério)
+  {id:'rot031',titulo:'Contagem de Estoque Semanal',desc:'Toda quinta-feira: realizar contagem física do estoque de todas as unidades. Registrar divergências entre o físico e o sistema. Reportar para Bruna.',assignees:['carlos'],freq:'semanal',diaSemana:4,icon:'📦',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contagem realizada em todas as unidades?',tipo:'sim-nao'},{id:'cf2',label:'Divergências encontradas?',tipo:'sim-nao'},{id:'cf3',label:'Observações / itens em falta',tipo:'text'}]},
+  {id:'rot032',titulo:'Contagem de Estoque Mensal',desc:'Dia 05 de cada mês: realizar contagem completa e detalhada do estoque. Gerar relatório com totais por categoria, variações e comparativo com o mês anterior.',assignees:['carlos'],freq:'mensal',diaMes:5,icon:'📊',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatório de estoque enviado?',tipo:'sim-nao'},{id:'cf2',label:'Variação vs. mês anterior',tipo:'text'},{id:'cf3',label:'Itens críticos identificados',tipo:'text'}]},
+  // NELCI - Rotinas adicionais
+  {id:'rot023',titulo:'Relatório de Caixas',desc:'Dia 05 de cada mês: enviar relatório completo de caixas de todas as unidades — Raz, Zanoni Lago e Maringá — com totais conferidos e observações.',assignees:['nelci'],freq:'mensal',diaMes:5,icon:'🗃️',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatório enviado?',tipo:'sim-nao'},{id:'cf2',label:'Diferença identificada?',tipo:'sim-nao'},{id:'cf3',label:'Observações',tipo:'text'}]},
+  {id:'rot024',titulo:'Pendências em FQ',desc:'Dia 10 de cada mês: levantar e reportar todas as pendências em fundo de caixa e conciliações do período. Encaminhar para Bruna e Marlon.',assignees:['nelci'],freq:'mensal',diaMes:10,icon:'⚠️',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências encontradas?',tipo:'sim-nao'},{id:'cf2',label:'Descrição das pendências',tipo:'text'},{id:'cf3',label:'Encaminhado para Bruna/Marlon?',tipo:'sim-nao'}]},
+  // IZA - Rotinas adicionais
+  {id:'rot025',titulo:'Pontos Conferidos',desc:'Dia 01 de cada mês: conferir e validar os pontos de todos os funcionários do mês anterior no sistema. Identificar inconsistências e reportar ao RH.',assignees:['iza'],freq:'mensal',diaMes:1,icon:'🕐',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pontos conferidos e validados?',tipo:'sim-nao'},{id:'cf2',label:'Funcionários com inconsistência',tipo:'number'},{id:'cf3',label:'Observações',tipo:'text'}]},
+  {id:'rot026',titulo:'Consumos Lançados',desc:'Dia 02 de cada mês: lançar todos os consumos do mês anterior no sistema. Conferir com os registros físicos e garantir que nenhum lançamento ficou pendente.',assignees:['iza'],freq:'mensal',diaMes:2,icon:'📝',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todos os consumos lançados?',tipo:'sim-nao'},{id:'cf2',label:'Divergência encontrada?',tipo:'sim-nao'}]},
+  {id:'rot027',titulo:'Digitalização de Documentos',desc:'Dia 20 de cada mês: digitalizar e arquivar todos os documentos físicos do período — notas, contratos, registros de RH e comprovantes — em pasta padrão.',assignees:['iza'],freq:'mensal',diaMes:20,icon:'🖨️',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Documentos digitalizados?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de documentos arquivados',tipo:'number'}]},
   // BRUNA - Escritório
   {id:'rot014',titulo:'Organização Geral do Escritório',desc:'Revisar pendências da semana anterior. Organizar prioridades. Distribuir demandas entre setores. Mapear riscos de atraso.',assignees:['bruna'],freq:'semanal',diaSemana:1,icon:'🏢',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências da semana passada resolvidas?',tipo:'sim-nao'},{id:'cf2',label:'Urgências identificadas',tipo:'text'}]},
   {id:'rot015',titulo:'Revisão de Contratos e Plataformas',desc:'Acompanhar contratos ativos (PagSeguro, iFood, fornecedores de serviço). Verificar taxas aplicadas. Identificar oportunidades de renegociação.',assignees:['bruna'],freq:'quinzenal',diaSemana:3,icon:'📑',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contratos revisados',tipo:'number'},{id:'cf2',label:'Oportunidade de renegociação identificada?',tipo:'sim-nao'},{id:'cf3',label:'Próximo vencimento importante',tipo:'text'}]},
   {id:'rot016',titulo:'Consolidação da DRE',desc:'Organizar dados do financeiro. Consolidar DRE do mês. Verificar consistência das informações. Preparar números para o CEO.',assignees:['bruna'],freq:'mensal',diaMes:10,icon:'📈',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE enviada ao CEO?',tipo:'sim-nao'},{id:'cf2',label:'Variação relevante identificada?',tipo:'sim-nao'},{id:'cf3',label:'Observações',tipo:'text'}]},
+  {id:'rot028',titulo:'Conferência DRE',desc:'Dia 21 de cada mês: conferir a DRE consolidada. Validar os números com o financeiro, identificar variações relevantes e preparar análise para Marlon.',assignees:['bruna'],freq:'mensal',diaMes:21,icon:'🔍',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE conferida e validada?',tipo:'sim-nao'},{id:'cf2',label:'Variações identificadas',tipo:'text'},{id:'cf3',label:'Análise enviada para Marlon?',tipo:'sim-nao'}]},
+  // MARLON - CEO
+  {id:'rot029',titulo:'Análise DRE e Folha de Pagamento',desc:'Dia 25 de cada mês: analisar a DRE final e a folha de pagamento. Validar os números, questionar desvios e aprovar antes do fechamento.',assignees:['marlon'],freq:'mensal',diaMes:25,icon:'📊',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE aprovada?',tipo:'sim-nao'},{id:'cf2',label:'Folha de pagamento aprovada?',tipo:'sim-nao'},{id:'cf3',label:'Desvios relevantes identificados',tipo:'text'}]},
+  {id:'rot030',titulo:'Reunião MKT e Reunião de Gestores',desc:'Dia 28 de cada mês: conduzir reunião de marketing com a equipe e em seguida reunião com os gestores. Revisar resultados do mês e definir prioridades do próximo.',assignees:['marlon','bruna','lucas','raquel'],freq:'mensal',diaMes:28,icon:'🤝',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Reunião MKT realizada?',tipo:'sim-nao'},{id:'cf2',label:'Reunião de Gestores realizada?',tipo:'sim-nao'},{id:'cf3',label:'Principais decisões tomadas',tipo:'text'}]},
 ];}
 
 function rotWeekNum(date){const d=new Date(date);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w)/864e5-(3-((w.getDay()+6)%7)))/7);}
@@ -4362,7 +4403,9 @@ function renderRotinas(){
   <div style="display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;">
     <button class="ev-type-btn${tab==='hoje'?' sel':''}" onclick="window._rotTab='hoje';renderRotinas()">📅 Hoje</button>
     <button class="ev-type-btn${tab==='semana'?' sel':''}" onclick="window._rotTab='semana';renderRotinas()">📆 Esta Semana</button>
-    <button class="ev-type-btn${tab==='todas'?' sel':''}" onclick="window._rotTab='todas';renderRotinas()">Todas</button>
+    <button class="ev-type-btn${tab==='pendentes'?' sel':''}" onclick="window._rotTab='pendentes';renderRotinas()" style="${tab==='pendentes'?'':''}">⚠️ Pendentes</button>
+    <button class="ev-type-btn${tab==='todas'?' sel':''}" onclick="window._rotTab='todas';renderRotinas()">Minhas</button>
+    ${isL?`<button class="ev-type-btn${tab==='cadastro'?' sel':''}" onclick="window._rotTab='cadastro';renderRotinas()">📋 Cadastro</button>`:''}
     ${showContas?`<button class="ev-type-btn${tab==='contas'?' sel':''}" onclick="window._rotTab='contas';renderRotinas()">💳 Contas do Mês</button>`:''}
     ${isL?`<button class="ev-type-btn${tab==='visao'?' sel':''}" onclick="window._rotTab='visao';renderRotinas()">Visão da Equipe</button>`:''}
   </div>`;
@@ -4565,6 +4608,98 @@ function renderRotinas(){
     }
   }
 
+  /* ─── ABA: PENDENTES ─── */
+  else if(tab==='pendentes'){
+    const lookback=30;
+    const members=isL?Object.keys(M):[me];
+    const overdue=[];
+    for(let i=1;i<=lookback;i++){
+      const d=new Date(today);d.setDate(today.getDate()-i);
+      members.forEach(uid=>{
+        if(!M[uid])return;
+        rotasDueOn(d,uid).forEach(({rot,pk})=>{
+          const comp=getRotComp(rot.id,pk,uid);
+          if(!comp||comp.status!=='feito'){
+            overdue.push({date:new Date(d),daysAgo:i,member:uid,rot,pk});
+          }
+        });
+      });
+    }
+    overdue.sort((a,b)=>a.member.localeCompare(b.member)||a.daysAgo-b.daysAgo);
+
+    if(!overdue.length){
+      html+=`<div style="text-align:center;padding:50px 20px;color:var(--muted);">
+        <div style="font-size:2.5rem;margin-bottom:10px;">✅</div>
+        <div style="font-weight:700;font-size:1rem;color:var(--text)">Nenhuma pendência nos últimos ${lookback} dias!</div>
+        <div style="font-size:.8rem;margin-top:6px;">Tudo entregue em dia.</div>
+      </div>`;
+    } else {
+      // Agrupar por membro
+      const byMember={};
+      overdue.forEach(item=>{
+        if(!byMember[item.member])byMember[item.member]=[];
+        byMember[item.member].push(item);
+      });
+
+      // Resumo geral (só líderes)
+      if(isL){
+        const totalPend=overdue.length;
+        const membersAffected=Object.keys(byMember).length;
+        html+=`<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+          <div style="font-size:1.6rem;">⚠️</div>
+          <div>
+            <div style="font-weight:700;color:#ef4444;font-size:.95rem;">${totalPend} rotina${totalPend>1?'s':''} não entregue${totalPend>1?'s':''} nos últimos ${lookback} dias</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${membersAffected} membro${membersAffected>1?'s':''} com pendência</div>
+          </div>
+        </div>`;
+      }
+
+      Object.entries(byMember).forEach(([uid,items])=>{
+        const mv=M[uid];if(!mv)return;
+        // Agrupar por data dentro do membro
+        const byDate={};
+        items.forEach(item=>{
+          const dk=item.date.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'});
+          if(!byDate[dk])byDate[dk]=[];
+          byDate[dk].push(item);
+        });
+
+        html+=`<div style="margin-bottom:20px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line);">
+            <div style="width:30px;height:30px;border-radius:50%;background:${mv.color||'#888'};display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0;">${mv.icon||uid.slice(0,2).toUpperCase()}</div>
+            <div>
+              <div style="font-weight:700;font-size:.88rem;">${mv.name}</div>
+              <div style="font-size:.68rem;color:var(--muted)">${mv.role||''}</div>
+            </div>
+            <div style="margin-left:auto;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800;">${items.length} pendente${items.length>1?'s':''}</div>
+          </div>
+          <div style="padding:10px 14px;">`;
+
+        Object.entries(byDate).forEach(([dateLabel,dateItems])=>{
+          html+=`<div style="margin-bottom:10px;">
+            <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px;display:flex;align-items:center;gap:6px;">
+              📅 ${dateLabel}
+              <span style="color:#ef4444;font-weight:700">(${dateItems[0].daysAgo} dia${dateItems[0].daysAgo>1?'s':''} atrás)</span>
+            </div>`;
+          dateItems.forEach(({rot,pk,member})=>{
+            const hasCampos=rot.campos&&rot.campos.length;
+            const clickFn=hasCampos?`openCompModal('${rot.id}','${pk}','${member}')`:`rotMarkDoneFast('${rot.id}','${pk}','${member}')`;
+            html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15);border-radius:8px;margin-bottom:4px;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:.8rem;font-weight:600;">${rot.icon||''} ${esc(rot.titulo)}</div>
+                <div style="font-size:.63rem;color:#ef4444;font-weight:600;margin-top:1px;">Não entregue</div>
+              </div>
+              <button class="btn-ghost btn-sm" style="font-size:.65rem;flex-shrink:0;color:var(--gold);border-color:var(--gold)44;" onclick="${clickFn}">Registrar</button>
+            </div>`;
+          });
+          html+=`</div>`;
+        });
+        html+=`</div></div>`;
+      });
+    }
+  }
+
   /* ─── ABA: ESTA SEMANA ─── */
   else if(tab==='semana'){
     const viewAs=(isL&&window._rotViewAs)||me;
@@ -4704,6 +4839,126 @@ function renderRotinas(){
           html+=`</div>`;
         });
       });
+    }
+  }
+
+  /* ─── ABA: CADASTRO (catálogo completo para líderes) ─── */
+  else if(tab==='cadastro'&&isL){
+    const cadFreq=window._cadFreq||'todas';
+    const cadMember=window._cadMember||'todos';
+    const freqGroups=[
+      {id:'diaria',   label:'Diárias',    icon:'☀️', color:'#14b8a6'},
+      {id:'semanal',  label:'Semanais',   icon:'📆', color:'#3b82f6'},
+      {id:'quinzenal',label:'Quinzenais', icon:'🗓️', color:'#8b5cf6'},
+      {id:'mensal',   label:'Mensais',    icon:'📅', color:'#f59e0b'},
+    ];
+    const dayNames={1:'Segunda',2:'Terça',3:'Quarta',4:'Quinta',5:'Sexta'};
+
+    // Filtros
+    const memberKeys=Object.keys(M).filter(k=>M[k]&&(defs||[]).some(r=>r.assignees.includes(k)));
+    html+=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+      <span style="font-size:.7rem;font-weight:700;color:var(--muted);align-self:center;text-transform:uppercase;letter-spacing:.06em;">Frequência:</span>
+      ${['todas',...freqGroups.map(f=>f.id)].map(f=>{
+        const lbl=f==='todas'?'Todas':freqGroups.find(x=>x.id===f)?.label||f;
+        return`<button class="ev-type-btn${cadFreq===f?' sel':''}" onclick="window._cadFreq='${f}';renderRotinas()">${lbl}</button>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+      <span style="font-size:.7rem;font-weight:700;color:var(--muted);align-self:center;text-transform:uppercase;letter-spacing:.06em;">Pessoa:</span>
+      <button class="ev-type-btn${cadMember==='todos'?' sel':''}" onclick="window._cadMember='todos';renderRotinas()">Todos</button>
+      ${memberKeys.map(k=>`<button class="ev-type-btn${cadMember===k?' sel':''}" style="border-color:${M[k].color}55;" onclick="window._cadMember='${k}';renderRotinas()">${M[k].name.split(' ')[0]}</button>`).join('')}
+    </div>`;
+
+    // Total
+    const allDefs=(defs||[]).filter(r=>
+      (cadFreq==='todas'||r.freq===cadFreq)&&
+      (cadMember==='todos'||r.assignees.includes(cadMember))
+    );
+    html+=`<div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;font-weight:600;">${allDefs.length} rotina${allDefs.length!==1?'s':''} cadastrada${allDefs.length!==1?'s':''}</div>`;
+
+    if(!allDefs.length){
+      html+=`<div class="empty"><div class="ei">📋</div><p>Nenhuma rotina encontrada com esses filtros.</p></div>`;
+    } else {
+      freqGroups.forEach(({id:freq,label,icon,color})=>{
+        const grp=allDefs.filter(r=>r.freq===freq);
+        if(!grp.length)return;
+
+        html+=`<div style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${color}33;">
+            <span style="font-size:1rem;">${icon}</span>
+            <span style="font-weight:800;font-size:.9rem;color:${color};">${label}</span>
+            <span style="font-size:.7rem;color:var(--muted);font-weight:600;margin-left:2px;">(${grp.length})</span>
+          </div>`;
+
+        // Agrupar semanais por dia da semana
+        if(freq==='semanal'){
+          const byDay={};
+          grp.forEach(r=>{
+            const d=r.diaSemana||0;
+            if(!byDay[d])byDay[d]=[];
+            byDay[d].push(r);
+          });
+          Object.keys(byDay).sort((a,b)=>a-b).forEach(d=>{
+            html+=`<div style="margin-bottom:8px;">
+              <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">📌 ${dayNames[d]||'Sem dia'}</div>`;
+            byDay[d].forEach(rot=>{
+              html+=cadRotCard(rot,color);
+            });
+            html+=`</div>`;
+          });
+        }
+        // Agrupar mensais por dia do mês
+        else if(freq==='mensal'){
+          const byDia={};
+          grp.forEach(r=>{
+            const d=r.diaMes||0;
+            if(!byDia[d])byDia[d]=[];
+            byDia[d].push(r);
+          });
+          Object.keys(byDia).sort((a,b)=>a-b).forEach(d=>{
+            html+=`<div style="margin-bottom:8px;">
+              <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">📅 Dia ${d}</div>`;
+            byDia[d].forEach(rot=>{
+              html+=cadRotCard(rot,color);
+            });
+            html+=`</div>`;
+          });
+        }
+        // Diárias e quinzenais — lista simples
+        else{
+          grp.forEach(rot=>{ html+=cadRotCard(rot,color); });
+        }
+
+        html+=`</div>`;
+      });
+    }
+
+    function cadRotCard(rot,freqColor){
+      const membros=rot.assignees.map(a=>M[a]).filter(Boolean);
+      const expKey='_cadExp_'+rot.id;
+      const isOpen=!!window[expKey];
+      return`<div style="border:1px solid var(--line2);border-radius:10px;margin-bottom:6px;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--panel);" onclick="window['${expKey}']=!${isOpen};renderRotinas()">
+          <div style="width:34px;height:34px;border-radius:8px;background:${rot.color||freqColor}18;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">${rot.icon||'📌'}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.85rem;font-weight:700;">${esc(rot.titulo)}</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">
+              ${membros.map(m=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:999px;background:${m.color}18;color:${m.color};">${m.icon} ${m.name.split(' ')[0]}</span>`).join('')}
+            </div>
+          </div>
+          <span style="font-size:.7rem;color:var(--muted);flex-shrink:0;">${isOpen?'▲':'▼'}</span>
+        </div>
+        ${isOpen?`<div style="padding:10px 14px 14px;background:var(--panel2);border-top:1px solid var(--line);">
+          <div style="font-size:.78rem;color:var(--text);line-height:1.5;margin-bottom:10px;">${esc(rot.desc)}</div>
+          ${rot.campos&&rot.campos.length?`<div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px;">Campos de preenchimento</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            ${rot.campos.map(cf=>`<div style="font-size:.74rem;padding:4px 8px;background:var(--panel3);border-radius:6px;">• ${esc(cf.label)} <span style="color:var(--muted)">(${cf.tipo})</span></div>`).join('')}
+          </div>`:``}
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+            ${(!rot.isLeader||isL)?`<button class="btn-ghost btn-sm" onclick="openRotModal('${rot.id}')">✏️ Editar rotina</button>`:''}
+          </div>
+        </div>`:''}
+      </div>`;
     }
   }
 
