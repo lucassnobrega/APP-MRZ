@@ -3463,64 +3463,80 @@ function renderRH(){
     <button class="ev-type-btn${tab==='ocorrencias'?' sel':''}" onclick="window._rhTab='ocorrencias';renderRH()">⚠️ Advertências</button>
   </div>`;
 
-  // ── ABA: PONTOS ──────────────────────────────────────────
+  // ── ABA: PONTOS — KANBAN ─────────────────────────────────
   if(tab==='pontos'){
-    const filtroStatus=window._rhPontoStatus||'pendente';
-    const filtroLoja=window._rhPontoLoja||'todas';
+    const pontos=S.rh.pontos||[];
+    const cols=[
+      {id:'pendente', label:'⏳ Pendente', cor:'#f59e0b'},
+      {id:'cobrado',  label:'📞 Cobrado',  cor:'#3b82f6'},
+      {id:'resolvido',label:'✅ Resolvido', cor:'#22c55e'},
+    ];
 
-    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        ${['pendente','cobrado','resolvido'].map(s=>{
-          const lbl={pendente:'⏳ Pendente',cobrado:'📞 Cobrado',resolvido:'✅ Resolvido'}[s];
-          return`<button class="ev-type-btn${filtroStatus===s?' sel':''}" onclick="window._rhPontoStatus='${s}';renderRH()">${lbl}</button>`;
-        }).join('')}
-      </div>
-      <button class="btn-gold btn-sm" onclick="openRhPontoModal()">+ Registrar ocorrência</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="ev-type-btn${filtroLoja==='todas'?' sel':''}" onclick="window._rhPontoLoja='todas';renderRH()">Todas as lojas</button>
-      ${LOJAS.map(l=>`<button class="ev-type-btn${filtroLoja===l.id?' sel':''}" style="border-color:${l.cor}55;" onclick="window._rhPontoLoja='${l.id}';renderRH()">${l.nome}</button>`).join('')}
+    // Botões WhatsApp por loja (apenas pendentes agrupados)
+    const pendentes=pontos.filter(p=>p.status==='pendente');
+    const lojasPend={};
+    pendentes.forEach(p=>{if(!lojasPend[p.loja])lojasPend[p.loja]=[];lojasPend[p.loja].push(p);});
+    const mesRef=new Date().toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}).replace('/','/');
+
+    if(Object.keys(lojasPend).length){
+      html+=`<div style="margin-bottom:14px;padding:12px 14px;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:12px;">
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#22c55e;margin-bottom:8px;">📲 Enviar cobrança no WhatsApp</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${Object.entries(lojasPend).map(([lid,items])=>{
+            const l=LOJAS.find(x=>x.id===lid)||{nome:lid,cor:'#888'};
+            return`<button onclick="rhPontoWhatsApp('${lid}')" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1px solid rgba(37,211,102,.3);background:rgba(37,211,102,.08);color:#22c55e;font-size:.75rem;font-weight:700;cursor:pointer;">
+              <span style="width:7px;height:7px;border-radius:50%;background:${l.cor};display:inline-block;"></span>${l.nome} <span style="opacity:.7">(${items.length})</span>
+            </button>`;
+          }).join('')}
+          ${Object.keys(lojasPend).length>1?`<button onclick="rhPontoWhatsApp('todas')" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(37,211,102,.3);background:rgba(37,211,102,.15);color:#22c55e;font-size:.75rem;font-weight:700;cursor:pointer;">Todas as lojas</button>`:''}
+        </div>
+      </div>`;
+    }
+
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:.7rem;color:var(--muted);">${pontos.length} registro${pontos.length!==1?'s':''} no total</div>
+      <button class="btn-gold btn-sm" onclick="openRhPontoModal()">+ Registrar</button>
     </div>`;
 
-    const itens=(S.rh.pontos||[]).filter(p=>
-      p.status===filtroStatus &&
-      (filtroLoja==='todas'||p.loja===filtroLoja)
-    ).sort((a,b)=>b.semana.localeCompare(a.semana));
-
-    if(!itens.length){
-      html+=`<div class="empty"><div class="ei">✅</div><p>Nenhuma ocorrência ${filtroStatus==='pendente'?'pendente':filtroStatus==='cobrado'?'sendo cobrada':'resolvida'} no filtro selecionado.</p></div>`;
-    } else {
-      itens.forEach(p=>{
-        const loja=LOJAS.find(l=>l.id===p.loja)||{nome:p.loja,cor:'#888'};
-        const diasArr=Array.isArray(p.diasSemPonto)?p.diasSemPonto:[];
-        const statusCor={pendente:'#f59e0b',cobrado:'#3b82f6',resolvido:'#22c55e'}[p.status]||'#888';
-        const statusIcon={pendente:'⏳',cobrado:'📞',resolvido:'✅'}[p.status]||'';
-        html+=`<div style="border:1px solid var(--line2);border-radius:12px;padding:14px 16px;margin-bottom:8px;background:var(--panel);">
-          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:180px;">
-              <div style="font-weight:700;font-size:.9rem;">${esc(p.funcionario)}</div>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
-                <span style="font-size:.65rem;font-weight:700;padding:1px 8px;border-radius:999px;background:${loja.cor}18;color:${loja.cor};border:1px solid ${loja.cor}44;">${loja.nome}</span>
-                <span style="font-size:.65rem;color:var(--muted)">Semana ${p.semana}</span>
-              </div>
-              ${diasArr.length?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
-                ${diasArr.map(d=>`<span style="font-size:.68rem;padding:2px 8px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);font-weight:600;">${d}</span>`).join('')}
-              </div>`:''}
-              ${p.obs?`<div style="font-size:.74rem;color:var(--muted);margin-top:6px;font-style:italic;">${esc(p.obs)}</div>`:''}
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-              <span style="font-size:.7rem;font-weight:700;padding:2px 10px;border-radius:999px;background:${statusCor}18;color:${statusCor};border:1px solid ${statusCor}44;">${statusIcon} ${p.status}</span>
-              <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                ${p.status==='pendente'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;color:#3b82f6;border-color:#3b82f644;" onclick="rhPontoStatus('${p.id}','cobrado')">📞 Cobrado</button>`:''}
-                ${p.status==='cobrado'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;color:#22c55e;border-color:#22c55e44;" onclick="rhPontoStatus('${p.id}','resolvido')">✅ Resolvido</button>`:''}
-                <button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="openRhPontoModal('${p.id}')">Editar</button>
-                <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhPontoDelete('${p.id}')">✕</button>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      });
+    // Kanban — scroll horizontal no celular
+    function pontoCard(p){
+      const loja=LOJAS.find(l=>l.id===p.loja)||{nome:p.loja,cor:'#888'};
+      const dias=(p.diasSemPonto||'').toString();
+      return`<div style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;margin-bottom:7px;">
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:4px;">${esc(p.funcionario)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+          <span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:999px;background:${loja.cor}18;color:${loja.cor};">${loja.nome}</span>
+          ${dias?`<span style="font-size:.62rem;padding:1px 7px;border-radius:999px;background:rgba(239,68,68,.1);color:#ef4444;font-weight:600;">Dias: ${esc(dias)}</span>`:''}
+        </div>
+        ${p.obs?`<div style="font-size:.68rem;color:var(--muted);margin-bottom:6px;font-style:italic;">${esc(p.obs)}</div>`:''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          ${p.status==='pendente'?`<button onclick="rhPontoStatus('${p.id}','cobrado')" style="font-size:.62rem;padding:2px 8px;border-radius:6px;border:1px solid #3b82f644;background:#3b82f612;color:#3b82f6;cursor:pointer;font-weight:700;">📞 Cobrado →</button>`:''}
+          ${p.status==='cobrado'?`
+            <button onclick="rhPontoStatus('${p.id}','pendente')" style="font-size:.62rem;padding:2px 8px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--muted);cursor:pointer;">← Voltar</button>
+            <button onclick="rhPontoStatus('${p.id}','resolvido')" style="font-size:.62rem;padding:2px 8px;border-radius:6px;border:1px solid #22c55e44;background:#22c55e12;color:#22c55e;cursor:pointer;font-weight:700;">✅ Resolvido →</button>
+          `:''}
+          ${p.status==='resolvido'?`<button onclick="rhPontoStatus('${p.id}','cobrado')" style="font-size:.62rem;padding:2px 8px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--muted);cursor:pointer;">← Voltar</button>`:''}
+          <button onclick="openRhPontoModal('${p.id}')" style="font-size:.62rem;padding:2px 8px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--muted);cursor:pointer;">✏️</button>
+          <button onclick="rhPontoDelete('${p.id}')" style="font-size:.62rem;padding:2px 8px;border-radius:6px;border:1px solid rgba(239,68,68,.2);background:transparent;color:#ef4444;cursor:pointer;">✕</button>
+        </div>
+      </div>`;
     }
+
+    html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:10px;min-width:660px;">`;
+
+    cols.forEach(col=>{
+      const items=pontos.filter(p=>p.status===col.id);
+      html+=`<div style="background:var(--panel2);border-radius:12px;padding:10px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${col.cor}33;">
+          <span style="font-size:.78rem;font-weight:800;color:${col.cor};">${col.label}</span>
+          <span style="margin-left:auto;font-size:.68rem;font-weight:700;padding:1px 8px;border-radius:999px;background:${col.cor}18;color:${col.cor};">${items.length}</span>
+        </div>
+        ${items.length?items.map(pontoCard).join(''):`<div style="font-size:.72rem;color:var(--muted);text-align:center;padding:16px 0;font-style:italic;">Nenhum</div>`}
+      </div>`;
+    });
+
+    html+=`</div></div>`;
   }
 
   // ── ABA: CONTRATAÇÕES ────────────────────────────────────
@@ -3773,26 +3789,21 @@ const LOJAS_RH=[
   {id:'raz-mercadao',  nome:'Raz Mercadão'},
   {id:'zanoni-maringa',nome:'Zanoni Maringá'},
 ];
-const DIAS_PONTO=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-
 function openRhPontoModal(id){
   if(!S.rh.pontos)S.rh.pontos=[];
   const p=id?(S.rh.pontos||[]).find(x=>x.id===id):null;
-  const diasSel=p?.diasSemPonto||[];
-  const semana=p?.semana||todayKey().slice(0,7)+'-W'+String(Math.ceil(new Date().getDate()/7)).padStart(2,'0');
+  const mesAtual=new Date().toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}).replace('/','/');
   openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${p?'Editar':'Registrar'} Ocorrência de Ponto</h3>
     <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-p-func" value="${esc(p?.funcionario||'')}" placeholder="Nome do funcionário"></div>
     <div class="f-grp"><label class="f-lb">Loja *</label><select class="f-in" id="rh-p-loja">
       ${LOJAS_RH.map(l=>`<option value="${l.id}"${(p?.loja||'')==l.id?' selected':''}>${l.nome}</option>`).join('')}
     </select></div>
-    <div class="f-grp"><label class="f-lb">Semana de referência</label><input class="f-in" id="rh-p-semana" value="${esc(p?.semana||semana)}" placeholder="Ex: 2026-W21"></div>
-    <div class="f-grp"><label class="f-lb">Dias sem ponto</label>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
-        ${DIAS_PONTO.map(d=>`<label style="display:flex;align-items:center;gap:4px;font-size:.78rem;cursor:pointer;padding:4px 10px;border-radius:8px;background:${diasSel.includes(d)?'rgba(239,68,68,.12)':'var(--panel2)'};border:1px solid ${diasSel.includes(d)?'rgba(239,68,68,.3)':'var(--line2)'};">
-          <input type="checkbox" id="dia-${d}" ${diasSel.includes(d)?'checked':''} style="accent-color:#ef4444;">${d}
-        </label>`).join('')}
-      </div>
+    <div class="f-grp">
+      <label class="f-lb">Dias sem ponto *</label>
+      <input class="f-in" id="rh-p-dias" value="${esc(p?.diasSemPonto||'')}" placeholder="Ex: 16, 17, 20">
+      <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">Informe os números dos dias do mês separados por vírgula</div>
     </div>
+    <div class="f-grp"><label class="f-lb">Mês referência</label><input class="f-in" id="rh-p-mes" value="${esc(p?.mesRef||mesAtual)}" placeholder="Ex: 05/2026"></div>
     <div class="f-grp"><label class="f-lb">Observação</label><textarea class="f-in" id="rh-p-obs" rows="2" placeholder="Motivo, contexto...">${esc(p?.obs||'')}</textarea></div>
     <div style="display:flex;gap:8px;margin-top:18px;">
       <button class="btn-gold" onclick="saveRhPonto('${id||''}')">Salvar</button>
@@ -3802,14 +3813,14 @@ function openRhPontoModal(id){
 function saveRhPonto(id){
   if(!S.rh.pontos)S.rh.pontos=[];
   const func=document.getElementById('rh-p-func')?.value.trim();
+  const dias=document.getElementById('rh-p-dias')?.value.trim();
   if(!func){toast('Informe o nome do funcionário.','#ef4444');return;}
-  const dias=DIAS_PONTO.filter(d=>document.getElementById('dia-'+d)?.checked);
   const obj={
     id:id||uid(),
     funcionario:func,
     loja:document.getElementById('rh-p-loja')?.value||'raz-alameda',
-    semana:document.getElementById('rh-p-semana')?.value||todayKey().slice(0,7),
     diasSemPonto:dias,
+    mesRef:document.getElementById('rh-p-mes')?.value.trim()||'',
     obs:document.getElementById('rh-p-obs')?.value.trim()||'',
     status:id?(S.rh.pontos.find(x=>x.id===id)?.status||'pendente'):'pendente',
     criadoEm:id?(S.rh.pontos.find(x=>x.id===id)?.criadoEm||todayKey()):todayKey(),
@@ -3817,6 +3828,28 @@ function saveRhPonto(id){
   if(id){const i=S.rh.pontos.findIndex(x=>x.id===id);if(i>=0)S.rh.pontos[i]=obj;else S.rh.pontos.push(obj);}
   else S.rh.pontos.push(obj);
   saveLocal();closeModal();renderRH();toast('Ocorrência salva.');
+}
+
+function rhPontoWhatsApp(lojaFiltro){
+  const LOJAS_NOMES={'raz-alameda':'ALAMEDA','zanoni-lago':'ZANONI LAGO','raz-mercadao':'MERCADÃO','zanoni-maringa':'MARINGÁ'};
+  const pendentes=(S.rh.pontos||[]).filter(p=>p.status==='pendente'&&(lojaFiltro==='todas'||p.loja===lojaFiltro));
+  if(!pendentes.length){toast('Nenhum pendente para esta loja.','#f59e0b');return;}
+  // Agrupar por loja
+  const byLoja={};
+  pendentes.forEach(p=>{if(!byLoja[p.loja])byLoja[p.loja]=[];byLoja[p.loja].push(p);});
+  const mesRef=pendentes[0].mesRef||new Date().toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}).replace('/','/');
+  let msg=`Boa tarde\nSegue abaixo a relação de nomes e datas pendentes de ajustes – ${mesRef}:`;
+  Object.entries(byLoja).forEach(([lid,items])=>{
+    msg+=`\n*${LOJAS_NOMES[lid]||lid.toUpperCase()}*\n`;
+    items.forEach(p=>{msg+=`\n• ${p.funcionario.toUpperCase()}: ${p.diasSemPonto||'—'}`;});
+    msg+='\n';
+  });
+  // Mover todos para cobrado
+  pendentes.forEach(p=>{p.status='cobrado';});
+  saveLocal();renderRH();
+  // Abrir WhatsApp
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  toast('Cobranças movidas para "Cobrado" ✓');
 }
 
 function openRhContModal(id){
