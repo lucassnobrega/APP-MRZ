@@ -872,6 +872,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div id="p-cotacao" class="panel"></div>
       <div id="p-fornecedores" class="panel"></div>
       <div id="p-flow" class="panel"></div>
+      <div id="p-rh" class="panel"></div>
       <div id="p-erros-caixa" class="panel"></div>
       <div id="p-occ" class="panel"></div>
       <div id="p-log" class="panel"></div>
@@ -1032,7 +1033,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:9,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
+function defState(){return{v:10,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1058,11 +1059,15 @@ function migrateState(d){
   if(!d.rotinas.completions||typeof d.rotinas.completions!=='object')d.rotinas.completions={};
   // v9: força atualização das defs de rotinas (rotinas completas do Carlos — Compras)
   if(!d.v||d.v<9)d.rotinas.defs=defRotinas();
+  if(!d.rh||typeof d.rh!=='object')d.rh={pontos:[],contratacoes:[],agendamentos:[]};
+  if(!Array.isArray(d.rh.pontos))d.rh.pontos=[];
+  if(!Array.isArray(d.rh.contratacoes))d.rh.contratacoes=[];
+  if(!Array.isArray(d.rh.agendamentos))d.rh.agendamentos=[];
   if(!d.contasPagar)d.contasPagar=null;
   if(!Array.isArray(d.customUsers))d.customUsers=[];
   if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
   if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
-  d.v=9;return d;
+  d.v=10;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -1237,6 +1242,7 @@ const NAV_ITEMS=[
   {id:'fornecedores',label:'Fornecedores',    grp:'Pessoal',  roles:['carlos']},
   {id:'trilha', label:'Trilha',                grp:'Pessoal'},
   {id:'rotinas',label:'Rotinas',               grp:'Pessoal'},
+  {id:'rh',         label:'RH',                grp:'Pessoal',  roles:['iza']},
   {id:'erros-caixa',label:'Erros de Caixa',   grp:'Pessoal',  roles:['nelci']},
   {id:'occ',    label:'Ocorrências',          grp:'Pessoal'},
   {id:'log',    label:'Registro Diário',      grp:'Pessoal',  exclude:['raquel']},
@@ -1309,6 +1315,7 @@ function renderPanel(id){
     case 'gestao':renderGestao();break;
     case 'contas':renderContasPagar();break;
     case 'usuarios':renderUsuarios();break;
+    case 'rh':renderRH();break;
   }
 }
 
@@ -1374,7 +1381,7 @@ const HOME_QUICK={
   carlos:[{icon:'🛒',label:'Cotação',panel:'cotacao'},{icon:'🏭',label:'Fornecedores',panel:'fornecedores'},{icon:'📋',label:'Tarefas',panel:'tasks'},{icon:'🔄',label:'Rotinas',panel:'rotinas'}],
   marco: [{icon:'💳',label:'Contas',panel:'contas'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'📅',label:'Calendário',panel:'calendar'},{icon:'📋',label:'Tarefas',panel:'tasks'}],
   nelci: [{icon:'🔴',label:'Erros Caixa',panel:'erros-caixa'},{icon:'📋',label:'Tarefas',panel:'tasks'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'🎓',label:'Trilha',panel:'trilha'}],
-  iza:   [{icon:'📋',label:'Tarefas',panel:'tasks'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'⚠️',label:'Ocorrências',panel:'occ'},{icon:'🎓',label:'Trilha',panel:'trilha'}],
+  iza:   [{icon:'👥',label:'RH',panel:'rh'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'📋',label:'Tarefas',panel:'tasks'},{icon:'⚠️',label:'Ocorrências',panel:'occ'}],
   carol: [{icon:'📣',label:'Campanhas',panel:'campanhas'},{icon:'💡',label:'Insights',panel:'insights'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'🎓',label:'Trilha',panel:'trilha'}],
   bruna: [{icon:'📋',label:'Tarefas',panel:'tasks'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'📌',label:'Mural',panel:'mural'},{icon:'🎓',label:'Trilha',panel:'trilha'}],
   marlon:[{icon:'💳',label:'Contas',panel:'contas'},{icon:'🔄',label:'Rotinas',panel:'rotinas'},{icon:'📊',label:'Timeline',panel:'timeline'},{icon:'👥',label:'Equipe',panel:'team'}],
@@ -3391,6 +3398,586 @@ function deleteLoja(lojaId){
 // ══════════════════════════════════════
 const LOJAS=['Zanoni Lago','Zanoni Alphaville','Zanoni Maringá','Raz Alameda','Raz Mercadão'];
 const TIPOS_ERRO=['Retirada de caixa','Contagem de dinheiro','Cancelamento de NF','Venda sem Registro','Ifood','App','Retirada não registrada','Venda com baixa em conta assinada','Venda duplicada','Venda de entrega','Outro'];
+
+// ══════════════════════════════════════
+// PAINEL RH — Isabella
+// ══════════════════════════════════════
+function renderRH(){
+  if(!S.rh)S.rh={pontos:[],contratacoes:[],agendamentos:[]};
+  const tab=window._rhTab||'pontos';
+  const LOJAS=[
+    {id:'raz-alameda',   nome:'Raz Alameda',    cor:'#3b82f6'},
+    {id:'zanoni-lago',   nome:'Zanoni Lago',     cor:'#8b5cf6'},
+    {id:'raz-mercadao',  nome:'Raz Mercadão',    cor:'#f59e0b'},
+    {id:'zanoni-maringa',nome:'Zanoni Maringá',  cor:'#14b8a6'},
+  ];
+  const FASES=[
+    {id:'triagem',    label:'Triagem',        cor:'#6b7280', icon:'🔍'},
+    {id:'entrevista', label:'Entrevista',     cor:'#3b82f6', icon:'💬'},
+    {id:'documentos', label:'Documentos',     cor:'#f59e0b', icon:'📄'},
+    {id:'exame',      label:'Exame Médico',   cor:'#8b5cf6', icon:'🩺'},
+    {id:'contratado', label:'Contratado',     cor:'#22c55e', icon:'✅'},
+    {id:'reprovado',  label:'Reprovado',      cor:'#ef4444', icon:'❌'},
+  ];
+  const TIPOS_AGEND=[
+    {id:'admissional', label:'Admissional', cor:'#22c55e', icon:'📋'},
+    {id:'demissional', label:'Demissional', cor:'#ef4444', icon:'📤'},
+    {id:'periodico',   label:'Periódico',   cor:'#3b82f6', icon:'🩺'},
+    {id:'reuniao',     label:'Reunião',     cor:'#f59e0b', icon:'🤝'},
+    {id:'treinamento', label:'Treinamento', cor:'#8b5cf6', icon:'📚'},
+  ];
+  const DIAS_SEMANA=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayStr=today.toISOString().slice(0,10);
+
+  // Resumo geral para o header
+  const pendPontos=(S.rh.pontos||[]).filter(p=>p.status==='pendente').length;
+  const ativos=(S.rh.contratacoes||[]).filter(c=>c.fase!=='contratado'&&c.fase!=='reprovado').length;
+  const proxAgend=(S.rh.agendamentos||[]).filter(a=>a.data>=todayStr&&a.status!=='realizado'&&a.status!=='cancelado').length;
+
+  let html=`<div class="page-head"><h2 style="font-family:var(--serif)">RH · Isabella</h2></div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+    <div style="background:var(--panel2);border-radius:12px;padding:14px 16px;border-left:3px solid #f59e0b;">
+      <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">Pontos pendentes</div>
+      <div style="font-size:1.6rem;font-weight:800;color:${pendPontos>0?'#f59e0b':'var(--green)'};">${pendPontos}</div>
+      <div style="font-size:.7rem;color:var(--muted)">funcionários a cobrar</div>
+    </div>
+    <div style="background:var(--panel2);border-radius:12px;padding:14px 16px;border-left:3px solid #3b82f6;">
+      <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">Contratações ativas</div>
+      <div style="font-size:1.6rem;font-weight:800;color:#3b82f6;">${ativos}</div>
+      <div style="font-size:.7rem;color:var(--muted)">em processo seletivo</div>
+    </div>
+    <div style="background:var(--panel2);border-radius:12px;padding:14px 16px;border-left:3px solid #8b5cf6;">
+      <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">Próximos agendamentos</div>
+      <div style="font-size:1.6rem;font-weight:800;color:#8b5cf6;">${proxAgend}</div>
+      <div style="font-size:.7rem;color:var(--muted)">a partir de hoje</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;">
+    <button class="ev-type-btn${tab==='pontos'?' sel':''}" onclick="window._rhTab='pontos';renderRH()">🕐 Pontos</button>
+    <button class="ev-type-btn${tab==='contratacoes'?' sel':''}" onclick="window._rhTab='contratacoes';renderRH()">👤 Contratações</button>
+    <button class="ev-type-btn${tab==='agendamentos'?' sel':''}" onclick="window._rhTab='agendamentos';renderRH()">📅 Agendamentos</button>
+    <button class="ev-type-btn${tab==='documentos'?' sel':''}" onclick="window._rhTab='documentos';renderRH()">📄 Documentos</button>
+    <button class="ev-type-btn${tab==='ocorrencias'?' sel':''}" onclick="window._rhTab='ocorrencias';renderRH()">⚠️ Advertências</button>
+  </div>`;
+
+  // ── ABA: PONTOS ──────────────────────────────────────────
+  if(tab==='pontos'){
+    const filtroStatus=window._rhPontoStatus||'pendente';
+    const filtroLoja=window._rhPontoLoja||'todas';
+
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${['pendente','cobrado','resolvido'].map(s=>{
+          const lbl={pendente:'⏳ Pendente',cobrado:'📞 Cobrado',resolvido:'✅ Resolvido'}[s];
+          return`<button class="ev-type-btn${filtroStatus===s?' sel':''}" onclick="window._rhPontoStatus='${s}';renderRH()">${lbl}</button>`;
+        }).join('')}
+      </div>
+      <button class="btn-gold btn-sm" onclick="openRhPontoModal()">+ Registrar ocorrência</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="ev-type-btn${filtroLoja==='todas'?' sel':''}" onclick="window._rhPontoLoja='todas';renderRH()">Todas as lojas</button>
+      ${LOJAS.map(l=>`<button class="ev-type-btn${filtroLoja===l.id?' sel':''}" style="border-color:${l.cor}55;" onclick="window._rhPontoLoja='${l.id}';renderRH()">${l.nome}</button>`).join('')}
+    </div>`;
+
+    const itens=(S.rh.pontos||[]).filter(p=>
+      p.status===filtroStatus &&
+      (filtroLoja==='todas'||p.loja===filtroLoja)
+    ).sort((a,b)=>b.semana.localeCompare(a.semana));
+
+    if(!itens.length){
+      html+=`<div class="empty"><div class="ei">✅</div><p>Nenhuma ocorrência ${filtroStatus==='pendente'?'pendente':filtroStatus==='cobrado'?'sendo cobrada':'resolvida'} no filtro selecionado.</p></div>`;
+    } else {
+      itens.forEach(p=>{
+        const loja=LOJAS.find(l=>l.id===p.loja)||{nome:p.loja,cor:'#888'};
+        const diasArr=Array.isArray(p.diasSemPonto)?p.diasSemPonto:[];
+        const statusCor={pendente:'#f59e0b',cobrado:'#3b82f6',resolvido:'#22c55e'}[p.status]||'#888';
+        const statusIcon={pendente:'⏳',cobrado:'📞',resolvido:'✅'}[p.status]||'';
+        html+=`<div style="border:1px solid var(--line2);border-radius:12px;padding:14px 16px;margin-bottom:8px;background:var(--panel);">
+          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+              <div style="font-weight:700;font-size:.9rem;">${esc(p.funcionario)}</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+                <span style="font-size:.65rem;font-weight:700;padding:1px 8px;border-radius:999px;background:${loja.cor}18;color:${loja.cor};border:1px solid ${loja.cor}44;">${loja.nome}</span>
+                <span style="font-size:.65rem;color:var(--muted)">Semana ${p.semana}</span>
+              </div>
+              ${diasArr.length?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
+                ${diasArr.map(d=>`<span style="font-size:.68rem;padding:2px 8px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);font-weight:600;">${d}</span>`).join('')}
+              </div>`:''}
+              ${p.obs?`<div style="font-size:.74rem;color:var(--muted);margin-top:6px;font-style:italic;">${esc(p.obs)}</div>`:''}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <span style="font-size:.7rem;font-weight:700;padding:2px 10px;border-radius:999px;background:${statusCor}18;color:${statusCor};border:1px solid ${statusCor}44;">${statusIcon} ${p.status}</span>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                ${p.status==='pendente'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;color:#3b82f6;border-color:#3b82f644;" onclick="rhPontoStatus('${p.id}','cobrado')">📞 Cobrado</button>`:''}
+                ${p.status==='cobrado'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;color:#22c55e;border-color:#22c55e44;" onclick="rhPontoStatus('${p.id}','resolvido')">✅ Resolvido</button>`:''}
+                <button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="openRhPontoModal('${p.id}')">Editar</button>
+                <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhPontoDelete('${p.id}')">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  // ── ABA: CONTRATAÇÕES ────────────────────────────────────
+  else if(tab==='contratacoes'){
+    const filtroFase=window._rhContFase||'ativas';
+    const ativas=(S.rh.contratacoes||[]).filter(c=>c.fase!=='contratado'&&c.fase!=='reprovado');
+    const finalizadas=(S.rh.contratacoes||[]).filter(c=>c.fase==='contratado'||c.fase==='reprovado');
+
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;">
+        <button class="ev-type-btn${filtroFase==='ativas'?' sel':''}" onclick="window._rhContFase='ativas';renderRH()">🔄 Em andamento (${ativas.length})</button>
+        <button class="ev-type-btn${filtroFase==='finalizadas'?' sel':''}" onclick="window._rhContFase='finalizadas';renderRH()">🏁 Finalizadas (${finalizadas.length})</button>
+      </div>
+      <button class="btn-gold btn-sm" onclick="openRhContModal()">+ Nova candidatura</button>
+    </div>`;
+
+    const lista=filtroFase==='ativas'?ativas:finalizadas;
+
+    // Pipeline visual para ativas
+    if(filtroFase==='ativas'){
+      const fasesPipeline=FASES.filter(f=>f.id!=='contratado'&&f.id!=='reprovado');
+      html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:18px;">`;
+      fasesPipeline.forEach(fase=>{
+        const count=ativas.filter(c=>c.fase===fase.id).length;
+        html+=`<div style="background:var(--panel2);border-radius:10px;padding:10px 12px;border-top:3px solid ${fase.cor};cursor:pointer;" onclick="window._rhContFase='ativas';window._rhFaseFilter='${fase.id}';renderRH()">
+          <div style="font-size:1rem;">${fase.icon}</div>
+          <div style="font-size:.78rem;font-weight:700;margin-top:4px;">${fase.label}</div>
+          <div style="font-size:1.2rem;font-weight:800;color:${fase.cor};margin-top:2px;">${count}</div>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+
+    const faseFilter=window._rhFaseFilter;
+    const listaFiltrada=faseFilter&&filtroFase==='ativas'?lista.filter(c=>c.fase===faseFilter):lista;
+
+    if(faseFilter&&filtroFase==='ativas'){
+      const faseObj=FASES.find(f=>f.id===faseFilter);
+      html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:.75rem;font-weight:700;color:${faseObj?.cor||'#888'}">${faseObj?.icon} Filtrando: ${faseObj?.label}</span>
+        <button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="delete window._rhFaseFilter;renderRH()">✕ Limpar</button>
+      </div>`;
+    }
+
+    if(!listaFiltrada.length){
+      html+=`<div class="empty"><div class="ei">👤</div><p>Nenhuma candidatura encontrada.</p></div>`;
+    } else {
+      listaFiltrada.sort((a,b)=>b.atualizadoEm.localeCompare(a.atualizadoEm)).forEach(c=>{
+        const fase=FASES.find(f=>f.id===c.fase)||{label:c.fase,cor:'#888',icon:'?'};
+        const loja=LOJAS.find(l=>l.id===c.loja)||{nome:c.loja||'—',cor:'#888'};
+        html+=`<div style="border:1px solid var(--line2);border-radius:12px;padding:14px 16px;margin-bottom:8px;background:var(--panel);">
+          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+            <div style="width:38px;height:38px;border-radius:10px;background:${fase.cor}18;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">${fase.icon}</div>
+            <div style="flex:1;min-width:150px;">
+              <div style="font-weight:700;font-size:.9rem;">${esc(c.nome)}</div>
+              <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">${esc(c.cargo||'Cargo não informado')} · ${loja.nome}</div>
+              ${c.obs?`<div style="font-size:.72rem;color:var(--muted);margin-top:5px;font-style:italic;">${esc(c.obs)}</div>`:''}
+              <div style="font-size:.65rem;color:var(--muted);margin-top:4px;">Atualizado em ${c.atualizadoEm||'—'}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <span style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:999px;background:${fase.cor}18;color:${fase.cor};border:1px solid ${fase.cor}44;white-space:nowrap;">${fase.icon} ${fase.label}</span>
+              <div style="display:flex;gap:5px;">
+                <button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="openRhContModal('${c.id}')">Editar</button>
+                <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhContDelete('${c.id}')">✕</button>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                ${FASES.filter(f=>f.id!==c.fase).slice(0,3).map(f=>`<button class="btn-ghost btn-sm" style="font-size:.58rem;padding:2px 6px;border-color:${f.cor}44;color:${f.cor};" onclick="rhContFase('${c.id}','${f.id}')">${f.icon} ${f.label}</button>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  // ── ABA: AGENDAMENTOS ────────────────────────────────────
+  else if(tab==='agendamentos'){
+    const filtroAgend=window._rhAgendFiltro||'proximos';
+    const proximos=(S.rh.agendamentos||[]).filter(a=>a.data>=todayStr&&a.status!=='cancelado'&&a.status!=='realizado').sort((a,b)=>a.data.localeCompare(b.data));
+    const realizados=(S.rh.agendamentos||[]).filter(a=>a.status==='realizado'||a.data<todayStr).sort((a,b)=>b.data.localeCompare(a.data));
+    const cancelados=(S.rh.agendamentos||[]).filter(a=>a.status==='cancelado').sort((a,b)=>b.data.localeCompare(a.data));
+
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="ev-type-btn${filtroAgend==='proximos'?' sel':''}" onclick="window._rhAgendFiltro='proximos';renderRH()">📅 Próximos (${proximos.length})</button>
+        <button class="ev-type-btn${filtroAgend==='realizados'?' sel':''}" onclick="window._rhAgendFiltro='realizados';renderRH()">✅ Realizados</button>
+        <button class="ev-type-btn${filtroAgend==='cancelados'?' sel':''}" onclick="window._rhAgendFiltro='cancelados';renderRH()">❌ Cancelados</button>
+      </div>
+      <button class="btn-gold btn-sm" onclick="openRhAgendModal()">+ Novo agendamento</button>
+    </div>`;
+
+    const listaAgend=filtroAgend==='proximos'?proximos:filtroAgend==='realizados'?realizados:cancelados;
+
+    if(!listaAgend.length){
+      html+=`<div class="empty"><div class="ei">📅</div><p>Nenhum agendamento encontrado.</p></div>`;
+    } else {
+      listaAgend.forEach(a=>{
+        const tipo=TIPOS_AGEND.find(t=>t.id===a.tipo)||{label:a.tipo,cor:'#888',icon:'📋'};
+        const loja=LOJAS.find(l=>l.id===a.loja)||{nome:a.loja||'—',cor:'#888'};
+        const dataFmt=a.data?new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'}):'—';
+        const isHoje=a.data===todayStr;
+        const isAmanha=a.data===new Date(today.getTime()+86400000).toISOString().slice(0,10);
+        html+=`<div style="border:1px solid ${isHoje?tipo.cor+'66':'var(--line2)'};border-radius:12px;padding:14px 16px;margin-bottom:8px;background:${isHoje?tipo.cor+'08':'var(--panel)'};">
+          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+            <div style="width:38px;height:38px;border-radius:10px;background:${tipo.cor}18;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">${tipo.icon}</div>
+            <div style="flex:1;min-width:160px;">
+              <div style="font-weight:700;font-size:.9rem;">${esc(a.funcionario)}</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+                <span style="font-size:.65rem;font-weight:700;padding:1px 8px;border-radius:999px;background:${tipo.cor}18;color:${tipo.cor};border:1px solid ${tipo.cor}44;">${tipo.icon} ${tipo.label}</span>
+                <span style="font-size:.65rem;padding:1px 7px;border-radius:999px;background:${loja.cor}18;color:${loja.cor};">${loja.nome}</span>
+                ${isHoje?`<span style="font-size:.63rem;font-weight:800;color:${tipo.cor};background:${tipo.cor}15;padding:1px 7px;border-radius:999px;">HOJE</span>`:''}
+                ${isAmanha?`<span style="font-size:.63rem;font-weight:800;color:#f59e0b;background:#f59e0b15;padding:1px 7px;border-radius:999px;">AMANHÃ</span>`:''}
+              </div>
+              <div style="font-size:.76rem;color:var(--muted);margin-top:5px;">📅 ${dataFmt}${a.hora?` · 🕐 ${a.hora}`:''}</div>
+              ${a.local?`<div style="font-size:.74rem;color:var(--muted);margin-top:2px;">📍 ${esc(a.local)}</div>`:''}
+              ${a.obs?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px;font-style:italic;">${esc(a.obs)}</div>`:''}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+              ${a.status!=='realizado'&&a.status!=='cancelado'?`
+                <button class="btn-gold btn-sm" style="font-size:.65rem;" onclick="rhAgendStatus('${a.id}','realizado')">✅ Realizado</button>
+                <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhAgendStatus('${a.id}','cancelado')">Cancelar</button>
+              `:''}
+              <button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="openRhAgendModal('${a.id}')">Editar</button>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  // ── ABA: DOCUMENTOS ─────────────────────────────────────
+  else if(tab==='documentos'){
+    if(!S.rh.documentos)S.rh.documentos=[];
+    const filtroDoc=window._rhDocFiltro||'pendente';
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${['pendente','entregue'].map(s=>`<button class="ev-type-btn${filtroDoc===s?' sel':''}" onclick="window._rhDocFiltro='${s}';renderRH()">${s==='pendente'?'📋 Pendentes':'✅ Entregues'}</button>`).join('')}
+      </div>
+      <button class="btn-gold btn-sm" onclick="openRhDocModal()">+ Documento pendente</button>
+    </div>`;
+
+    const docs=(S.rh.documentos||[]).filter(d=>d.status===filtroDoc).sort((a,b)=>b.criadoEm.localeCompare(a.criadoEm));
+    const DOCS_TIPOS=['RG/CPF','Comprovante de Residência','Carteira de Trabalho','PIS/PASEP','Conta Bancária','Foto 3x4','Certificado de Saúde','Exame Admissional','ASO','Contrato Assinado','Outro'];
+
+    if(!docs.length){
+      html+=`<div class="empty"><div class="ei">📄</div><p>Nenhum documento ${filtroDoc==='pendente'?'pendente':'entregue'} no momento.</p></div>`;
+    } else {
+      docs.forEach(d=>{
+        const loja=LOJAS.find(l=>l.id===d.loja)||{nome:d.loja||'—',cor:'#888'};
+        html+=`<div style="border:1px solid var(--line2);border-radius:12px;padding:12px 16px;margin-bottom:8px;background:var(--panel);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:1.1rem;">📄</div>
+          <div style="flex:1;min-width:150px;">
+            <div style="font-weight:700;font-size:.85rem;">${esc(d.funcionario)} <span style="font-weight:400;color:var(--muted)">· ${esc(d.tipo)}</span></div>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:2px;">${loja.nome}${d.obs?` · ${esc(d.obs)}`:''}</div>
+          </div>
+          ${d.status==='pendente'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;color:#22c55e;border-color:#22c55e44;" onclick="rhDocStatus('${d.id}','entregue')">✅ Entregue</button>`:''}
+          <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhDocDelete('${d.id}')">✕</button>
+        </div>`;
+      });
+    }
+  }
+
+  // ── ABA: ADVERTÊNCIAS ───────────────────────────────────
+  else if(tab==='ocorrencias'){
+    if(!S.rh.advertencias)S.rh.advertencias=[];
+    const filtroAdv=window._rhAdvFiltro||'ativa';
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${['ativa','arquivada'].map(s=>`<button class="ev-type-btn${filtroAdv===s?' sel':''}" onclick="window._rhAdvFiltro='${s}';renderRH()">${s==='ativa'?'⚠️ Ativas':'📁 Arquivadas'}</button>`).join('')}
+      </div>
+      <button class="btn-gold btn-sm" onclick="openRhAdvModal()">+ Registrar advertência</button>
+    </div>`;
+
+    const TIPOS_ADV=['Verbal','Escrita','Suspensão','Desligamento','Elogio','Observação'];
+    const advs=(S.rh.advertencias||[]).filter(a=>a.status===filtroAdv).sort((a,b)=>b.data.localeCompare(a.data));
+
+    if(!advs.length){
+      html+=`<div class="empty"><div class="ei">📋</div><p>Nenhum registro ${filtroAdv==='ativa'?'ativo':'arquivado'}.</p></div>`;
+    } else {
+      advs.forEach(a=>{
+        const loja=LOJAS.find(l=>l.id===a.loja)||{nome:a.loja||'—',cor:'#888'};
+        const tipoCor={Verbal:'#f59e0b',Escrita:'#ef4444',Suspensão:'#dc2626',Desligamento:'#991b1b',Elogio:'#22c55e',Observação:'#3b82f6'}[a.tipo]||'#888';
+        html+=`<div style="border:1px solid var(--line2);border-left:3px solid ${tipoCor};border-radius:12px;padding:13px 16px;margin-bottom:8px;background:var(--panel);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="flex:1;min-width:160px;">
+              <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                <span style="font-weight:700;font-size:.88rem;">${esc(a.funcionario)}</span>
+                <span style="font-size:.65rem;font-weight:700;padding:1px 8px;border-radius:999px;background:${tipoCor}18;color:${tipoCor};border:1px solid ${tipoCor}44;">${a.tipo}</span>
+              </div>
+              <div style="font-size:.7rem;color:var(--muted);margin-top:3px;">${loja.nome} · ${a.data||'—'}</div>
+              ${a.motivo?`<div style="font-size:.76rem;color:var(--text);margin-top:6px;">${esc(a.motivo)}</div>`:''}
+            </div>
+            <div style="display:flex;gap:5px;">
+              ${a.status==='ativa'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="rhAdvStatus('${a.id}','arquivada')">📁 Arquivar</button>`:''}
+              <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhAdvDelete('${a.id}')">✕</button>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  document.getElementById('p-rh').innerHTML=html;
+}
+
+// ── Helpers RH ──────────────────────────────────────────
+function rhPontoStatus(id,status){
+  const p=(S.rh.pontos||[]).find(x=>x.id===id);
+  if(p){p.status=status;saveState();renderRH();}
+}
+function rhPontoDelete(id){
+  S.rh.pontos=(S.rh.pontos||[]).filter(x=>x.id!==id);
+  saveState();renderRH();
+}
+function rhContFase(id,fase){
+  const c=(S.rh.contratacoes||[]).find(x=>x.id===id);
+  if(c){c.fase=fase;c.atualizadoEm=todayKey();saveState();renderRH();toast('Fase atualizada.');}
+}
+function rhContDelete(id){
+  S.rh.contratacoes=(S.rh.contratacoes||[]).filter(x=>x.id!==id);
+  saveState();renderRH();
+}
+function rhAgendStatus(id,status){
+  const a=(S.rh.agendamentos||[]).find(x=>x.id===id);
+  if(a){a.status=status;saveState();renderRH();}
+}
+function rhDocStatus(id,status){
+  if(!S.rh.documentos)S.rh.documentos=[];
+  const d=S.rh.documentos.find(x=>x.id===id);
+  if(d){d.status=status;saveState();renderRH();}
+}
+function rhDocDelete(id){
+  S.rh.documentos=(S.rh.documentos||[]).filter(x=>x.id!==id);
+  saveState();renderRH();
+}
+function rhAdvStatus(id,status){
+  if(!S.rh.advertencias)S.rh.advertencias=[];
+  const a=S.rh.advertencias.find(x=>x.id===id);
+  if(a){a.status=status;saveState();renderRH();}
+}
+function rhAdvDelete(id){
+  S.rh.advertencias=(S.rh.advertencias||[]).filter(x=>x.id!==id);
+  saveState();renderRH();
+}
+
+// ── Modais RH ───────────────────────────────────────────
+const LOJAS_RH=[
+  {id:'raz-alameda',   nome:'Raz Alameda'},
+  {id:'zanoni-lago',   nome:'Zanoni Lago'},
+  {id:'raz-mercadao',  nome:'Raz Mercadão'},
+  {id:'zanoni-maringa',nome:'Zanoni Maringá'},
+];
+const DIAS_PONTO=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
+function openRhPontoModal(id){
+  if(!S.rh.pontos)S.rh.pontos=[];
+  const p=id?(S.rh.pontos||[]).find(x=>x.id===id):null;
+  const diasSel=p?.diasSemPonto||[];
+  const semana=p?.semana||todayKey().slice(0,7)+'-W'+String(Math.ceil(new Date().getDate()/7)).padStart(2,'0');
+  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${p?'Editar':'Registrar'} Ocorrência de Ponto</h3>
+    <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-p-func" value="${esc(p?.funcionario||'')}" placeholder="Nome do funcionário"></div>
+    <div class="f-grp"><label class="f-lb">Loja *</label><select class="f-in" id="rh-p-loja">
+      ${LOJAS_RH.map(l=>`<option value="${l.id}"${(p?.loja||'')==l.id?' selected':''}>${l.nome}</option>`).join('')}
+    </select></div>
+    <div class="f-grp"><label class="f-lb">Semana de referência</label><input class="f-in" id="rh-p-semana" value="${esc(p?.semana||semana)}" placeholder="Ex: 2026-W21"></div>
+    <div class="f-grp"><label class="f-lb">Dias sem ponto</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+        ${DIAS_PONTO.map(d=>`<label style="display:flex;align-items:center;gap:4px;font-size:.78rem;cursor:pointer;padding:4px 10px;border-radius:8px;background:${diasSel.includes(d)?'rgba(239,68,68,.12)':'var(--panel2)'};border:1px solid ${diasSel.includes(d)?'rgba(239,68,68,.3)':'var(--line2)'};">
+          <input type="checkbox" id="dia-${d}" ${diasSel.includes(d)?'checked':''} style="accent-color:#ef4444;">${d}
+        </label>`).join('')}
+      </div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Observação</label><textarea class="f-in" id="rh-p-obs" rows="2" placeholder="Motivo, contexto...">${esc(p?.obs||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button class="btn-gold" onclick="saveRhPonto('${id||''}')">Salvar</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function saveRhPonto(id){
+  if(!S.rh.pontos)S.rh.pontos=[];
+  const func=document.getElementById('rh-p-func')?.value.trim();
+  if(!func){toast('Informe o nome do funcionário.','#ef4444');return;}
+  const dias=DIAS_PONTO.filter(d=>document.getElementById('dia-'+d)?.checked);
+  const obj={
+    id:id||uid(),
+    funcionario:func,
+    loja:document.getElementById('rh-p-loja')?.value||'raz-alameda',
+    semana:document.getElementById('rh-p-semana')?.value||todayKey().slice(0,7),
+    diasSemPonto:dias,
+    obs:document.getElementById('rh-p-obs')?.value.trim()||'',
+    status:id?(S.rh.pontos.find(x=>x.id===id)?.status||'pendente'):'pendente',
+    criadoEm:id?(S.rh.pontos.find(x=>x.id===id)?.criadoEm||todayKey()):todayKey(),
+  };
+  if(id){const i=S.rh.pontos.findIndex(x=>x.id===id);if(i>=0)S.rh.pontos[i]=obj;else S.rh.pontos.push(obj);}
+  else S.rh.pontos.push(obj);
+  saveState();closeModal();renderRH();toast('Ocorrência salva.');
+}
+
+function openRhContModal(id){
+  if(!S.rh.contratacoes)S.rh.contratacoes=[];
+  const c=id?(S.rh.contratacoes||[]).find(x=>x.id===id):null;
+  const FASES_OPT=[{id:'triagem',l:'Triagem'},{id:'entrevista',l:'Entrevista'},{id:'documentos',l:'Documentos'},{id:'exame',l:'Exame Médico'},{id:'contratado',l:'Contratado ✅'},{id:'reprovado',l:'Reprovado ❌'}];
+  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${c?'Editar':'Nova'} Candidatura</h3>
+    <div class="f-grp"><label class="f-lb">Nome do candidato *</label><input class="f-in" id="rh-c-nome" value="${esc(c?.nome||'')}" placeholder="Nome completo"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Cargo *</label><input class="f-in" id="rh-c-cargo" value="${esc(c?.cargo||'')}" placeholder="Ex: Atendente"></div>
+      <div class="f-grp"><label class="f-lb">Loja</label><select class="f-in" id="rh-c-loja">
+        ${LOJAS_RH.map(l=>`<option value="${l.id}"${(c?.loja||'')==l.id?' selected':''}>${l.nome}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Fase atual *</label><select class="f-in" id="rh-c-fase">
+      ${FASES_OPT.map(f=>`<option value="${f.id}"${(c?.fase||'triagem')===f.id?' selected':''}>${f.l}</option>`).join('')}
+    </select></div>
+    <div class="f-grp"><label class="f-lb">Observações</label><textarea class="f-in" id="rh-c-obs" rows="3" placeholder="Entrevista marcada para... documentos pendentes...">${esc(c?.obs||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button class="btn-gold" onclick="saveRhCont('${id||''}')">Salvar</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function saveRhCont(id){
+  if(!S.rh.contratacoes)S.rh.contratacoes=[];
+  const nome=document.getElementById('rh-c-nome')?.value.trim();
+  const cargo=document.getElementById('rh-c-cargo')?.value.trim();
+  if(!nome||!cargo){toast('Preencha nome e cargo.','#ef4444');return;}
+  const obj={
+    id:id||uid(),
+    nome,cargo,
+    loja:document.getElementById('rh-c-loja')?.value||'raz-alameda',
+    fase:document.getElementById('rh-c-fase')?.value||'triagem',
+    obs:document.getElementById('rh-c-obs')?.value.trim()||'',
+    criadoEm:id?(S.rh.contratacoes.find(x=>x.id===id)?.criadoEm||todayKey()):todayKey(),
+    atualizadoEm:todayKey(),
+  };
+  if(id){const i=S.rh.contratacoes.findIndex(x=>x.id===id);if(i>=0)S.rh.contratacoes[i]=obj;else S.rh.contratacoes.push(obj);}
+  else S.rh.contratacoes.push(obj);
+  saveState();closeModal();renderRH();toast('Candidatura salva.');
+}
+
+function openRhAgendModal(id){
+  if(!S.rh.agendamentos)S.rh.agendamentos=[];
+  const a=id?(S.rh.agendamentos||[]).find(x=>x.id===id):null;
+  const TIPOS_OPT=[{id:'admissional',l:'Admissional 📋'},{id:'demissional',l:'Demissional 📤'},{id:'periodico',l:'Periódico 🩺'},{id:'reuniao',l:'Reunião 🤝'},{id:'treinamento',l:'Treinamento 📚'}];
+  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${a?'Editar':'Novo'} Agendamento</h3>
+    <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-a-func" value="${esc(a?.funcionario||'')}" placeholder="Nome do funcionário"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Tipo *</label><select class="f-in" id="rh-a-tipo">
+        ${TIPOS_OPT.map(t=>`<option value="${t.id}"${(a?.tipo||'')==t.id?' selected':''}>${t.l}</option>`).join('')}
+      </select></div>
+      <div class="f-grp"><label class="f-lb">Loja</label><select class="f-in" id="rh-a-loja">
+        ${LOJAS_RH.map(l=>`<option value="${l.id}"${(a?.loja||'')==l.id?' selected':''}>${l.nome}</option>`).join('')}
+      </select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Data *</label><input class="f-in" type="date" id="rh-a-data" value="${a?.data||''}"></div>
+      <div class="f-grp"><label class="f-lb">Horário</label><input class="f-in" type="time" id="rh-a-hora" value="${a?.hora||''}"></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Local / Clínica</label><input class="f-in" id="rh-a-local" value="${esc(a?.local||'')}" placeholder="Ex: Clínica São Lucas"></div>
+    <div class="f-grp"><label class="f-lb">Observações</label><textarea class="f-in" id="rh-a-obs" rows="2" placeholder="Documentos necessários, instruções...">${esc(a?.obs||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button class="btn-gold" onclick="saveRhAgend('${id||''}')">Salvar</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function saveRhAgend(id){
+  if(!S.rh.agendamentos)S.rh.agendamentos=[];
+  const func=document.getElementById('rh-a-func')?.value.trim();
+  const data=document.getElementById('rh-a-data')?.value;
+  if(!func||!data){toast('Preencha funcionário e data.','#ef4444');return;}
+  const obj={
+    id:id||uid(),
+    funcionario:func,
+    tipo:document.getElementById('rh-a-tipo')?.value||'admissional',
+    loja:document.getElementById('rh-a-loja')?.value||'raz-alameda',
+    data,
+    hora:document.getElementById('rh-a-hora')?.value||'',
+    local:document.getElementById('rh-a-local')?.value.trim()||'',
+    obs:document.getElementById('rh-a-obs')?.value.trim()||'',
+    status:id?(S.rh.agendamentos.find(x=>x.id===id)?.status||'agendado'):'agendado',
+    criadoEm:id?(S.rh.agendamentos.find(x=>x.id===id)?.criadoEm||todayKey()):todayKey(),
+  };
+  if(id){const i=S.rh.agendamentos.findIndex(x=>x.id===id);if(i>=0)S.rh.agendamentos[i]=obj;else S.rh.agendamentos.push(obj);}
+  else S.rh.agendamentos.push(obj);
+  saveState();closeModal();renderRH();toast('Agendamento salvo.');
+}
+
+function openRhDocModal(){
+  if(!S.rh.documentos)S.rh.documentos=[];
+  const DOCS_TIPOS=['RG/CPF','Comprovante de Residência','Carteira de Trabalho','PIS/PASEP','Conta Bancária','Foto 3x4','Exame Admissional','ASO','Contrato Assinado','Outro'];
+  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Documento Pendente</h3>
+    <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-d-func" placeholder="Nome do funcionário"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Documento *</label><select class="f-in" id="rh-d-tipo">
+        ${DOCS_TIPOS.map(t=>`<option value="${t}">${t}</option>`).join('')}
+      </select></div>
+      <div class="f-grp"><label class="f-lb">Loja</label><select class="f-in" id="rh-d-loja">
+        ${LOJAS_RH.map(l=>`<option value="${l.id}">${l.nome}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Observação</label><input class="f-in" id="rh-d-obs" placeholder="Prazo, contexto..."></div>
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button class="btn-gold" onclick="saveRhDoc()">Salvar</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function saveRhDoc(){
+  if(!S.rh.documentos)S.rh.documentos=[];
+  const func=document.getElementById('rh-d-func')?.value.trim();
+  if(!func){toast('Informe o funcionário.','#ef4444');return;}
+  S.rh.documentos.push({
+    id:uid(),
+    funcionario:func,
+    tipo:document.getElementById('rh-d-tipo')?.value||'Outro',
+    loja:document.getElementById('rh-d-loja')?.value||'raz-alameda',
+    obs:document.getElementById('rh-d-obs')?.value.trim()||'',
+    status:'pendente',
+    criadoEm:todayKey(),
+  });
+  saveState();closeModal();renderRH();toast('Documento registrado.');
+}
+
+function openRhAdvModal(){
+  if(!S.rh.advertencias)S.rh.advertencias=[];
+  const TIPOS_ADV=['Verbal','Escrita','Suspensão','Desligamento','Elogio','Observação'];
+  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Registrar Advertência / Ocorrência</h3>
+    <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-adv-func" placeholder="Nome do funcionário"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Tipo *</label><select class="f-in" id="rh-adv-tipo">
+        ${TIPOS_ADV.map(t=>`<option value="${t}">${t}</option>`).join('')}
+      </select></div>
+      <div class="f-grp"><label class="f-lb">Loja</label><select class="f-in" id="rh-adv-loja">
+        ${LOJAS_RH.map(l=>`<option value="${l.id}">${l.nome}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Data</label><input class="f-in" type="date" id="rh-adv-data" value="${todayKey()}"></div>
+    <div class="f-grp"><label class="f-lb">Motivo / Descrição *</label><textarea class="f-in" id="rh-adv-motivo" rows="3" placeholder="Descreva o ocorrido..."></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button class="btn-gold" onclick="saveRhAdv()">Salvar</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function saveRhAdv(){
+  if(!S.rh.advertencias)S.rh.advertencias=[];
+  const func=document.getElementById('rh-adv-func')?.value.trim();
+  const motivo=document.getElementById('rh-adv-motivo')?.value.trim();
+  if(!func||!motivo){toast('Preencha funcionário e motivo.','#ef4444');return;}
+  S.rh.advertencias.push({
+    id:uid(),
+    funcionario:func,
+    tipo:document.getElementById('rh-adv-tipo')?.value||'Verbal',
+    loja:document.getElementById('rh-adv-loja')?.value||'raz-alameda',
+    data:document.getElementById('rh-adv-data')?.value||todayKey(),
+    motivo,
+    status:'ativa',
+    criadoEm:todayKey(),
+  });
+  saveState();closeModal();renderRH();toast('Registro salvo.');
+}
 
 function renderErrosCaixa(){
   if(!S.errosCaixa)S.errosCaixa=[];
