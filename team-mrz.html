@@ -3729,41 +3729,41 @@ function renderRH(){
 // ── Helpers RH ──────────────────────────────────────────
 function rhPontoStatus(id,status){
   const p=(S.rh.pontos||[]).find(x=>x.id===id);
-  if(p){p.status=status;saveState();renderRH();}
+  if(p){p.status=status;saveLocal();renderRH();}
 }
 function rhPontoDelete(id){
   S.rh.pontos=(S.rh.pontos||[]).filter(x=>x.id!==id);
-  saveState();renderRH();
+  saveLocal();renderRH();
 }
 function rhContFase(id,fase){
   const c=(S.rh.contratacoes||[]).find(x=>x.id===id);
-  if(c){c.fase=fase;c.atualizadoEm=todayKey();saveState();renderRH();toast('Fase atualizada.');}
+  if(c){c.fase=fase;c.atualizadoEm=todayKey();saveLocal();renderRH();toast('Fase atualizada.');}
 }
 function rhContDelete(id){
   S.rh.contratacoes=(S.rh.contratacoes||[]).filter(x=>x.id!==id);
-  saveState();renderRH();
+  saveLocal();renderRH();
 }
 function rhAgendStatus(id,status){
   const a=(S.rh.agendamentos||[]).find(x=>x.id===id);
-  if(a){a.status=status;saveState();renderRH();}
+  if(a){a.status=status;saveLocal();renderRH();}
 }
 function rhDocStatus(id,status){
   if(!S.rh.documentos)S.rh.documentos=[];
   const d=S.rh.documentos.find(x=>x.id===id);
-  if(d){d.status=status;saveState();renderRH();}
+  if(d){d.status=status;saveLocal();renderRH();}
 }
 function rhDocDelete(id){
   S.rh.documentos=(S.rh.documentos||[]).filter(x=>x.id!==id);
-  saveState();renderRH();
+  saveLocal();renderRH();
 }
 function rhAdvStatus(id,status){
   if(!S.rh.advertencias)S.rh.advertencias=[];
   const a=S.rh.advertencias.find(x=>x.id===id);
-  if(a){a.status=status;saveState();renderRH();}
+  if(a){a.status=status;saveLocal();renderRH();}
 }
 function rhAdvDelete(id){
   S.rh.advertencias=(S.rh.advertencias||[]).filter(x=>x.id!==id);
-  saveState();renderRH();
+  saveLocal();renderRH();
 }
 
 // ── Modais RH ───────────────────────────────────────────
@@ -3780,7 +3780,7 @@ function openRhPontoModal(id){
   const p=id?(S.rh.pontos||[]).find(x=>x.id===id):null;
   const diasSel=p?.diasSemPonto||[];
   const semana=p?.semana||todayKey().slice(0,7)+'-W'+String(Math.ceil(new Date().getDate()/7)).padStart(2,'0');
-  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${p?'Editar':'Registrar'} Ocorrência de Ponto</h3>
+  openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${p?'Editar':'Registrar'} Ocorrência de Ponto</h3>
     <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-p-func" value="${esc(p?.funcionario||'')}" placeholder="Nome do funcionário"></div>
     <div class="f-grp"><label class="f-lb">Loja *</label><select class="f-in" id="rh-p-loja">
       ${LOJAS_RH.map(l=>`<option value="${l.id}"${(p?.loja||'')==l.id?' selected':''}>${l.nome}</option>`).join('')}
@@ -3816,14 +3816,14 @@ function saveRhPonto(id){
   };
   if(id){const i=S.rh.pontos.findIndex(x=>x.id===id);if(i>=0)S.rh.pontos[i]=obj;else S.rh.pontos.push(obj);}
   else S.rh.pontos.push(obj);
-  saveState();closeModal();renderRH();toast('Ocorrência salva.');
+  saveLocal();closeModal();renderRH();toast('Ocorrência salva.');
 }
 
 function openRhContModal(id){
   if(!S.rh.contratacoes)S.rh.contratacoes=[];
   const c=id?(S.rh.contratacoes||[]).find(x=>x.id===id):null;
   const FASES_OPT=[{id:'triagem',l:'Triagem'},{id:'entrevista',l:'Entrevista'},{id:'documentos',l:'Documentos'},{id:'exame',l:'Exame Médico'},{id:'contratado',l:'Contratado ✅'},{id:'reprovado',l:'Reprovado ❌'}];
-  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${c?'Editar':'Nova'} Candidatura</h3>
+  openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${c?'Editar':'Nova'} Candidatura</h3>
     <div class="f-grp"><label class="f-lb">Nome do candidato *</label><input class="f-in" id="rh-c-nome" value="${esc(c?.nome||'')}" placeholder="Nome completo"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="f-grp"><label class="f-lb">Cargo *</label><input class="f-in" id="rh-c-cargo" value="${esc(c?.cargo||'')}" placeholder="Ex: Atendente"></div>
@@ -3856,14 +3856,14 @@ function saveRhCont(id){
   };
   if(id){const i=S.rh.contratacoes.findIndex(x=>x.id===id);if(i>=0)S.rh.contratacoes[i]=obj;else S.rh.contratacoes.push(obj);}
   else S.rh.contratacoes.push(obj);
-  saveState();closeModal();renderRH();toast('Candidatura salva.');
+  saveLocal();closeModal();renderRH();toast('Candidatura salva.');
 }
 
 function openRhAgendModal(id){
   if(!S.rh.agendamentos)S.rh.agendamentos=[];
   const a=id?(S.rh.agendamentos||[]).find(x=>x.id===id):null;
   const TIPOS_OPT=[{id:'admissional',l:'Admissional 📋'},{id:'demissional',l:'Demissional 📤'},{id:'periodico',l:'Periódico 🩺'},{id:'reuniao',l:'Reunião 🤝'},{id:'treinamento',l:'Treinamento 📚'}];
-  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${a?'Editar':'Novo'} Agendamento</h3>
+  openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">${a?'Editar':'Novo'} Agendamento</h3>
     <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-a-func" value="${esc(a?.funcionario||'')}" placeholder="Nome do funcionário"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="f-grp"><label class="f-lb">Tipo *</label><select class="f-in" id="rh-a-tipo">
@@ -3903,13 +3903,13 @@ function saveRhAgend(id){
   };
   if(id){const i=S.rh.agendamentos.findIndex(x=>x.id===id);if(i>=0)S.rh.agendamentos[i]=obj;else S.rh.agendamentos.push(obj);}
   else S.rh.agendamentos.push(obj);
-  saveState();closeModal();renderRH();toast('Agendamento salvo.');
+  saveLocal();closeModal();renderRH();toast('Agendamento salvo.');
 }
 
 function openRhDocModal(){
   if(!S.rh.documentos)S.rh.documentos=[];
   const DOCS_TIPOS=['RG/CPF','Comprovante de Residência','Carteira de Trabalho','PIS/PASEP','Conta Bancária','Foto 3x4','Exame Admissional','ASO','Contrato Assinado','Outro'];
-  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Documento Pendente</h3>
+  openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Documento Pendente</h3>
     <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-d-func" placeholder="Nome do funcionário"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="f-grp"><label class="f-lb">Documento *</label><select class="f-in" id="rh-d-tipo">
@@ -3938,13 +3938,13 @@ function saveRhDoc(){
     status:'pendente',
     criadoEm:todayKey(),
   });
-  saveState();closeModal();renderRH();toast('Documento registrado.');
+  saveLocal();closeModal();renderRH();toast('Documento registrado.');
 }
 
 function openRhAdvModal(){
   if(!S.rh.advertencias)S.rh.advertencias=[];
   const TIPOS_ADV=['Verbal','Escrita','Suspensão','Desligamento','Elogio','Observação'];
-  showModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Registrar Advertência / Ocorrência</h3>
+  openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Registrar Advertência / Ocorrência</h3>
     <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-adv-func" placeholder="Nome do funcionário"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="f-grp"><label class="f-lb">Tipo *</label><select class="f-in" id="rh-adv-tipo">
@@ -3976,7 +3976,7 @@ function saveRhAdv(){
     status:'ativa',
     criadoEm:todayKey(),
   });
-  saveState();closeModal();renderRH();toast('Registro salvo.');
+  saveLocal();closeModal();renderRH();toast('Registro salvo.');
 }
 
 function renderErrosCaixa(){
