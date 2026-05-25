@@ -870,7 +870,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
             <span class="theme-toggle-icon theme-toggle-moon">🌙</span>
           </button>
           <div class="sdot" id="sdot" title="Status Firebase"></div>
-          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v13</span>
+          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v14</span>
         </div>
       </div>
       <div id="p-home" class="panel"></div>
@@ -1043,7 +1043,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:13,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
+function defState(){return{v:14,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1068,7 +1068,7 @@ function migrateState(d){
   if(!Array.isArray(d.rotinas.defs))d.rotinas.defs=defRotinas();
   if(!d.rotinas.completions||typeof d.rotinas.completions!=='object')d.rotinas.completions={};
   // v11: força atualização das defs de rotinas — preserva rotinas customizadas (ID longo)
-  if(!d.v||d.v<13){
+  if(!d.v||d.v<14){
     const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.length>10);
     d.rotinas.defs=[...defRotinas(),...custom];
   }
@@ -4875,8 +4875,9 @@ function defRotinas(){return[
     {id:'kpi23',label:'✅ Relatório entregue para Marlon e Bruna?',tipo:'sim-nao'}
   ]},
   // CARLOS - Contagem de Estoque (antes atribuído ao Rogério)
-  {id:'rot031',titulo:'Contagem de Estoque Semanal',desc:'Toda quinta-feira: realizar contagem física do estoque de todas as unidades. Registrar divergências entre o físico e o sistema. Reportar para Bruna.',assignees:['carlos'],freq:'semanal',diaSemana:4,icon:'📦',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contagem realizada em todas as unidades?',tipo:'sim-nao'},{id:'cf2',label:'Divergências encontradas?',tipo:'sim-nao'},{id:'cf3',label:'Observações / itens em falta',tipo:'text'}]},
+  {id:'rot031',titulo:'Domingo — Contagem de Estoque (base p/ pedidos de Segunda)',desc:'DOMINGO: realizar contagem física do estoque de todas as unidades. A contagem do domingo é a base para fechar os pedidos na segunda-feira — sem ela, não é possível saber o que pedir. Registrar: estoque atual por categoria/produto, itens abaixo do mínimo, itens zerados, itens com excesso. Reportar resultado para Carlos finalizar os pedidos logo na abertura de segunda.',assignees:['carlos'],freq:'semanal',diaSemana:0,icon:'📦',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contagem realizada em todas as unidades?',tipo:'sim-nao'},{id:'cf2',label:'Itens zerados (lista)',tipo:'text'},{id:'cf3',label:'Itens abaixo do mínimo',tipo:'text'},{id:'cf4',label:'Algum excesso identificado?',tipo:'sim-nao'},{id:'cf5',label:'Resultado enviado para Carlos?',tipo:'sim-nao'}]},
   {id:'rot032',titulo:'Contagem de Estoque Mensal',desc:'Dia 05 de cada mês: realizar contagem completa e detalhada do estoque. Gerar relatório com totais por categoria, variações e comparativo com o mês anterior.',assignees:['carlos'],freq:'mensal',diaMes:5,icon:'📊',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatório de estoque enviado?',tipo:'sim-nao'},{id:'cf2',label:'Variação vs. mês anterior',tipo:'text'},{id:'cf3',label:'Itens críticos identificados',tipo:'text'}]},
+  {id:'rot045',titulo:'Dia 05 — Conferência de Valores com Fornecedores',desc:'Dia 5 de cada mês: Carlos liga para TODOS os fornecedores para confirmar se o valor que foi lançado no sistema pelo Marco bate com o que o fornecedor tem registrado (notinhas, consumos sem NF, pedidos do mês). Qualquer divergência deve ser registrada e reportada para Marco antes do fechamento. OBJETIVO: garantir que nenhum pagamento seja feito a maior ou a menor por falta de alinhamento entre o sistema interno e o fornecedor.',assignees:['carlos'],freq:'mensal',diaMes:5,icon:'📞',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todos os fornecedores contatados?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de fornecedores conferidos',tipo:'number'},{id:'cf3',label:'Houve divergência de valor?',tipo:'sim-nao'},{id:'cf4',label:'Fornecedor(es) com divergência',tipo:'text'},{id:'cf5',label:'Valor total de divergência (R$)',tipo:'text'},{id:'cf6',label:'Divergências reportadas para Marco?',tipo:'sim-nao'}]},
   // NELCI — Rotinas mensais
   {id:'rot023',titulo:'Dia 05 — Relatório de Caixas do Mês',desc:'Dia 5 de cada mês: consolidar e enviar o relatório completo de caixas do mês anterior de todas as 5 lojas (Zanoni Alphaville, Zanoni Lago, Zanoni Maringá, Raz Alameda, Raz Mercadão). O relatório deve conter: total por loja, divergências encontradas e resolvidas, chargebacks do período, e variação vs. mês anterior. Enviar para Marlon e Bruna.',assignees:['nelci'],freq:'mensal',diaMes:5,icon:'🗃️',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatório de todas as 5 lojas incluído?',tipo:'sim-nao'},{id:'cf2',label:'Divergências do mês (R$)',tipo:'text'},{id:'cf3',label:'Chargebacks do mês (R$)',tipo:'text'},{id:'cf4',label:'Variação vs. mês anterior',tipo:'text'},{id:'cf5',label:'Relatório enviado para Marlon e Bruna?',tipo:'sim-nao'}]},
   {id:'rot024',titulo:'Dia 10 — Pendências de Fundo de Caixa',desc:'Dia 10 de cada mês: levantar todas as pendências de fundo de caixa do período anterior. Verificar gavetas que não bateram, lançamentos sem comprovante, e conciliações em aberto. Classificar por loja e por tipo. Encaminhar lista para Bruna e Marlon com proposta de resolução.',assignees:['nelci'],freq:'mensal',diaMes:10,icon:'⚠️',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências de fundo de caixa encontradas?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de pendências',tipo:'number'},{id:'cf3',label:'Valor total em pendência (R$)',tipo:'text'},{id:'cf4',label:'Loja com mais pendências',tipo:'text'},{id:'cf5',label:'Encaminhado para Bruna e Marlon?',tipo:'sim-nao'}]},
