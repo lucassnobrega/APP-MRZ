@@ -870,7 +870,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
             <span class="theme-toggle-icon theme-toggle-moon">🌙</span>
           </button>
           <div class="sdot" id="sdot" title="Status Firebase"></div>
-          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v16</span>
+          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v17</span>
         </div>
       </div>
       <div id="p-home" class="panel"></div>
@@ -896,6 +896,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div id="p-rotinas" class="panel"></div>
       <div id="p-contas" class="panel"></div>
       <div id="p-usuarios" class="panel"></div>
+      <div id="p-manutencao" class="panel"></div>
     </div>
   </div>
 </div>
@@ -997,7 +998,10 @@ const M={
   lucas:{name:'Lucas',role:'Consultor',color:'#22d3ee',icon:'LC',isLeader:true,email:'lucas@grupomrz.com',
     daily:[],
     weekly:{seg:['Revisão geral do escritório'],ter:[],qua:['Análise financeira'],
-      qui:[],sex:['Revisar aprovações','Planejamento estratégico']}}
+      qui:[],sex:['Revisar aprovações','Planejamento estratégico']}},
+  bredi:{name:'Bredi',role:'Manutenção',color:'#f97316',icon:'BD',isLeader:false,email:'bredi@grupomrz.com',
+    daily:['Verificar demandas do dia','Registrar materiais utilizados','Atualizar status das demandas'],
+    weekly:{seg:['Planejar rotas da semana'],ter:[],qua:['Verificar estoque de materiais'],qui:[],sex:['Relatório semanal de manutenções']}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1043,7 +1047,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:16,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
+function defState(){return{v:17,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1080,8 +1084,9 @@ function migrateState(d){
   if(!Array.isArray(d.customUsers))d.customUsers=[];
   if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
   if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
-  // v16: no migration needed — history accordion is purely UI, existing data unchanged
-  d.v=16;return d;
+  // v17: add manutencao array
+  if(!Array.isArray(d.manutencao))d.manutencao=[];
+  d.v=17;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -1343,6 +1348,7 @@ const NAV_ITEMS=[
   {id:'timeline',label:'Timeline',            grp:'Gestão',    leader:true},
   {id:'gestao', label:'Painel CEO',           grp:'Gestão',    leader:true},
   {id:'contas', label:'Contas a Pagar',       grp:'Financeiro',leader:true, extra:['marco']},
+  {id:'manutencao',label:'Manutenção',        grp:'Pessoal',   roles:['bredi'], leader:true},
 ];
 
 function buildSidebar(){
@@ -1404,6 +1410,7 @@ function renderPanel(id){
     case 'timeline':renderTimeline();break;
     case 'gestao':renderGestao();break;
     case 'contas':renderContasPagar();break;
+    case 'manutencao':renderManutencao();break;
     case 'usuarios':renderUsuarios();break;
     case 'rh':renderRH();break;
   }
@@ -4726,6 +4733,408 @@ function darDevolutivaPrompt(id){
 }
 
 // ══════════════════════════════════════
+// MANUTENÇÃO — BREDI
+// ══════════════════════════════════════
+const MANU_LOJAS={
+  londrina1:{label:'Londrina 1',icon:'🏪'},
+  londrina2:{label:'Londrina 2 (Nova)',icon:'🏗️'},
+  maringa:{label:'Maringá',icon:'🏬'},
+  externo:{label:'Externo / Fornecedor',icon:'🔧'}
+};
+const MANU_CATS={
+  eletrica:{label:'Elétrica',icon:'⚡'},
+  hidraulica:{label:'Hidráulica',icon:'🚿'},
+  pintura:{label:'Pintura',icon:'🎨'},
+  marcenaria:{label:'Marcenaria',icon:'🪚'},
+  refrigeracao:{label:'Refrigeração / AC',icon:'❄️'},
+  limpeza:{label:'Limpeza Especial',icon:'🧹'},
+  equipamento:{label:'Equipamento',icon:'⚙️'},
+  outros:{label:'Outros',icon:'🔩'}
+};
+
+function isBredi(){return me==='bredi';}
+function canManageManu(){return M[me]?.isLeader||me==='bredi';}
+
+function renderManutencao(){
+  if(!S.manutencao)S.manutencao=[];
+  const tab=window._manuTab||'demandas';
+  const isL=M[me]?.isLeader;
+  const hoje=todayKey();
+
+  // Filtros
+  const filtLoja=window._manuFiltLoja||'all';
+  const filtStatus=window._manuFiltStatus||'all';
+  const filtData=window._manuFiltData||hoje;
+
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
+    <div class="ev-type-row" style="flex:1;min-width:220px;">
+      <button class="ev-type-btn${tab==='demandas'?' sel':''}" onclick="window._manuTab='demandas';renderManutencao()">🔧 Demandas</button>
+      <button class="ev-type-btn${tab==='historico'?' sel':''}" onclick="window._manuTab='historico';renderManutencao()">📁 Histórico</button>
+      ${isL?`<button class="ev-type-btn${tab==='resumo'?' sel':''}" onclick="window._manuTab='resumo';renderManutencao()">📊 Resumo</button>`:''}
+    </div>
+    ${isL?`<button class="btn-gold btn-sm" onclick="openNovaDemanda()">+ Nova Demanda</button>`:''}
+  </div>`;
+
+  if(tab==='demandas'){
+    // Filtros
+    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <input type="date" class="f-in" value="${filtData}" onchange="window._manuFiltData=this.value;renderManutencao()" style="flex:0 0 auto;font-size:.8rem;padding:6px 10px;"/>
+      <select class="f-in" onchange="window._manuFiltLoja=this.value;renderManutencao()" style="font-size:.8rem;padding:6px 10px;flex:1;min-width:130px;">
+        <option value="all"${filtLoja==='all'?' selected':''}>Todas as lojas</option>
+        ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}"${filtLoja===k?' selected':''}>${v.icon} ${v.label}</option>`).join('')}
+      </select>
+      <select class="f-in" onchange="window._manuFiltStatus=this.value;renderManutencao()" style="font-size:.8rem;padding:6px 10px;flex:1;min-width:120px;">
+        <option value="all"${filtStatus==='all'?' selected':''}>Todos status</option>
+        <option value="pendente"${filtStatus==='pendente'?' selected':''}>⏳ Pendente</option>
+        <option value="andamento"${filtStatus==='andamento'?' selected':''}>🔨 Em andamento</option>
+        <option value="concluido"${filtStatus==='concluido'?' selected':''}>✅ Concluído</option>
+      </select>
+    </div>`;
+
+    let demandas=(S.manutencao||[]).filter(d=>!d._arq);
+    if(filtLoja!=='all')demandas=demandas.filter(d=>d.loja===filtLoja);
+    if(filtStatus!=='all')demandas=demandas.filter(d=>d.status===filtStatus);
+    if(filtData)demandas=demandas.filter(d=>d.data===filtData);
+    demandas=demandas.sort((a,b)=>{
+      const prio={urgente:0,normal:1};
+      return(prio[a.prioridade]||1)-(prio[b.prioridade]||1);
+    });
+
+    if(!demandas.length){
+      html+=`<div class="empty"><div class="ei">🔧</div><p>Nenhuma demanda para esta data.<br><span>${isL?'Clique em "+ Nova Demanda" para criar.':'Sem demandas agendadas para hoje.'}</span></p></div>`;
+    } else {
+      const total=demandas.length;
+      const conc=demandas.filter(d=>d.status==='concluido').length;
+      html+=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:var(--gold)">${total}</div>
+          <div style="font-size:.7rem;color:var(--muted)">Total</div>
+        </div>
+        <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:var(--green)">${conc}</div>
+          <div style="font-size:.7rem;color:var(--muted)">Concluídas</div>
+        </div>
+        <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:var(--amber)">${total-conc}</div>
+          <div style="font-size:.7rem;color:var(--muted)">Pendentes</div>
+        </div>
+      </div>`;
+      demandas.forEach(d=>{html+=manuCard(d,isL);});
+    }
+  }
+
+  else if(tab==='historico'){
+    const arqArr=(S.manutencao||[]).filter(d=>d._arq).map(d=>({...d,date:d.data||d._arqMes+'-01'}));
+    const manuHistCard=item=>{
+      const loja=MANU_LOJAS[item.loja]||{label:item.loja,icon:'🔧'};
+      const cat=MANU_CATS[item.categoria]||{label:item.categoria,icon:'🔩'};
+      const custoTotal=(item.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
+      return`<div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:8px;opacity:.9;border-left:3px solid ${item.status==='concluido'?'var(--green)':'var(--amber)'};">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-size:.7rem;background:var(--panel2);border-radius:4px;padding:1px 6px;">${loja.icon} ${loja.label}</span>
+          <span style="font-size:.7rem;background:var(--panel2);border-radius:4px;padding:1px 6px;">${cat.icon} ${cat.label}</span>
+          ${item.status==='concluido'?'<span style="font-size:.7rem;color:var(--green);">✅ Concluído</span>':'<span style="font-size:.7rem;color:var(--amber);">⏳ Pendente</span>'}
+        </div>
+        <div style="font-weight:700;font-size:.85rem;">${esc(item.titulo)}</div>
+        ${item.obs?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">📝 ${esc(item.obs)}</div>`:''}
+        <div style="display:flex;gap:12px;margin-top:4px;font-size:.72rem;color:var(--muted);">
+          <span>📅 ${fmtDate(item.data)}</span>
+          ${custoTotal>0?`<span>💰 ${fmtBRL(custoTotal)}</span>`:''}
+          <span>👤 ${M[item.criadoPor]?.name||item.criadoPor||'—'}</span>
+        </div>
+      </div>`;
+    };
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="flex:1;font-size:.8rem;color:var(--muted);">Demandas concluídas e arquivadas por mês</span>
+      ${isL?`<button class="btn-ghost btn-sm" onclick="arquivarMesManu()" title="Arquiva demandas concluídas do mês anterior">📦 Fechar Mês</button>`:''}
+    </div>`;
+    html+=histAcordiao('manu',arqArr,manuHistCard,'downloadManuHist','renderManutencao');
+  }
+
+  else if(tab==='resumo'&&isL){
+    const mesAtual=curMonthKey();
+    const demandasMes=(S.manutencao||[]).filter(d=>(d.data||'').startsWith(mesAtual));
+    const concMes=demandasMes.filter(d=>d.status==='concluido').length;
+    const totalCusto=demandasMes.reduce((s,d)=>s+(d.materiais||[]).reduce((ss,m)=>ss+(parseFloat(m.custo)||0),0),0);
+    const porLoja={};
+    demandasMes.forEach(d=>{
+      const l=d.loja||'outros';
+      if(!porLoja[l])porLoja[l]={total:0,conc:0,custo:0};
+      porLoja[l].total++;
+      if(d.status==='concluido')porLoja[l].conc++;
+      porLoja[l].custo+=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
+    });
+
+    html+=`<div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px;">${monthLabel(mesAtual)} — Resumo</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+      <div style="background:var(--panel2);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:1.6rem;font-weight:900;color:var(--blue)">${demandasMes.length}</div>
+        <div style="font-size:.72rem;color:var(--muted)">Demandas</div>
+      </div>
+      <div style="background:var(--panel2);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:1.6rem;font-weight:900;color:var(--green)">${concMes}</div>
+        <div style="font-size:.72rem;color:var(--muted)">Concluídas</div>
+      </div>
+      <div style="background:var(--panel2);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:1.1rem;font-weight:900;color:var(--amber)">${fmtBRL(totalCusto)}</div>
+        <div style="font-size:.72rem;color:var(--muted)">Gasto Materiais</div>
+      </div>
+    </div>
+    <div class="sec">Por Loja</div>`;
+    Object.entries(porLoja).forEach(([loja,info])=>{
+      const l=MANU_LOJAS[loja]||{label:loja,icon:'🔧'};
+      html+=`<div style="background:var(--panel2);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:1.3rem;">${l.icon}</span>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.85rem;">${l.label}</div>
+          <div style="font-size:.72rem;color:var(--muted);">${info.total} demanda(s) · ${info.conc} concluída(s)</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;font-size:.85rem;color:var(--amber)">${fmtBRL(info.custo)}</div>
+          <div style="font-size:.68rem;color:var(--muted)">materiais</div>
+        </div>
+      </div>`;
+    });
+    if(!demandasMes.length)html+=`<div class="empty"><div class="ei">📊</div><p>Nenhuma demanda este mês.</p></div>`;
+  }
+
+  document.getElementById('p-manutencao').innerHTML=html;
+}
+
+function manuCard(d,isL){
+  const loja=MANU_LOJAS[d.loja]||{label:d.loja||'—',icon:'🔧'};
+  const cat=MANU_CATS[d.categoria]||{label:d.categoria||'Geral',icon:'🔩'};
+  const statusInfo={
+    pendente:{label:'Pendente',color:'var(--amber)',icon:'⏳'},
+    andamento:{label:'Em andamento',color:'var(--blue)',icon:'🔨'},
+    concluido:{label:'Concluído',color:'var(--green)',icon:'✅'}
+  }[d.status]||{label:'Pendente',color:'var(--amber)',icon:'⏳'};
+  const custoTotal=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
+  const isUrgente=d.prioridade==='urgente';
+
+  return`<div style="background:var(--panel2);border-radius:14px;padding:14px;margin-bottom:12px;border-left:4px solid ${isUrgente?'var(--red)':statusInfo.color};">
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+          ${isUrgente?`<span style="font-size:.65rem;background:#dc262618;color:var(--red);border-radius:4px;padding:2px 7px;font-weight:800;">🚨 URGENTE</span>`:''}
+          <span style="font-size:.65rem;background:var(--bg);border-radius:4px;padding:2px 7px;">${loja.icon} ${loja.label}</span>
+          <span style="font-size:.65rem;background:var(--bg);border-radius:4px;padding:2px 7px;">${cat.icon} ${cat.label}</span>
+          <span style="font-size:.65rem;border-radius:4px;padding:2px 7px;color:${statusInfo.color};background:${statusInfo.color}18;">${statusInfo.icon} ${statusInfo.label}</span>
+        </div>
+        <div style="font-weight:800;font-size:.92rem;">${esc(d.titulo)}</div>
+        ${d.desc?`<div style="font-size:.78rem;color:var(--muted);margin-top:4px;line-height:1.5;">${esc(d.desc)}</div>`:''}
+        <div style="font-size:.7rem;color:var(--muted);margin-top:4px;">📅 ${fmtDate(d.data)} · 👤 Criado por ${M[d.criadoPor]?.name||d.criadoPor||'—'}</div>
+      </div>
+      ${isL?`<div style="display:flex;flex-direction:column;gap:4px;">
+        <button class="btn-ghost btn-sm" onclick="openEditDemanda('${d.id}')" style="font-size:.7rem;padding:4px 8px;">✏️</button>
+        <button class="btn-ghost btn-sm" onclick="deleteDemanda('${d.id}')" style="font-size:.7rem;padding:4px 8px;color:var(--red);">🗑</button>
+      </div>`:''}
+    </div>
+
+    ${d.status!=='concluido'?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+      ${d.status!=='andamento'?`<button class="btn-ghost btn-sm" onclick="updateManuStatus('${d.id}','andamento')" style="font-size:.72rem;">🔨 Iniciar</button>`:''}
+      <button class="btn-gold btn-sm" onclick="openConcluirDemanda('${d.id}')" style="font-size:.72rem;">✅ Concluir</button>
+    </div>`:''}
+
+    ${d.obs?`<div style="background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:.75rem;color:var(--text);">📝 <strong>Observação:</strong> ${esc(d.obs)}</div>`:''}
+
+    <!-- Materiais -->
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:${d.obs?'0':'4px'};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:.72rem;font-weight:700;color:var(--muted);">🪚 MATERIAIS UTILIZADOS</span>
+        ${d.status!=='concluido'||isBredi()?`<button class="btn-ghost btn-sm" onclick="openAddMaterial('${d.id}')" style="font-size:.65rem;padding:2px 8px;">+ Adicionar</button>`:''}
+      </div>
+      ${(d.materiais||[]).length?`
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${(d.materiais||[]).map(m=>`<div style="display:flex;align-items:center;gap:8px;font-size:.75rem;background:var(--bg);border-radius:6px;padding:5px 8px;">
+            <span style="flex:1;">${esc(m.nome)} ${m.qty&&m.qty>1?`(${m.qty}x)`:''}</span>
+            <span style="font-weight:700;color:var(--amber);">${fmtBRL(parseFloat(m.custo)||0)}</span>
+            <button onclick="removeMaterial('${d.id}','${m.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.7rem;padding:0 2px;">✕</button>
+          </div>`).join('')}
+          <div style="display:flex;justify-content:flex-end;padding:4px 8px;font-size:.78rem;font-weight:800;color:var(--amber);">Total: ${fmtBRL(custoTotal)}</div>
+        </div>`
+      :`<div style="font-size:.72rem;color:var(--muted);font-style:italic;">Nenhum material registrado.</div>`}
+    </div>
+  </div>`;
+}
+
+function openNovaDemanda(){
+  document.getElementById('modal-body').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:800;font-size:1rem;">🔧 Nova Demanda de Manutenção</div>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="f-grp"><label class="f-lb">Título da demanda *</label>
+      <input class="f-in" id="mn-titulo" placeholder="Ex: Trocar lâmpada do banheiro"/></div>
+    <div class="f-grp"><label class="f-lb">Descrição / Detalhes</label>
+      <textarea class="f-in" id="mn-desc" rows="3" placeholder="Descreva o problema, localização exata dentro da loja..."></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Loja *</label>
+        <select class="f-in" id="mn-loja">
+          ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+        </select></div>
+      <div class="f-grp"><label class="f-lb">Categoria *</label>
+        <select class="f-in" id="mn-cat">
+          ${Object.entries(MANU_CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+        </select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Data agendada *</label>
+        <input class="f-in" type="date" id="mn-data" value="${todayKey()}"/></div>
+      <div class="f-grp"><label class="f-lb">Prioridade</label>
+        <select class="f-in" id="mn-prio">
+          <option value="normal">Normal</option>
+          <option value="urgente">🚨 Urgente</option>
+        </select></div>
+    </div>
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="saveDemanda(null)">Criar Demanda</button>`;
+  openModal();
+}
+
+function openEditDemanda(id){
+  const d=(S.manutencao||[]).find(x=>x.id===id);if(!d)return;
+  document.getElementById('modal-body').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:800;font-size:1rem;">✏️ Editar Demanda</div>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="f-grp"><label class="f-lb">Título *</label>
+      <input class="f-in" id="mn-titulo" value="${esc(d.titulo)}" placeholder="Título"/></div>
+    <div class="f-grp"><label class="f-lb">Descrição</label>
+      <textarea class="f-in" id="mn-desc" rows="3">${esc(d.desc||'')}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Loja</label>
+        <select class="f-in" id="mn-loja">
+          ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}"${d.loja===k?' selected':''}>${v.icon} ${v.label}</option>`).join('')}
+        </select></div>
+      <div class="f-grp"><label class="f-lb">Categoria</label>
+        <select class="f-in" id="mn-cat">
+          ${Object.entries(MANU_CATS).map(([k,v])=>`<option value="${k}"${d.categoria===k?' selected':''}>${v.icon} ${v.label}</option>`).join('')}
+        </select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Data</label>
+        <input class="f-in" type="date" id="mn-data" value="${d.data||todayKey()}"/></div>
+      <div class="f-grp"><label class="f-lb">Prioridade</label>
+        <select class="f-in" id="mn-prio">
+          <option value="normal"${d.prioridade==='normal'?' selected':''}>Normal</option>
+          <option value="urgente"${d.prioridade==='urgente'?' selected':''}>🚨 Urgente</option>
+        </select></div>
+    </div>
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="saveDemanda('${id}')">Salvar</button>`;
+  openModal();
+}
+
+function saveDemanda(id){
+  const titulo=document.getElementById('mn-titulo').value.trim();
+  if(!titulo){toast('Informe o título.');return;}
+  if(!S.manutencao)S.manutencao=[];
+  const entry={
+    id:id||uid(),titulo,
+    desc:document.getElementById('mn-desc').value.trim(),
+    loja:document.getElementById('mn-loja').value,
+    categoria:document.getElementById('mn-cat').value,
+    data:document.getElementById('mn-data').value,
+    prioridade:document.getElementById('mn-prio').value,
+    status:'pendente',criadoPor:me,criadoEm:todayKey(),materiais:[]
+  };
+  if(id){
+    const idx=S.manutencao.findIndex(x=>x.id===id);
+    if(idx>=0){entry.status=S.manutencao[idx].status;entry.materiais=S.manutencao[idx].materiais||[];entry.obs=S.manutencao[idx].obs||'';}
+    if(idx>=0)S.manutencao[idx]=entry;
+  } else {
+    S.manutencao.push(entry);
+    // Notifica via WhatsApp
+    waNotify('manu-nova',{titulo,loja:MANU_LOJAS[entry.loja]?.label||entry.loja,data:fmtDate(entry.data),prio:entry.prioridade});
+  }
+  saveLocal();toast(id?'Demanda atualizada!':'✅ Demanda criada!');closeModal();renderManutencao();
+}
+
+function openAddMaterial(demandaId){
+  document.getElementById('modal-body').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:800;font-size:1rem;">🪚 Adicionar Material</div>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="f-grp"><label class="f-lb">Material / Produto *</label>
+      <input class="f-in" id="mat-nome" placeholder="Ex: Lâmpada LED 9W, Fio elétrico 2,5mm..."/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Quantidade</label>
+        <input class="f-in" type="number" id="mat-qty" value="1" min="1"/></div>
+      <div class="f-grp"><label class="f-lb">Custo total (R$)</label>
+        <input class="f-in" type="number" id="mat-custo" placeholder="0,00" step="0.01" min="0"/></div>
+    </div>
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="addMaterial('${demandaId}')">Adicionar</button>`;
+  openModal();
+}
+
+function addMaterial(demandaId){
+  const nome=document.getElementById('mat-nome').value.trim();
+  const custo=parseFloat(document.getElementById('mat-custo').value)||0;
+  const qty=parseInt(document.getElementById('mat-qty').value)||1;
+  if(!nome){toast('Informe o material.');return;}
+  const d=(S.manutencao||[]).find(x=>x.id===demandaId);if(!d)return;
+  if(!d.materiais)d.materiais=[];
+  d.materiais.push({id:uid(),nome,custo,qty});
+  saveLocal();toast('Material adicionado!');closeModal();renderManutencao();
+}
+
+function removeMaterial(demandaId,matId){
+  const d=(S.manutencao||[]).find(x=>x.id===demandaId);if(!d)return;
+  d.materiais=(d.materiais||[]).filter(m=>m.id!==matId);
+  saveLocal();renderManutencao();
+}
+
+function openConcluirDemanda(id){
+  document.getElementById('modal-body').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:800;font-size:1rem;">✅ Concluir Demanda</div>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="f-grp"><label class="f-lb">Observação (o que foi feito)</label>
+      <textarea class="f-in" id="manu-obs" rows="3" placeholder="Descreva o que foi realizado, materiais usados, situação final..."></textarea></div>
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="updateManuStatus('${id}','concluido',document.getElementById('manu-obs').value)">✅ Marcar como Concluído</button>`;
+  openModal();
+}
+
+function updateManuStatus(id,status,obs){
+  const d=(S.manutencao||[]).find(x=>x.id===id);if(!d)return;
+  d.status=status;
+  if(obs!==undefined)d.obs=obs.trim();
+  saveLocal();toast(status==='concluido'?'✅ Demanda concluída!':'Status atualizado!');closeModal();renderManutencao();
+}
+
+function deleteDemanda(id){
+  if(!confirm('Remover esta demanda?'))return;
+  S.manutencao=(S.manutencao||[]).filter(x=>x.id!==id);
+  saveLocal();toast('Demanda removida.');renderManutencao();
+}
+
+function arquivarMesManu(){
+  const prevMes=prevMonthKey();
+  let count=0;
+  (S.manutencao||[]).forEach(d=>{
+    if(!d._arq&&d.status==='concluido'&&(d.data||'').startsWith(prevMes)){
+      d._arq=true;d._arqMes=prevMes;count++;
+    }
+  });
+  saveLocal();
+  toast(count?`${count} demanda(s) arquivadas — ${monthLabel(prevMes)}`:'Nenhuma demanda concluída do mês anterior.');
+  renderManutencao();
+}
+
+function downloadManuHist(mes){
+  const rows=(S.manutencao||[]).filter(d=>d._arq&&d._arqMes===mes).map(d=>{
+    const custoTotal=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
+    const matDesc=(d.materiais||[]).map(m=>`${m.nome} (${fmtBRL(parseFloat(m.custo)||0)})`).join(' | ');
+    return{'Título':d.titulo,'Loja':MANU_LOJAS[d.loja]?.label||d.loja,'Categoria':MANU_CATS[d.categoria]?.label||d.categoria,
+      'Data':d.data,'Prioridade':d.prioridade,'Status':d.status,'Observação':d.obs||'',
+      'Materiais':matDesc,'Custo Total':fmtBRL(custoTotal),'Criado por':M[d.criadoPor]?.name||d.criadoPor||''};
+  });
+  downloadCSV(rows,'manutencao_'+mes+'.csv');
+}
+
+// ══════════════════════════════════════
 // TRILHA DE APRENDIZADO
 // ══════════════════════════════════════
 const TRILHA_ROLES={
@@ -7222,11 +7631,13 @@ async function sendWhatsApp(msg){
 async function waNotify(tipo,dados){
   let msg='';
   if(tipo==='aprovacao'){
-    msg=`🏪 *MRZ TEAM*\n📋 *Tarefa aguardando aprovação!*\n\nTarefa: ${dados.title}\nSolicitado por: ${dados.from}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\nAcesse o app para aprovar ou recusar.`;
+    msg=`🏪 *MRZ TEAM*\n📋 *Tarefa aguardando aprovação!*\n\nTarefa: ${dados.title}\nSolicitado por: ${dados.from}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\n👉 https://lucassnobrega.github.io/APP-MRZ/team-mrz.html`;
   }else if(tipo==='erro-caixa'){
     msg=`🏪 *MRZ TEAM*\n⚠️ *Erro de Caixa PENDENTE!*\n\nLoja: ${dados.loja}\nTipo: ${dados.tipo}\nValor: ${dados.valor?'R$ '+Number(dados.valor).toFixed(2).replace('.',','):'-'}\nRegistrado por: ${M[dados.member]?.name||dados.member}\n\nNecessário verificar.`;
   }else if(tipo==='demanda'){
     msg=`🏪 *MRZ TEAM*\n📌 *Nova demanda criada!*\n\nTarefa: ${dados.title}\nPara: ${M[dados.assignee]?.name||dados.assignee}\nPrioridade: ${dados.prio==='h'?'Alta':dados.prio==='m'?'Média':'Baixa'}\nCriada por: ${M[me]?.name||me}`;
+  }else if(tipo==='manu-nova'){
+    msg=`🏪 *MRZ TEAM*\n🔧 *Nova demanda de manutenção!*\n\nServiço: ${dados.titulo}\nLoja: ${dados.loja}\nData: ${dados.data}\nPrioridade: ${dados.prio==='urgente'?'🚨 URGENTE':'Normal'}\n\n👉 https://lucassnobrega.github.io/APP-MRZ/team-mrz.html`;
   }else if(tipo==='atrasadas'){
     const lista=dados.tarefas.map(t=>`• ${t.title} (${t.responsaveis})`).join('\n');
     msg=`🏪 *MRZ TEAM*\n🚨 *${dados.tarefas.length} tarefa(s) em atraso!*\n\n${lista}\n\nData: ${new Date().toLocaleDateString('pt-BR')}`;
