@@ -4731,409 +4731,370 @@ function darDevolutivaPrompt(id){
   t.comments.push({id:uid(),author:me,text:`↺ Pedido de ajuste: ${t.ajusteNote}`,date:todayKey(),time:fmtTime()});
   saveLocal();toast('Ajuste solicitado.');renderQueue();renderTasks();renderHome();
 }
-
 // ══════════════════════════════════════
 // MANUTENÇÃO — BREDI
 // ══════════════════════════════════════
 const MANU_LOJAS={
-  londrina1:{label:'Londrina 1',icon:'🏪'},
-  londrina2:{label:'Londrina 2 (Nova)',icon:'🏗️'},
-  maringa:{label:'Maringá',icon:'🏬'},
-  externo:{label:'Externo / Fornecedor',icon:'🔧'}
+  londrina1:{label:"Londrina 1",icon:"🏪",color:"#f97316"},
+  londrina2:{label:"Londrina 2 (Nova)",icon:"🏗️",color:"#8b5cf6"},
+  maringa:{label:"Maringá",icon:"🏬",color:"#06b6d4"},
+  externo:{label:"Externo",icon:"🔧",color:"#6b7280"}
 };
 const MANU_CATS={
-  eletrica:{label:'Elétrica',icon:'⚡'},
-  hidraulica:{label:'Hidráulica',icon:'🚿'},
-  pintura:{label:'Pintura',icon:'🎨'},
-  marcenaria:{label:'Marcenaria',icon:'🪚'},
-  refrigeracao:{label:'Refrigeração / AC',icon:'❄️'},
-  limpeza:{label:'Limpeza Especial',icon:'🧹'},
-  equipamento:{label:'Equipamento',icon:'⚙️'},
-  outros:{label:'Outros',icon:'🔩'}
+  eletrica:{label:"Elétrica",icon:"⚡"},
+  hidraulica:{label:"Hidráulica",icon:"🚿"},
+  pintura:{label:"Pintura",icon:"🎨"},
+  marcenaria:{label:"Marcenaria",icon:"🪚"},
+  refrigeracao:{label:"Refrigeração / AC",icon:"❄️"},
+  limpeza:{label:"Limpeza Especial",icon:"🧹"},
+  equipamento:{label:"Equipamento",icon:"⚙️"},
+  outros:{label:"Outros",icon:"🔩"}
 };
 
-function isBredi(){return me==='bredi';}
-function canManageManu(){return M[me]?.isLeader||me==='bredi';}
+function isBredi(){return me==="bredi";}
 
 function renderManutencao(){
   if(!S.manutencao)S.manutencao=[];
-  const tab=window._manuTab||'demandas';
+  const tab=window._manuTab||(isBredi()?"rota":"planejar");
   const isL=M[me]?.isLeader;
   const hoje=todayKey();
 
-  // Filtros
-  const filtLoja=window._manuFiltLoja||'all';
-  const filtStatus=window._manuFiltStatus||'all';
-  const filtData=window._manuFiltData||hoje;
-
   let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
-    <div class="ev-type-row" style="flex:1;min-width:220px;">
-      <button class="ev-type-btn${tab==='demandas'?' sel':''}" onclick="window._manuTab='demandas';renderManutencao()">🔧 Demandas</button>
-      <button class="ev-type-btn${tab==='historico'?' sel':''}" onclick="window._manuTab='historico';renderManutencao()">📁 Histórico</button>
-      ${isL?`<button class="ev-type-btn${tab==='resumo'?' sel':''}" onclick="window._manuTab='resumo';renderManutencao()">📊 Resumo</button>`:''}
+    <div class="ev-type-row" style="flex:1;min-width:200px;">
+      <button class="ev-type-btn${tab==="rota"?" sel":""}" onclick="window._manuTab="rota";renderManutencao()">🗺️ Rota do Dia</button>
+      <button class="ev-type-btn${tab==="gerais"?" sel":""}" onclick="window._manuTab="gerais";renderManutencao()">📋 Gerais</button>
+      ${isL?`<button class="ev-type-btn${tab==="planejar"?" sel":""}" onclick="window._manuTab="planejar";renderManutencao()">📅 Planejar</button>`:""}
+      ${isL?`<button class="ev-type-btn${tab==="historico"?" sel":""}" onclick="window._manuTab="historico";renderManutencao()">📁 Histórico</button>`:""}
     </div>
-    ${isL?`<button class="btn-gold btn-sm" onclick="openNovaDemanda()">+ Nova Demanda</button>`:''}
   </div>`;
 
-  if(tab==='demandas'){
-    // Filtros
-    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      <input type="date" class="f-in" value="${filtData}" onchange="window._manuFiltData=this.value;renderManutencao()" style="flex:0 0 auto;font-size:.8rem;padding:6px 10px;"/>
-      <select class="f-in" onchange="window._manuFiltLoja=this.value;renderManutencao()" style="font-size:.8rem;padding:6px 10px;flex:1;min-width:130px;">
-        <option value="all"${filtLoja==='all'?' selected':''}>Todas as lojas</option>
-        ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}"${filtLoja===k?' selected':''}>${v.icon} ${v.label}</option>`).join('')}
-      </select>
-      <select class="f-in" onchange="window._manuFiltStatus=this.value;renderManutencao()" style="font-size:.8rem;padding:6px 10px;flex:1;min-width:120px;">
-        <option value="all"${filtStatus==='all'?' selected':''}>Todos status</option>
-        <option value="pendente"${filtStatus==='pendente'?' selected':''}>⏳ Pendente</option>
-        <option value="andamento"${filtStatus==='andamento'?' selected':''}>🔨 Em andamento</option>
-        <option value="concluido"${filtStatus==='concluido'?' selected':''}>✅ Concluído</option>
-      </select>
+  // ── ABA ROTA DO DIA ──────────────────────────────
+  if(tab==="rota"){
+    const dataSel=window._manuDataRota||hoje;
+    html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+      <input type="date" class="f-in" value="${dataSel}" onchange="window._manuDataRota=this.value;renderManutencao()" style="font-size:.85rem;padding:7px 12px;max-width:160px;"/>
+      <span style="font-size:.8rem;color:var(--muted);">${dataSel===hoje?"📅 Hoje":"📅 "+fmtDate(dataSel)}</span>
     </div>`;
 
-    let demandas=(S.manutencao||[]).filter(d=>!d._arq);
-    if(filtLoja!=='all')demandas=demandas.filter(d=>d.loja===filtLoja);
-    if(filtStatus!=='all')demandas=demandas.filter(d=>d.status===filtStatus);
-    if(filtData)demandas=demandas.filter(d=>d.data===filtData);
-    demandas=demandas.sort((a,b)=>{
-      const prio={urgente:0,normal:1};
-      return(prio[a.prioridade]||1)-(prio[b.prioridade]||1);
-    });
+    const demandasDia=(S.manutencao||[]).filter(d=>!d._arq&&d.data===dataSel&&d.tipo!=="geral");
+    const lojasDia=[...new Set(demandasDia.map(d=>d.loja))];
 
-    if(!demandas.length){
-      html+=`<div class="empty"><div class="ei">🔧</div><p>Nenhuma demanda para esta data.<br><span>${isL?'Clique em "+ Nova Demanda" para criar.':'Sem demandas agendadas para hoje.'}</span></p></div>`;
+    if(!lojasDia.length){
+      html+=`<div class="empty"><div class="ei">🗺️</div><p>Nenhuma demanda para este dia.<br><span>${isL?"Use a aba Planejar para adicionar demandas.":"Nenhuma tarefa agendada para hoje."}</span></p></div>`;
     } else {
-      const total=demandas.length;
-      const conc=demandas.filter(d=>d.status==='concluido').length;
-      html+=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-        <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;">
-          <div style="font-size:1.4rem;font-weight:900;color:var(--gold)">${total}</div>
-          <div style="font-size:.7rem;color:var(--muted)">Total</div>
-        </div>
-        <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;">
-          <div style="font-size:1.4rem;font-weight:900;color:var(--green)">${conc}</div>
-          <div style="font-size:.7rem;color:var(--muted)">Concluídas</div>
-        </div>
-        <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;flex:1;min-width:80px;text-align:center;">
-          <div style="font-size:1.4rem;font-weight:900;color:var(--amber)">${total-conc}</div>
-          <div style="font-size:.7rem;color:var(--muted)">Pendentes</div>
-        </div>
-      </div>`;
-      demandas.forEach(d=>{html+=manuCard(d,isL);});
+      // Resumo visual da rota
+      html+=`<div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:10px;">📍 ${lojasDia.length} loja(s) na rota</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">`;
+      lojasDia.forEach((lojaId,i)=>{
+        const loja=MANU_LOJAS[lojaId]||{label:lojaId,icon:"🔧",color:"#6b7280"};
+        const dem=demandasDia.filter(d=>d.loja===lojaId);
+        const conc=dem.filter(d=>d.status==="concluido").length;
+        const done=conc===dem.length;
+        html+=`<div onclick="document.getElementById("manu-loja-${lojaId}").scrollIntoView({behavior:"smooth"})" style="background:${loja.color}${done?"33":"22"};border:2px solid ${loja.color}${done?"":"44"};border-radius:12px;padding:10px 16px;cursor:pointer;flex:1;min-width:100px;text-align:center;">
+          <div style="font-size:1.4rem;">${loja.icon}</div>
+          <div style="font-weight:800;font-size:.82rem;color:${loja.color};margin-top:2px;">${loja.label}</div>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${conc}/${dem.length} ${done?"✅":""}</div>
+        </div>`;
+      });
+      html+=`</div>`;
+
+      // Cards por loja
+      lojasDia.forEach(lojaId=>{
+        const loja=MANU_LOJAS[lojaId]||{label:lojaId,icon:"🔧",color:"#6b7280"};
+        const dem=demandasDia.filter(d=>d.loja===lojaId).sort((a,b)=>(a.prioridade==="urgente"?-1:1));
+        const conc=dem.filter(d=>d.status==="concluido").length;
+        const done=conc===dem.length;
+
+        html+=`<div id="manu-loja-${lojaId}" style="margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:${loja.color}22;border-radius:14px 14px 0 0;border:1px solid ${loja.color}33;border-bottom:none;">
+            <span style="font-size:1.6rem;">${loja.icon}</span>
+            <div style="flex:1">
+              <div style="font-weight:900;font-size:1rem;color:${loja.color}">${loja.label}</div>
+              <div style="font-size:.72rem;color:var(--muted);">${conc} de ${dem.length} tarefa(s) concluída(s)</div>
+            </div>
+            ${done?`<span style="font-size:1.2rem;">✅</span>`:`<span style="font-size:.75rem;background:${loja.color};color:#fff;border-radius:8px;padding:2px 10px;font-weight:700;">${dem.length-conc} pendente(s)</span>`}
+          </div>
+          <div style="border:1px solid ${loja.color}33;border-top:none;border-radius:0 0 14px 14px;overflow:hidden;">`;
+
+        dem.forEach((d,i)=>{
+          const done2=d.status==="concluido";
+          const custoTotal=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
+          html+=`<div style="padding:14px 16px;${i>0?"border-top:1px solid var(--line);":""}background:${done2?"var(--panel2)":"var(--bg)"};${done2?"opacity:.7":""}">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <button onclick="manuToggleDone("${d.id}")" style="flex-shrink:0;width:32px;height:32px;border-radius:50%;border:2px solid ${done2?"var(--green)":loja.color};background:${done2?"var(--green)":"transparent"};color:${done2?"#fff":loja.color};font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">${done2?"✓":"○"}</button>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:.9rem;${done2?"text-decoration:line-through;color:var(--muted)":""}">${d.prioridade==="urgente"?"🚨 ":""} ${esc(d.titulo)}</div>
+                ${d.desc?`<div style="font-size:.75rem;color:var(--muted);margin-top:3px;line-height:1.5;">${esc(d.desc)}</div>`:""}
+                ${d.obs?`<div style="font-size:.75rem;color:var(--green);margin-top:4px;">✅ ${esc(d.obs)}</div>`:""}
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                  ${!done2?`<button onclick="openConcluirManu("${d.id}")" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer;">✅ Concluir</button>`:""}
+                  <button onclick="openAddMaterial("${d.id}")" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:.75rem;cursor:pointer;">🪚 Material</button>
+                  ${isL?`<button onclick="deleteDemanda("${d.id}")" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:6px;">🗑</button>`:""}
+                </div>
+                ${(d.materiais||[]).length?`<div style="margin-top:8px;background:var(--panel2);border-radius:8px;padding:8px 10px;">
+                  ${(d.materiais||[]).map(m=>`<div style="display:flex;justify-content:space-between;font-size:.72rem;padding:2px 0;">
+                    <span>${esc(m.nome)}${m.qty>1?" ("+m.qty+"x)":""}</span>
+                    <span style="font-weight:700;color:var(--amber);">${fmtBRL(parseFloat(m.custo)||0)}</span>
+                  </div>`).join("")}
+                  ${custoTotal>0?`<div style="border-top:1px solid var(--line);margin-top:4px;padding-top:4px;display:flex;justify-content:space-between;font-size:.75rem;font-weight:800;"><span>Total</span><span style="color:var(--amber);">${fmtBRL(custoTotal)}</span></div>`:""}
+                </div>`:""}
+              </div>
+            </div>
+          </div>`;
+        });
+        html+=`</div></div>`;
+      });
     }
   }
 
-  else if(tab==='historico'){
-    const arqArr=(S.manutencao||[]).filter(d=>d._arq).map(d=>({...d,date:d.data||d._arqMes+'-01'}));
+  // ── ABA DEMANDAS GERAIS ──────────────────────────
+  else if(tab==="gerais"){
+    const gerais=(S.manutencao||[]).filter(d=>!d._arq&&d.tipo==="geral");
+    if(isL)html+=`<div style="margin-bottom:14px;"><button class="btn-gold btn-sm" onclick="openNovaDemanda(true)">+ Adicionar Geral</button></div>`;
+    if(!gerais.length){
+      html+=`<div class="empty"><div class="ei">📋</div><p>Nenhuma demanda geral.<br><span>Demandas recorrentes ou sem data fixa aparecem aqui.</span></p></div>`;
+    } else {
+      gerais.forEach(d=>{
+        const loja=MANU_LOJAS[d.loja]||{label:d.loja,icon:"🔧",color:"#6b7280"};
+        const done=d.status==="concluido";
+        html+=`<div style="background:var(--panel2);border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid ${loja.color};${done?"opacity:.6":""}">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onclick="manuToggleDone("${d.id}")" style="flex-shrink:0;width:32px;height:32px;border-radius:50%;border:2px solid ${done?"var(--green)":loja.color};background:${done?"var(--green)":"transparent"};color:${done?"#fff":loja.color};font-size:1rem;cursor:pointer;">${done?"✓":"○"}</button>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:.88rem;${done?"text-decoration:line-through;color:var(--muted)":""}">${esc(d.titulo)}</div>
+              <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${loja.icon} ${loja.label}</div>
+            </div>
+            ${isL?`<button onclick="deleteDemanda("${d.id}")" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;">🗑</button>`:""}
+          </div>
+          ${d.desc?`<div style="font-size:.75rem;color:var(--muted);margin-top:8px;padding-left:44px;">${esc(d.desc)}</div>`:""}
+        </div>`;
+      });
+    }
+  }
+
+  // ── ABA PLANEJAR (só líderes) ────────────────────
+  else if(tab==="planejar"&&isL){
+    const dataPlan=window._manuDataPlan||hoje;
+    html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <input type="date" class="f-in" value="${dataPlan}" onchange="window._manuDataPlan=this.value;renderManutencao()" style="font-size:.85rem;padding:7px 12px;"/>
+      <button class="btn-gold btn-sm" onclick="openNovaDemanda(false)">+ Demanda para este dia</button>
+    </div>`;
+
+    const demandasPlan=(S.manutencao||[]).filter(d=>!d._arq&&d.data===dataPlan&&d.tipo!=="geral");
+    if(!demandasPlan.length){
+      html+=`<div class="empty"><div class="ei">📅</div><p>Nenhuma demanda planejada para esta data.<br><span>Clique em "+ Demanda" para adicionar.</span></p></div>`;
+    } else {
+      Object.entries(MANU_LOJAS).forEach(([lojaId,loja])=>{
+        const dem=demandasPlan.filter(d=>d.loja===lojaId);
+        if(!dem.length)return;
+        html+=`<div style="margin-bottom:14px;">
+          <div style="font-weight:800;font-size:.82rem;color:${loja.color};margin-bottom:6px;">${loja.icon} ${loja.label}</div>`;
+        dem.forEach(d=>{
+          const conc=d.status==="concluido";
+          html+=`<div style="background:var(--panel2);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:.9rem;">${conc?"✅":"⏳"}</span>
+            <div style="flex:1;font-size:.85rem;font-weight:600;${conc?"text-decoration:line-through;color:var(--muted)":""}">${d.prioridade==="urgente"?"🚨 ":""}${esc(d.titulo)}</div>
+            <button onclick="openEditDemanda("${d.id}")" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;">✏️</button>
+            <button onclick="deleteDemanda("${d.id}")" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;">🗑</button>
+          </div>`;
+        });
+        html+=`</div>`;
+      });
+    }
+  }
+
+  // ── ABA HISTÓRICO ────────────────────────────────
+  else if(tab==="historico"&&isL){
+    const arqArr=(S.manutencao||[]).filter(d=>d._arq).map(d=>({...d,date:d.data||d._arqMes+"-01"}));
     const manuHistCard=item=>{
-      const loja=MANU_LOJAS[item.loja]||{label:item.loja,icon:'🔧'};
-      const cat=MANU_CATS[item.categoria]||{label:item.categoria,icon:'🔩'};
+      const loja=MANU_LOJAS[item.loja]||{label:item.loja,icon:"🔧",color:"#6b7280"};
       const custoTotal=(item.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
-      return`<div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:8px;opacity:.9;border-left:3px solid ${item.status==='concluido'?'var(--green)':'var(--amber)'};">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+      return`<div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:8px;border-left:3px solid ${loja.color};">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
           <span style="font-size:.7rem;background:var(--panel2);border-radius:4px;padding:1px 6px;">${loja.icon} ${loja.label}</span>
-          <span style="font-size:.7rem;background:var(--panel2);border-radius:4px;padding:1px 6px;">${cat.icon} ${cat.label}</span>
-          ${item.status==='concluido'?'<span style="font-size:.7rem;color:var(--green);">✅ Concluído</span>':'<span style="font-size:.7rem;color:var(--amber);">⏳ Pendente</span>'}
+          <span style="font-size:.7rem;color:${item.status==="concluido"?"var(--green)":"var(--amber)"};">${item.status==="concluido"?"✅":"⏳"}</span>
         </div>
         <div style="font-weight:700;font-size:.85rem;">${esc(item.titulo)}</div>
-        ${item.obs?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">📝 ${esc(item.obs)}</div>`:''}
-        <div style="display:flex;gap:12px;margin-top:4px;font-size:.72rem;color:var(--muted);">
+        <div style="display:flex;gap:12px;margin-top:3px;font-size:.7rem;color:var(--muted);">
           <span>📅 ${fmtDate(item.data)}</span>
-          ${custoTotal>0?`<span>💰 ${fmtBRL(custoTotal)}</span>`:''}
-          <span>👤 ${M[item.criadoPor]?.name||item.criadoPor||'—'}</span>
+          ${custoTotal>0?`<span>💰 ${fmtBRL(custoTotal)}</span>`:""}
         </div>
       </div>`;
     };
-    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-      <span style="flex:1;font-size:.8rem;color:var(--muted);">Demandas concluídas e arquivadas por mês</span>
-      ${isL?`<button class="btn-ghost btn-sm" onclick="arquivarMesManu()" title="Arquiva demandas concluídas do mês anterior">📦 Fechar Mês</button>`:''}
+    html+=`<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn-ghost btn-sm" onclick="arquivarMesManu()">📦 Fechar Mês</button>
     </div>`;
-    html+=histAcordiao('manu',arqArr,manuHistCard,'downloadManuHist','renderManutencao');
+    html+=histAcordiao("manu",arqArr,manuHistCard,"downloadManuHist","renderManutencao");
   }
 
-  else if(tab==='resumo'&&isL){
-    const mesAtual=curMonthKey();
-    const demandasMes=(S.manutencao||[]).filter(d=>(d.data||'').startsWith(mesAtual));
-    const concMes=demandasMes.filter(d=>d.status==='concluido').length;
-    const totalCusto=demandasMes.reduce((s,d)=>s+(d.materiais||[]).reduce((ss,m)=>ss+(parseFloat(m.custo)||0),0),0);
-    const porLoja={};
-    demandasMes.forEach(d=>{
-      const l=d.loja||'outros';
-      if(!porLoja[l])porLoja[l]={total:0,conc:0,custo:0};
-      porLoja[l].total++;
-      if(d.status==='concluido')porLoja[l].conc++;
-      porLoja[l].custo+=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
-    });
-
-    html+=`<div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px;">${monthLabel(mesAtual)} — Resumo</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
-      <div style="background:var(--panel2);border-radius:12px;padding:14px;text-align:center;">
-        <div style="font-size:1.6rem;font-weight:900;color:var(--blue)">${demandasMes.length}</div>
-        <div style="font-size:.72rem;color:var(--muted)">Demandas</div>
-      </div>
-      <div style="background:var(--panel2);border-radius:12px;padding:14px;text-align:center;">
-        <div style="font-size:1.6rem;font-weight:900;color:var(--green)">${concMes}</div>
-        <div style="font-size:.72rem;color:var(--muted)">Concluídas</div>
-      </div>
-      <div style="background:var(--panel2);border-radius:12px;padding:14px;text-align:center;">
-        <div style="font-size:1.1rem;font-weight:900;color:var(--amber)">${fmtBRL(totalCusto)}</div>
-        <div style="font-size:.72rem;color:var(--muted)">Gasto Materiais</div>
-      </div>
-    </div>
-    <div class="sec">Por Loja</div>`;
-    Object.entries(porLoja).forEach(([loja,info])=>{
-      const l=MANU_LOJAS[loja]||{label:loja,icon:'🔧'};
-      html+=`<div style="background:var(--panel2);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
-        <span style="font-size:1.3rem;">${l.icon}</span>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:.85rem;">${l.label}</div>
-          <div style="font-size:.72rem;color:var(--muted);">${info.total} demanda(s) · ${info.conc} concluída(s)</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-weight:800;font-size:.85rem;color:var(--amber)">${fmtBRL(info.custo)}</div>
-          <div style="font-size:.68rem;color:var(--muted)">materiais</div>
-        </div>
-      </div>`;
-    });
-    if(!demandasMes.length)html+=`<div class="empty"><div class="ei">📊</div><p>Nenhuma demanda este mês.</p></div>`;
-  }
-
-  document.getElementById('p-manutencao').innerHTML=html;
+  document.getElementById("p-manutencao").innerHTML=html;
 }
 
-function manuCard(d,isL){
-  const loja=MANU_LOJAS[d.loja]||{label:d.loja||'—',icon:'🔧'};
-  const cat=MANU_CATS[d.categoria]||{label:d.categoria||'Geral',icon:'🔩'};
-  const statusInfo={
-    pendente:{label:'Pendente',color:'var(--amber)',icon:'⏳'},
-    andamento:{label:'Em andamento',color:'var(--blue)',icon:'🔨'},
-    concluido:{label:'Concluído',color:'var(--green)',icon:'✅'}
-  }[d.status]||{label:'Pendente',color:'var(--amber)',icon:'⏳'};
-  const custoTotal=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
-  const isUrgente=d.prioridade==='urgente';
-
-  return`<div style="background:var(--panel2);border-radius:14px;padding:14px;margin-bottom:12px;border-left:4px solid ${isUrgente?'var(--red)':statusInfo.color};">
-    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
-      <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
-          ${isUrgente?`<span style="font-size:.65rem;background:#dc262618;color:var(--red);border-radius:4px;padding:2px 7px;font-weight:800;">🚨 URGENTE</span>`:''}
-          <span style="font-size:.65rem;background:var(--bg);border-radius:4px;padding:2px 7px;">${loja.icon} ${loja.label}</span>
-          <span style="font-size:.65rem;background:var(--bg);border-radius:4px;padding:2px 7px;">${cat.icon} ${cat.label}</span>
-          <span style="font-size:.65rem;border-radius:4px;padding:2px 7px;color:${statusInfo.color};background:${statusInfo.color}18;">${statusInfo.icon} ${statusInfo.label}</span>
-        </div>
-        <div style="font-weight:800;font-size:.92rem;">${esc(d.titulo)}</div>
-        ${d.desc?`<div style="font-size:.78rem;color:var(--muted);margin-top:4px;line-height:1.5;">${esc(d.desc)}</div>`:''}
-        <div style="font-size:.7rem;color:var(--muted);margin-top:4px;">📅 ${fmtDate(d.data)} · 👤 Criado por ${M[d.criadoPor]?.name||d.criadoPor||'—'}</div>
-      </div>
-      ${isL?`<div style="display:flex;flex-direction:column;gap:4px;">
-        <button class="btn-ghost btn-sm" onclick="openEditDemanda('${d.id}')" style="font-size:.7rem;padding:4px 8px;">✏️</button>
-        <button class="btn-ghost btn-sm" onclick="deleteDemanda('${d.id}')" style="font-size:.7rem;padding:4px 8px;color:var(--red);">🗑</button>
-      </div>`:''}
-    </div>
-
-    ${d.status!=='concluido'?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-      ${d.status!=='andamento'?`<button class="btn-ghost btn-sm" onclick="updateManuStatus('${d.id}','andamento')" style="font-size:.72rem;">🔨 Iniciar</button>`:''}
-      <button class="btn-gold btn-sm" onclick="openConcluirDemanda('${d.id}')" style="font-size:.72rem;">✅ Concluir</button>
-    </div>`:''}
-
-    ${d.obs?`<div style="background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:.75rem;color:var(--text);">📝 <strong>Observação:</strong> ${esc(d.obs)}</div>`:''}
-
-    <!-- Materiais -->
-    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:${d.obs?'0':'4px'};">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:.72rem;font-weight:700;color:var(--muted);">🪚 MATERIAIS UTILIZADOS</span>
-        ${d.status!=='concluido'||isBredi()?`<button class="btn-ghost btn-sm" onclick="openAddMaterial('${d.id}')" style="font-size:.65rem;padding:2px 8px;">+ Adicionar</button>`:''}
-      </div>
-      ${(d.materiais||[]).length?`
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          ${(d.materiais||[]).map(m=>`<div style="display:flex;align-items:center;gap:8px;font-size:.75rem;background:var(--bg);border-radius:6px;padding:5px 8px;">
-            <span style="flex:1;">${esc(m.nome)} ${m.qty&&m.qty>1?`(${m.qty}x)`:''}</span>
-            <span style="font-weight:700;color:var(--amber);">${fmtBRL(parseFloat(m.custo)||0)}</span>
-            <button onclick="removeMaterial('${d.id}','${m.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.7rem;padding:0 2px;">✕</button>
-          </div>`).join('')}
-          <div style="display:flex;justify-content:flex-end;padding:4px 8px;font-size:.78rem;font-weight:800;color:var(--amber);">Total: ${fmtBRL(custoTotal)}</div>
-        </div>`
-      :`<div style="font-size:.72rem;color:var(--muted);font-style:italic;">Nenhum material registrado.</div>`}
-    </div>
-  </div>`;
+function manuToggleDone(id){
+  const d=(S.manutencao||[]).find(x=>x.id===id);if(!d)return;
+  if(d.status==="concluido"){d.status="pendente";d.obs="";}
+  else{openConcluirManu(id);return;}
+  saveLocal();renderManutencao();
 }
 
-function openNovaDemanda(){
-  document.getElementById('modal-body').innerHTML=`
+function openNovaDemanda(isGeral){
+  const dataPlan=window._manuDataPlan||todayKey();
+  document.getElementById("modal-body").innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-weight:800;font-size:1rem;">🔧 Nova Demanda de Manutenção</div>
+      <div style="font-weight:800;font-size:1rem;">🔧 ${isGeral?"Demanda Geral":"Nova Demanda"}</div>
       <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
     </div>
-    <div class="f-grp"><label class="f-lb">Título da demanda *</label>
+    <div class="f-grp"><label class="f-lb">O que precisa ser feito? *</label>
       <input class="f-in" id="mn-titulo" placeholder="Ex: Trocar lâmpada do banheiro"/></div>
-    <div class="f-grp"><label class="f-lb">Descrição / Detalhes</label>
-      <textarea class="f-in" id="mn-desc" rows="3" placeholder="Descreva o problema, localização exata dentro da loja..."></textarea></div>
+    <div class="f-grp"><label class="f-lb">Detalhes (localização, observações)</label>
+      <textarea class="f-in" id="mn-desc" rows="2" placeholder="Onde fica, o que está com problema..."></textarea></div>
+    <div class="f-grp"><label class="f-lb">Loja *</label>
+      <select class="f-in" id="mn-loja">
+        ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join("")}
+      </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="f-grp"><label class="f-lb">Loja *</label>
-        <select class="f-in" id="mn-loja">
-          ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
-        </select></div>
-      <div class="f-grp"><label class="f-lb">Categoria *</label>
+      <div class="f-grp"><label class="f-lb">Categoria</label>
         <select class="f-in" id="mn-cat">
-          ${Object.entries(MANU_CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          ${Object.entries(MANU_CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join("")}
         </select></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="f-grp"><label class="f-lb">Data agendada *</label>
-        <input class="f-in" type="date" id="mn-data" value="${todayKey()}"/></div>
       <div class="f-grp"><label class="f-lb">Prioridade</label>
-        <select class="f-in" id="mn-prio">
-          <option value="normal">Normal</option>
-          <option value="urgente">🚨 Urgente</option>
-        </select></div>
+        <select class="f-in" id="mn-prio"><option value="normal">Normal</option><option value="urgente">🚨 Urgente</option></select></div>
     </div>
-    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="saveDemanda(null)">Criar Demanda</button>`;
+    ${!isGeral?`<div class="f-grp"><label class="f-lb">Data *</label>
+      <input class="f-in" type="date" id="mn-data" value="${dataPlan}"/></div>`:""}
+    <input type="hidden" id="mn-tipo" value="${isGeral?"geral":"data"}"/>
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="saveDemanda(null)">Criar</button>`;
   openModal();
 }
 
 function openEditDemanda(id){
   const d=(S.manutencao||[]).find(x=>x.id===id);if(!d)return;
-  document.getElementById('modal-body').innerHTML=`
+  document.getElementById("modal-body").innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div style="font-weight:800;font-size:1rem;">✏️ Editar Demanda</div>
       <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
     </div>
     <div class="f-grp"><label class="f-lb">Título *</label>
-      <input class="f-in" id="mn-titulo" value="${esc(d.titulo)}" placeholder="Título"/></div>
-    <div class="f-grp"><label class="f-lb">Descrição</label>
-      <textarea class="f-in" id="mn-desc" rows="3">${esc(d.desc||'')}</textarea></div>
+      <input class="f-in" id="mn-titulo" value="${esc(d.titulo)}"/></div>
+    <div class="f-grp"><label class="f-lb">Detalhes</label>
+      <textarea class="f-in" id="mn-desc" rows="2">${esc(d.desc||"")}</textarea></div>
+    <div class="f-grp"><label class="f-lb">Loja</label>
+      <select class="f-in" id="mn-loja">
+        ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}"${d.loja===k?" selected":""}>${v.icon} ${v.label}</option>`).join("")}
+      </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="f-grp"><label class="f-lb">Loja</label>
-        <select class="f-in" id="mn-loja">
-          ${Object.entries(MANU_LOJAS).map(([k,v])=>`<option value="${k}"${d.loja===k?' selected':''}>${v.icon} ${v.label}</option>`).join('')}
-        </select></div>
       <div class="f-grp"><label class="f-lb">Categoria</label>
         <select class="f-in" id="mn-cat">
-          ${Object.entries(MANU_CATS).map(([k,v])=>`<option value="${k}"${d.categoria===k?' selected':''}>${v.icon} ${v.label}</option>`).join('')}
+          ${Object.entries(MANU_CATS).map(([k,v])=>`<option value="${k}"${d.categoria===k?" selected":""}>${v.icon} ${v.label}</option>`).join("")}
         </select></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="f-grp"><label class="f-lb">Data</label>
-        <input class="f-in" type="date" id="mn-data" value="${d.data||todayKey()}"/></div>
       <div class="f-grp"><label class="f-lb">Prioridade</label>
-        <select class="f-in" id="mn-prio">
-          <option value="normal"${d.prioridade==='normal'?' selected':''}>Normal</option>
-          <option value="urgente"${d.prioridade==='urgente'?' selected':''}>🚨 Urgente</option>
-        </select></div>
+        <select class="f-in" id="mn-prio"><option value="normal"${d.prioridade==="normal"?" selected":""}>Normal</option><option value="urgente"${d.prioridade==="urgente"?" selected":""}>🚨 Urgente</option></select></div>
     </div>
-    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="saveDemanda('${id}')">Salvar</button>`;
+    ${d.tipo!=="geral"?`<div class="f-grp"><label class="f-lb">Data</label>
+      <input class="f-in" type="date" id="mn-data" value="${d.data||todayKey()}"/></div>`:"<input type=\"hidden\" id=\"mn-data\" value=\"\"/>"}
+    <input type="hidden" id="mn-tipo" value="${d.tipo||"data"}"/>
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="saveDemanda("${id}")">Salvar</button>`;
   openModal();
 }
 
 function saveDemanda(id){
-  const titulo=document.getElementById('mn-titulo').value.trim();
-  if(!titulo){toast('Informe o título.');return;}
+  const titulo=document.getElementById("mn-titulo").value.trim();
+  if(!titulo){toast("Informe o que precisa ser feito.");return;}
+  const tipo=document.getElementById("mn-tipo")?.value||"data";
   if(!S.manutencao)S.manutencao=[];
+  const existing=id?(S.manutencao.find(x=>x.id===id)||{}):{};
   const entry={
+    ...existing,
     id:id||uid(),titulo,
-    desc:document.getElementById('mn-desc').value.trim(),
-    loja:document.getElementById('mn-loja').value,
-    categoria:document.getElementById('mn-cat').value,
-    data:document.getElementById('mn-data').value,
-    prioridade:document.getElementById('mn-prio').value,
-    status:'pendente',criadoPor:me,criadoEm:todayKey(),materiais:[]
+    desc:document.getElementById("mn-desc").value.trim(),
+    loja:document.getElementById("mn-loja").value,
+    categoria:document.getElementById("mn-cat").value,
+    prioridade:document.getElementById("mn-prio").value,
+    tipo,
+    data:tipo!=="geral"?(document.getElementById("mn-data")?.value||todayKey()):"",
+    status:existing.status||"pendente",
+    criadoPor:me,criadoEm:existing.criadoEm||todayKey(),
+    materiais:existing.materiais||[]
   };
-  if(id){
-    const idx=S.manutencao.findIndex(x=>x.id===id);
-    if(idx>=0){entry.status=S.manutencao[idx].status;entry.materiais=S.manutencao[idx].materiais||[];entry.obs=S.manutencao[idx].obs||'';}
-    if(idx>=0)S.manutencao[idx]=entry;
-  } else {
+  if(id){const idx=S.manutencao.findIndex(x=>x.id===id);if(idx>=0)S.manutencao[idx]=entry;}
+  else{
     S.manutencao.push(entry);
-    // Notifica via WhatsApp
-    waNotify('manu-nova',{titulo,loja:MANU_LOJAS[entry.loja]?.label||entry.loja,data:fmtDate(entry.data),prio:entry.prioridade});
+    waNotify("manu-nova",{titulo,loja:MANU_LOJAS[entry.loja]?.label||entry.loja,data:fmtDate(entry.data)||"(geral)",prio:entry.prioridade});
   }
-  saveLocal();toast(id?'Demanda atualizada!':'✅ Demanda criada!');closeModal();renderManutencao();
+  saveLocal();toast(id?"Demanda atualizada!":"✅ Demanda criada!");closeModal();renderManutencao();
 }
 
 function openAddMaterial(demandaId){
-  document.getElementById('modal-body').innerHTML=`
+  document.getElementById("modal-body").innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-weight:800;font-size:1rem;">🪚 Adicionar Material</div>
+      <div style="font-weight:800;font-size:1rem;">🪚 Material Utilizado</div>
       <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
     </div>
-    <div class="f-grp"><label class="f-lb">Material / Produto *</label>
-      <input class="f-in" id="mat-nome" placeholder="Ex: Lâmpada LED 9W, Fio elétrico 2,5mm..."/></div>
+    <div class="f-grp"><label class="f-lb">Material *</label>
+      <input class="f-in" id="mat-nome" placeholder="Ex: Lâmpada LED 9W, Fio 2,5mm..."/></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="f-grp"><label class="f-lb">Quantidade</label>
         <input class="f-in" type="number" id="mat-qty" value="1" min="1"/></div>
-      <div class="f-grp"><label class="f-lb">Custo total (R$)</label>
+      <div class="f-grp"><label class="f-lb">Custo (R$)</label>
         <input class="f-in" type="number" id="mat-custo" placeholder="0,00" step="0.01" min="0"/></div>
     </div>
-    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="addMaterial('${demandaId}')">Adicionar</button>`;
+    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="addMaterial("${demandaId}")">Adicionar</button>`;
   openModal();
 }
 
 function addMaterial(demandaId){
-  const nome=document.getElementById('mat-nome').value.trim();
-  const custo=parseFloat(document.getElementById('mat-custo').value)||0;
-  const qty=parseInt(document.getElementById('mat-qty').value)||1;
-  if(!nome){toast('Informe o material.');return;}
+  const nome=document.getElementById("mat-nome").value.trim();
+  const custo=parseFloat(document.getElementById("mat-custo").value)||0;
+  const qty=parseInt(document.getElementById("mat-qty").value)||1;
+  if(!nome){toast("Informe o material.");return;}
   const d=(S.manutencao||[]).find(x=>x.id===demandaId);if(!d)return;
   if(!d.materiais)d.materiais=[];
   d.materiais.push({id:uid(),nome,custo,qty});
-  saveLocal();toast('Material adicionado!');closeModal();renderManutencao();
+  saveLocal();toast("Material adicionado!");closeModal();renderManutencao();
 }
 
-function removeMaterial(demandaId,matId){
-  const d=(S.manutencao||[]).find(x=>x.id===demandaId);if(!d)return;
-  d.materiais=(d.materiais||[]).filter(m=>m.id!==matId);
-  saveLocal();renderManutencao();
-}
-
-function openConcluirDemanda(id){
-  document.getElementById('modal-body').innerHTML=`
+function openConcluirManu(id){
+  document.getElementById("modal-body").innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-weight:800;font-size:1rem;">✅ Concluir Demanda</div>
+      <div style="font-weight:800;font-size:1rem;">✅ Concluir Tarefa</div>
       <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
     </div>
-    <div class="f-grp"><label class="f-lb">Observação (o que foi feito)</label>
-      <textarea class="f-in" id="manu-obs" rows="3" placeholder="Descreva o que foi realizado, materiais usados, situação final..."></textarea></div>
-    <button class="btn-gold" style="width:100%;margin-top:8px;" onclick="updateManuStatus('${id}','concluido',document.getElementById('manu-obs').value)">✅ Marcar como Concluído</button>`;
+    <div class="f-grp"><label class="f-lb">O que foi feito? (opcional)</label>
+      <textarea class="f-in" id="manu-obs" rows="3" placeholder="Descreva rapidamente o que foi feito, se ficou alguma pendência..."></textarea></div>
+    <button class="btn-gold" style="width:100%;margin-top:8px;font-size:1rem;padding:14px;" onclick="concluirManu("${id}")">✅ Marcar como Concluído</button>`;
   openModal();
 }
 
-function updateManuStatus(id,status,obs){
+function concluirManu(id){
   const d=(S.manutencao||[]).find(x=>x.id===id);if(!d)return;
-  d.status=status;
-  if(obs!==undefined)d.obs=obs.trim();
-  saveLocal();toast(status==='concluido'?'✅ Demanda concluída!':'Status atualizado!');closeModal();renderManutencao();
+  d.status="concluido";
+  d.obs=document.getElementById("manu-obs")?.value.trim()||"";
+  d.concluidoEm=todayKey();
+  saveLocal();toast("✅ Tarefa concluída!");closeModal();renderManutencao();
 }
 
 function deleteDemanda(id){
-  if(!confirm('Remover esta demanda?'))return;
+  if(!confirm("Remover esta demanda?"))return;
   S.manutencao=(S.manutencao||[]).filter(x=>x.id!==id);
-  saveLocal();toast('Demanda removida.');renderManutencao();
+  saveLocal();toast("Removida.");renderManutencao();
 }
 
 function arquivarMesManu(){
-  const prevMes=prevMonthKey();
-  let count=0;
+  const prevMes=prevMonthKey();let count=0;
   (S.manutencao||[]).forEach(d=>{
-    if(!d._arq&&d.status==='concluido'&&(d.data||'').startsWith(prevMes)){
-      d._arq=true;d._arqMes=prevMes;count++;
-    }
+    if(!d._arq&&d.status==="concluido"&&(d.data||"").startsWith(prevMes)){d._arq=true;d._arqMes=prevMes;count++;}
   });
-  saveLocal();
-  toast(count?`${count} demanda(s) arquivadas — ${monthLabel(prevMes)}`:'Nenhuma demanda concluída do mês anterior.');
-  renderManutencao();
+  saveLocal();toast(count?`${count} demanda(s) arquivadas.`:"Nenhuma para arquivar.");renderManutencao();
 }
 
 function downloadManuHist(mes){
   const rows=(S.manutencao||[]).filter(d=>d._arq&&d._arqMes===mes).map(d=>{
     const custoTotal=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
-    const matDesc=(d.materiais||[]).map(m=>`${m.nome} (${fmtBRL(parseFloat(m.custo)||0)})`).join(' | ');
-    return{'Título':d.titulo,'Loja':MANU_LOJAS[d.loja]?.label||d.loja,'Categoria':MANU_CATS[d.categoria]?.label||d.categoria,
-      'Data':d.data,'Prioridade':d.prioridade,'Status':d.status,'Observação':d.obs||'',
-      'Materiais':matDesc,'Custo Total':fmtBRL(custoTotal),'Criado por':M[d.criadoPor]?.name||d.criadoPor||''};
+    return{"Título":d.titulo,"Loja":MANU_LOJAS[d.loja]?.label||d.loja,"Data":d.data,"Status":d.status,
+      "Observação":d.obs||"","Custo Total":fmtBRL(custoTotal),"Criado por":M[d.criadoPor]?.name||d.criadoPor||""};
   });
-  downloadCSV(rows,'manutencao_'+mes+'.csv');
+  downloadCSV(rows,"manutencao_"+mes+".csv");
 }
-
 // ══════════════════════════════════════
 // TRILHA DE APRENDIZADO
 // ══════════════════════════════════════
