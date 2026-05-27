@@ -7180,7 +7180,16 @@ function projetosCalEvents(){
 // ══════════════════════════════════════
 // WHATSAPP — CALLMEBOT
 // ══════════════════════════════════════
-function getWAConfig(){try{return JSON.parse(localStorage.getItem('wa_cfg')||'null');}catch(e){return null;}}
+function getWAConfig(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('wa_cfg')||'null');
+    if(saved&&saved.phone&&saved.key)return saved;
+    // Configuração padrão do Marlon — ativa automaticamente
+    const def={phone:'554399433349',key:'2428994'};
+    localStorage.setItem('wa_cfg',JSON.stringify(def));
+    return def;
+  }catch(e){return null;}
+}
 
 async function sendWhatsApp(msg){
   const cfg=getWAConfig();
