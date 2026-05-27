@@ -4680,31 +4680,49 @@ function postMural(){
 function delMural(id){S.mural=(S.mural||[]).filter(p=>p.id!==id);saveLocal();renderTeam();}
 
 function renderQueue(){
-  const pending=(S.tasks||[]).filter(t=>t.approvalReq&&t.status==='doing');
+  // Mostra tarefas em "Em Aprovação" (review) do Kanban
+  const pending=(S.tasks||[]).filter(t=>t.status==='review');
+  const isL=M[me]?.isLeader;
   let html='';
-  if(!pending.length){html=`<div class="empty"><div class="ei">✅</div><p>Nenhuma tarefa aguardando aprovação.</p></div>`;}
-  else{
+  if(!pending.length){
+    html=`<div class="empty"><div class="ei">✅</div><p>Nenhuma tarefa aguardando aprovação.</p></div>`;
+  } else {
     html+=`<div class="sec" style="margin-top:0;">Aguardando Aprovação (${pending.length})</div>`;
     pending.forEach(t=>{
       const from=(t.assignees||[]).map(a=>M[a]?.name||a).join(', ');
-      const myVote=(t.approvals||{})[me];
-      html+=`<div class="card" style="margin-bottom:10px;">
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
-          <div style="flex:1"><div style="font-size:.9rem;font-weight:700;">${esc(t.title)}</div>
-            <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">Por: ${esc(from)} · ${fmtDate(t.created)}</div>
-            ${t.desc?`<div style="font-size:.8rem;color:var(--muted);margin-top:5px;">${esc(t.desc.slice(0,100))}</div>`:''}
+      const prioLabel={h:'🔴 Alta',m:'🟡 Média',l:'🟢 Baixa'}[t.priority]||'';
+      html+=`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--blue);">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+          <div style="flex:1">
+            <div style="font-size:.95rem;font-weight:800;">${esc(t.title)}</div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:3px;">
+              👤 ${esc(from)} · 📅 ${fmtDate(t.created)} ${t.deadline?'· ⏰ Prazo: '+fmtDate(t.deadline):''}
+              ${prioLabel?` · ${prioLabel}`:''}
+            </div>
+            ${t.desc?`<div style="font-size:.8rem;color:var(--text);margin-top:6px;line-height:1.5;">${esc(t.desc.slice(0,150))}${t.desc.length>150?'...':''}</div>`:''}
           </div>
-          <button class="btn-ghost btn-sm" onclick="openTask('${t.id}')">Ver</button>
+          <button class="btn-ghost btn-sm" onclick="openTask('${t.id}')">👁 Ver</button>
         </div>
         ${(t.attachments||[]).length?`<div style="font-size:.72rem;color:var(--blue);margin-bottom:8px;">📎 ${t.attachments.length} anexo(s)</div>`:''}
-        <div class="votes-row">${APPROVERS.map(a=>{const v=(t.approvals||{})[a];const nm=M[a]?.name||a;
-          return`<span class="vc ${v===true?'y':v===false?'n':'w'}">${v===true?'✓':v===false?'✗':'·'} ${nm}</span>`;}).join('')}</div>
-        ${!myVote?`<div style="display:flex;gap:8px;"><button class="btn-approve" onclick="voteTask('${t.id}',true)">👍 Aprovar</button><button class="btn-reject" onclick="voteTask('${t.id}',false)">👎 Recusar</button></div>`:
-          `<div style="font-size:.75rem;color:var(--muted);">Seu voto: ${myVote?'👍 Aprovado':'👎 Recusado'}</div>`}
+        ${isL?`<div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn-gold btn-sm" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green);flex:1;" onclick="darDevolutiva('${t.id}','aprovado')">✅ Aprovar</button>
+          <button class="btn-ghost btn-sm" style="flex:1;" onclick="darDevolutivaPrompt('${t.id}')">↺ Pedir Ajuste</button>
+        </div>`:`<div style="font-size:.75rem;color:var(--muted);background:var(--panel2);border-radius:6px;padding:6px 10px;">⏳ Aguardando aprovação do líder</div>`}
       </div>`;
     });
   }
   document.getElementById('p-queue').innerHTML=html;
+}
+
+function darDevolutivaPrompt(id){
+  const obs=prompt('Motivo do ajuste (opcional):','');
+  if(obs===null)return; // cancelou
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  t.status='ajuste';
+  t.ajusteNote=obs||'Revise e reenvie.';
+  if(!t.comments)t.comments=[];
+  t.comments.push({id:uid(),author:me,text:`↺ Pedido de ajuste: ${t.ajusteNote}`,date:todayKey(),time:fmtTime()});
+  saveLocal();toast('Ajuste solicitado.');renderQueue();renderTasks();renderHome();
 }
 
 // ══════════════════════════════════════
