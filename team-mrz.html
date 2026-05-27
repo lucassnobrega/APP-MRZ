@@ -1314,6 +1314,8 @@ function enterApp(k){
   document.getElementById('sb-nm').textContent=m.name;
   document.getElementById('sb-rl').textContent=m.role;
   buildSidebar();goPanel('home');
+  // Notificação de tarefas atrasadas — roda após carregar dados
+  setTimeout(checkAtrasadas, 3000);
 }
 function doLogout(){me=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='';buildLoginGrid();}
 function toggleSB(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sb-ov').classList.toggle('open');}
@@ -1729,9 +1731,14 @@ function kDrop(e,colId,allowed){
   if((colId==='aprovado'||colId==='ajuste')&&!isL){toast('Apenas líderes podem dar devolutiva.');return;}
   if(colId==='review'&&!isAssignee&&!isL){toast('Você não pode submeter esta tarefa.');return;}
   if(colId==='doing'&&t.ajusteNote)t.ajusteNote=''; // clear ajuste flag when back to doing
+  const prevStatus=t.status;
   t.status=colId;
   _dragId=null;
   saveLocal();renderTasks();renderHome();toast('Tarefa movida!');
+  // Notifica Marlon via WhatsApp quando tarefa entra em aprovação
+  if(colId==='review'&&prevStatus!=='review'){
+    waNotify('aprovacao',{title:t.title,from:M[me]?.name||me});
+  }
 }
 
 // ══════════════════════════════════════
@@ -1854,9 +1861,14 @@ function saveTask(id){
     deadline:document.getElementById('tm-dl').value,
     assignees:t.assignees||[me],attachments:t.attachments||[]};
   if(newStatus==='doing'&&t.ajusteNote)updated.ajusteNote=''; // clear when back to doing
+  const prevSt=t.status;
   const idx=S.tasks.findIndex(x=>x.id===id);
   if(idx>=0)S.tasks[idx]=updated;else S.tasks.push(updated);
   saveLocal();toast('Tarefa salva!');closeTaskModal();renderTasks();buildSidebar();renderHome();
+  // Notifica Marlon quando salva com status "Em Aprovação"
+  if(newStatus==='review'&&prevSt!=='review'){
+    waNotify('aprovacao',{title:updated.title,from:M[me]?.name||me});
+  }
 }
 function darDevolutiva(id,resultado){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
@@ -7183,37 +7195,73 @@ async function sendWhatsApp(msg){
 async function waNotify(tipo,dados){
   let msg='';
   if(tipo==='aprovacao'){
-    msg=`🏪 MRZ TEAM\n📋 Tarefa aguardando aprovação!\n\nTarefa: ${dados.title}\nSolicitado por: ${dados.from}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\nAcesse o app para aprovar ou recusar.`;
+    msg=`🏪 *MRZ TEAM*\n📋 *Tarefa aguardando aprovação!*\n\nTarefa: ${dados.title}\nSolicitado por: ${dados.from}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\nAcesse o app para aprovar ou recusar.`;
   }else if(tipo==='erro-caixa'){
-    msg=`🏪 MRZ TEAM\n⚠️ Erro de Caixa PENDENTE!\n\nLoja: ${dados.loja}\nTipo: ${dados.tipo}\nValor: ${dados.valor?'R$ '+Number(dados.valor).toFixed(2).replace('.',','):'-'}\nRegistrado por: ${M[dados.member]?.name||dados.member}\n\nNecessário verificar.`;
+    msg=`🏪 *MRZ TEAM*\n⚠️ *Erro de Caixa PENDENTE!*\n\nLoja: ${dados.loja}\nTipo: ${dados.tipo}\nValor: ${dados.valor?'R$ '+Number(dados.valor).toFixed(2).replace('.',','):'-'}\nRegistrado por: ${M[dados.member]?.name||dados.member}\n\nNecessário verificar.`;
   }else if(tipo==='demanda'){
-    msg=`🏪 MRZ TEAM\n📌 Nova demanda criada!\n\nTarefa: ${dados.title}\nPara: ${M[dados.assignee]?.name||dados.assignee}\nPrioridade: ${dados.prio==='h'?'Alta':dados.prio==='m'?'Média':'Baixa'}\nCriada por: ${M[me]?.name||me}`;
+    msg=`🏪 *MRZ TEAM*\n📌 *Nova demanda criada!*\n\nTarefa: ${dados.title}\nPara: ${M[dados.assignee]?.name||dados.assignee}\nPrioridade: ${dados.prio==='h'?'Alta':dados.prio==='m'?'Média':'Baixa'}\nCriada por: ${M[me]?.name||me}`;
+  }else if(tipo==='atrasadas'){
+    const lista=dados.tarefas.map(t=>`• ${t.title} (${t.responsaveis})`).join('\n');
+    msg=`🏪 *MRZ TEAM*\n🚨 *${dados.tarefas.length} tarefa(s) em atraso!*\n\n${lista}\n\nData: ${new Date().toLocaleDateString('pt-BR')}`;
   }
   if(msg)await sendWhatsApp(msg);
 }
 
+// Verifica tarefas atrasadas e notifica — roda 1x por sessão
+let _waAtrasadasNotified=false;
+async function checkAtrasadas(){
+  if(_waAtrasadasNotified)return;
+  const cfg=getWAConfig();if(!cfg||!cfg.phone||!cfg.key)return;
+  const hoje=todayKey();
+  const atrasadas=(S.tasks||[]).filter(t=>{
+    if(!t.deadline||t.status==='aprovado'||t.status==='done')return false;
+    return t.deadline<hoje;
+  });
+  if(!atrasadas.length)return;
+  _waAtrasadasNotified=true;
+  // Só notifica se a última notificação foi há mais de 12h (evita spam)
+  const lastKey='wa_atrasadas_last';
+  const last=parseInt(localStorage.getItem(lastKey)||'0');
+  if(Date.now()-last<12*60*60*1000)return;
+  localStorage.setItem(lastKey,String(Date.now()));
+  const tarefas=atrasadas.slice(0,8).map(t=>({
+    title:t.title,
+    responsaveis:(t.assignees||[]).map(a=>M[a]?.name||a).join(', ')
+  }));
+  waNotify('atrasadas',{tarefas});
+}
+
 function openWASettings(){
   const cfg=getWAConfig()||{};
+  // Pré-popula com número do Marlon se não configurado
+  const defaultPhone=cfg.phone||'5543999999999'; // Substituir pelo número real do Marlon
   document.getElementById('modal-body').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-weight:800;font-size:1rem;">Notificações WhatsApp</div>
+      <div style="font-weight:800;font-size:1rem;">📱 Notificações WhatsApp — Marlon</div>
       <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
     </div>
-    <div class="wa-info" style="margin-bottom:16px;">
-      <strong>Como ativar (2 minutos):</strong><br>
-      1. Abra o WhatsApp e mande uma mensagem para o número <strong>+34 644 59 87 48</strong><br>
-      2. Texto da mensagem: <code style="background:var(--panel2);padding:2px 6px;border-radius:4px;">I allow callmebot to send me messages</code><br>
-      3. Você receberá sua chave de API em segundos<br>
-      4. Preencha os campos abaixo e salve
+    <div style="background:var(--panel2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.8rem;line-height:1.7;border-left:3px solid var(--gold);">
+      <strong>O que será notificado automaticamente:</strong><br>
+      📋 Tarefa enviada para aprovação<br>
+      🚨 Tarefas com prazo vencido (1x a cada 12h)<br>
+      ⚠️ Erros de caixa registrados<br>
+      📌 Novas demandas criadas
     </div>
-    <div class="f-grp"><label>Seu número com DDI (ex: 5543999990000)</label>
-      <input class="f-in" id="wa-phone" value="${esc(cfg.phone||'')}" placeholder="5543999990000"/></div>
+    <div style="background:var(--panel2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.78rem;line-height:1.8;">
+      <strong>Como ativar (2 minutos):</strong><br>
+      1. Abra o WhatsApp no celular do Marlon<br>
+      2. Mande uma mensagem para <strong>+34 644 59 87 48</strong><br>
+      3. Texto exato: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:.75rem;">I allow callmebot to send me messages</code><br>
+      4. Receberá a chave de API em segundos — cole abaixo
+    </div>
+    <div class="f-grp"><label>Número do Marlon com DDI (55 + DDD + número)</label>
+      <input class="f-in" id="wa-phone" value="${esc(cfg.phone||'')}" placeholder="5543XXXXXXXXX" inputmode="numeric"/></div>
     <div class="f-grp"><label>Chave de API (recebida pelo WhatsApp)</label>
       <input class="f-in" id="wa-key" value="${esc(cfg.key||'')}" placeholder="1234567"/></div>
-    <div style="display:flex;gap:8px;margin-top:16px;">
-      <button class="btn-gold" onclick="saveWAConfig()">Salvar</button>
-      <button class="btn-ghost" onclick="testWAMsg()">Testar Envio</button>
-      ${cfg?`<button class="btn-ghost" style="color:var(--red);" onclick="localStorage.removeItem('wa_cfg');toast('WhatsApp desativado.');closeModal();">Desativar</button>`:''}
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn-gold" onclick="saveWAConfig()">💾 Salvar</button>
+      <button class="btn-ghost" onclick="testWAMsg()">📤 Testar Envio</button>
+      ${cfg.key?`<button class="btn-ghost" style="color:var(--red);" onclick="localStorage.removeItem('wa_cfg');toast('WhatsApp desativado.');closeModal();">🗑 Desativar</button>`:''}
     </div>`;
   openModal();
 }
@@ -7228,8 +7276,10 @@ function saveWAConfig(){
 }
 
 async function testWAMsg(){
-  const r=await sendWhatsApp('🏪 MRZ TEAM — Notificações WhatsApp ativadas com sucesso! ✅');
-  toast(r?'✅ Mensagem enviada — verifique seu WhatsApp!':'❌ Verifique número e chave de API.');
+  const cfg=getWAConfig();
+  if(!cfg||!cfg.phone||!cfg.key){toast('Salve número e chave primeiro.');return;}
+  const r=await sendWhatsApp(`🏪 *MRZ TEAM*\n✅ *Notificações WhatsApp ativas!*\n\nAqui você receberá alertas de:\n📋 Aprovações pendentes\n🚨 Tarefas atrasadas\n⚠️ Erros de caixa\n\nConfigurado em: ${new Date().toLocaleDateString('pt-BR')}`);
+  toast(r?'✅ Mensagem de teste enviada — verifique o WhatsApp!':'❌ Falha ao enviar. Verifique número e chave de API.');
 }
 
 // ══════════════════════════════════════
