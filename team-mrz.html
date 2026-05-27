@@ -870,7 +870,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
             <span class="theme-toggle-icon theme-toggle-moon">🌙</span>
           </button>
           <div class="sdot" id="sdot" title="Status Firebase"></div>
-          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v14</span>
+          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v16</span>
         </div>
       </div>
       <div id="p-home" class="panel"></div>
@@ -1043,7 +1043,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:14,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
+function defState(){return{v:16,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1080,7 +1080,8 @@ function migrateState(d){
   if(!Array.isArray(d.customUsers))d.customUsers=[];
   if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
   if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
-  d.v=13;return d;
+  // v16: no migration needed — history accordion is purely UI, existing data unchanged
+  d.v=16;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -1125,6 +1126,80 @@ function syncCustomUsers(){
 function getMem(id){return M[id]||null;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtBRL(n){return'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+// ── HISTÓRICO — Utilitários ─────────────────────────────────────────────────
+function prevMonthKey(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);}
+function curMonthKey(){return new Date().toISOString().slice(0,7);}
+function monthLabel(ym){if(!ym)return'';const[y,m]=ym.split('-');const nomes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];return(nomes[parseInt(m)-1]||m)+'/'+y;}
+
+function downloadCSV(rows,filename){
+  if(!rows||!rows.length){toast('Nenhum dado para exportar.');return;}
+  const headers=Object.keys(rows[0]);
+  const csvContent=[
+    headers.join(';'),
+    ...rows.map(row=>headers.map(h=>{
+      const v=String(row[h]??'').replace(/"/g,'""');
+      return(v.includes(';')||v.includes('\n')||v.includes('"'))?`"${v}"`:v;
+    }).join(';'))
+  ].join('\n');
+  const blob=new Blob(['﻿'+csvContent],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  toast('📥 Planilha baixada!');
+}
+
+function arquivarMes(arr,resolvedStatuses,onDone){
+  const prevMes=prevMonthKey();
+  let count=0;
+  arr.forEach(item=>{
+    if(!item._arq&&item.date&&item.date.startsWith(prevMes)&&resolvedStatuses.includes(item.status)){
+      item._arq=true;item._arqMes=prevMes;count++;
+    }
+  });
+  if(!count){toast('Nenhum item resolvido do mês anterior para arquivar.');return;}
+  saveLocal();toast(count+' item(s) arquivado(s)!');onDone();
+}
+
+function histMesesDisponiveis(arr){
+  const meses=new Set();
+  (arr||[]).filter(i=>i._arq&&i._arqMes).forEach(i=>meses.add(i._arqMes));
+  return Array.from(meses).sort((a,b)=>b.localeCompare(a));
+}
+
+// Estado de quais meses estão abertos no acordeão (por seção)
+window._histOpen={};
+function toggleHistMes(secao,mes,renderFn){
+  if(!window._histOpen[secao])window._histOpen[secao]=new Set();
+  const s=window._histOpen[secao];
+  if(s.has(mes))s.delete(mes);else s.add(mes);
+  renderFn();
+}
+function isHistMesOpen(secao,mes){return!!(window._histOpen[secao]&&window._histOpen[secao].has(mes));}
+
+// Gera HTML do acordeão de histórico
+// cardFn(item) => html string do card
+// downloadFnName => nome da função global que recebe (mes)
+function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
+  const meses=histMesesDisponiveis(arr);
+  if(!meses.length)return`<div class="empty"><div class="ei">📁</div><p>Nenhum registro arquivado ainda.<br><span style="font-size:.75rem;color:var(--muted)">Use o botão "Fechar Mês" para arquivar os itens resolvidos do mês anterior.</span></p></div>`;
+  return meses.map(mes=>{
+    const itens=arr.filter(i=>i._arqMes===mes).sort((a,b)=>(b.date||b.data||'').localeCompare(a.date||a.data||''));
+    const open=isHistMesOpen(secao,mes);
+    return`<div style="background:var(--panel2);border-radius:12px;margin-bottom:10px;overflow:hidden;border:1px solid var(--line);">
+      <div onclick="toggleHistMes('${secao}','${mes}',${renderFnName})" style="display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;user-select:none;">
+        <span style="font-size:1.1rem;">📅</span>
+        <span style="font-weight:800;font-size:.95rem;flex:1;">${monthLabel(mes)}</span>
+        <span style="font-size:.75rem;color:var(--muted);margin-right:8px;">${itens.length} registro${itens.length!==1?'s':''}</span>
+        <button onclick="event.stopPropagation();${downloadFnName}('${mes}')" class="btn-gold btn-sm" style="font-size:.7rem;padding:4px 10px;">📥 Exportar</button>
+        <span style="color:var(--muted);font-size:.8rem;transition:transform .2s;display:inline-block;transform:rotate(${open?90:0}deg);margin-left:6px;">▶</span>
+      </div>
+      ${open?`<div style="padding:0 12px 12px;">${itens.map(cardFn).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+// ── fim utilitários de histórico ────────────────────────────────────────────
 
 // ══════════════════════════════════════
 // BOOT
@@ -1939,45 +2014,87 @@ function delFlowStep(i){S.flow[me].splice(i,1);saveLocal();renderFlow();}
 // ══════════════════════════════════════
 function renderOcc(){
   if(!S.occ)S.occ=[];
-  const mine=S.occ.filter(o=>o.member===me);
-  let html=`<div class="card-panel" style="margin-bottom:20px;">
-    <div class="sec" style="margin-top:0;">Registrar Ocorrência</div>
-    <div class="f-grp"><label class="f-lb">Tipo</label><select class="f-in" id="occ-type">
-      <option value="error">🔴 Erro no Processo</option>
-      <option value="improve">🟡 Sugestão de Melhoria</option>
-      <option value="obs">🔵 Observação</option>
-    </select></div>
-    <div class="f-grp"><label class="f-lb">Título</label><input class="f-in" id="occ-title" placeholder="Ex: Boleto não gerou automaticamente"/></div>
-    <div class="f-grp"><label class="f-lb">Etapa do Fluxo Afetada</label><input class="f-in" id="occ-step" placeholder="Ex: Etapa 3 — Conferência de caixa"/></div>
-    <div class="f-grp"><label class="f-lb">Descrição</label><textarea class="f-in" id="occ-desc" rows="3" placeholder="Descreva o que aconteceu, quando e como reproduzir..."></textarea></div>
-    <button class="btn-gold" style="width:100%;" onclick="saveOcc()">Registrar Ocorrência</button>
-  </div>`;
+  const tab=window._occTab||'ativo';
+  const isL=M[me]?.isLeader;
 
-  if(mine.length){
-    html+=`<div class="sec">Minhas Ocorrências</div>`;
-    mine.slice().reverse().forEach(o=>{
-      html+=`<div class="occ-card ${o.type}">
-        <div class="occ-hd">
-          <span class="occ-tag ${o.type}">${o.type==='error'?'Erro':o.type==='improve'?'Melhoria':'Observação'}</span>
-          <span class="occ-title">${esc(o.title)}</span>
-          <span class="occ-status ${o.status}">${o.status==='open'?'Aberto':o.status==='analysis'?'Em Análise':'Resolvido'}</span>
-        </div>
-        ${o.step?`<div style="font-size:.7rem;color:var(--blue);margin-bottom:4px;">📍 ${esc(o.step)}</div>`:''}
-        <div class="occ-txt">${esc(o.desc)}</div>
-        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
-          <span class="occ-date">${fmtDate(o.date)}</span>
-          ${M[me].isLeader||o.member===me?`<select onchange="updateOccStatus('${o.id}',this.value)" style="background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:3px 8px;font-size:.72rem;outline:none;">
-            <option value="open" ${o.status==='open'?'selected':''}>Aberto</option>
-            <option value="analysis" ${o.status==='analysis'?'selected':''}>Em Análise</option>
-            <option value="resolved" ${o.status==='resolved'?'selected':''}>Resolvido</option>
-          </select>`:''}
-        </div>
-      </div>`;
-    });
+  // ── ABA ATIVO ──
+  if(tab==='ativo'){
+    const ativos=S.occ.filter(o=>!o._arq);
+    const mine=ativos.filter(o=>o.member===me||isL);
+    let html=`<div class="page-head"><h2 style="font-family:var(--serif)">Ocorrências</h2>
+      ${isL?`<button class="btn-ghost btn-sm" onclick="arquivarMes(S.occ,['resolved'],renderOcc)" title="Arquiva itens resolvidos do mês anterior">📁 Fechar Mês</button>`:''}
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:18px;">
+      <button class="ev-type-btn sel">📋 Ativos</button>
+      <button class="ev-type-btn" onclick="window._occTab='hist';renderOcc()">📁 Histórico</button>
+    </div>
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div class="sec" style="margin-top:0;">Registrar Ocorrência</div>
+      <div class="f-grp"><label class="f-lb">Tipo</label><select class="f-in" id="occ-type">
+        <option value="error">🔴 Erro no Processo</option>
+        <option value="improve">🟡 Sugestão de Melhoria</option>
+        <option value="obs">🔵 Observação</option>
+      </select></div>
+      <div class="f-grp"><label class="f-lb">Título</label><input class="f-in" id="occ-title" placeholder="Ex: Boleto não gerou automaticamente"/></div>
+      <div class="f-grp"><label class="f-lb">Etapa do Fluxo Afetada</label><input class="f-in" id="occ-step" placeholder="Ex: Etapa 3 — Conferência de caixa"/></div>
+      <div class="f-grp"><label class="f-lb">Descrição</label><textarea class="f-in" id="occ-desc" rows="3" placeholder="Descreva o que aconteceu, quando e como reproduzir..."></textarea></div>
+      <button class="btn-gold" style="width:100%;" onclick="saveOcc()">Registrar Ocorrência</button>
+    </div>`;
+    if(mine.length){
+      html+=`<div class="sec">Ocorrências Ativas</div>`;
+      mine.slice().reverse().forEach(o=>{
+        html+=`<div class="occ-card ${o.type}">
+          <div class="occ-hd">
+            <span class="occ-tag ${o.type}">${o.type==='error'?'Erro':o.type==='improve'?'Melhoria':'Observação'}</span>
+            <span class="occ-title">${esc(o.title)}</span>
+            <span class="occ-status ${o.status}">${o.status==='open'?'Aberto':o.status==='analysis'?'Em Análise':'Resolvido'}</span>
+          </div>
+          ${o.step?`<div style="font-size:.7rem;color:var(--blue);margin-bottom:4px;">📍 ${esc(o.step)}</div>`:''}
+          <div class="occ-txt">${esc(o.desc)}</div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <span class="occ-date">${fmtDate(o.date)}</span>
+            ${isL||o.member===me?`<select onchange="updateOccStatus('${o.id}',this.value)" style="background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:3px 8px;font-size:.72rem;outline:none;">
+              <option value="open" ${o.status==='open'?'selected':''}>Aberto</option>
+              <option value="analysis" ${o.status==='analysis'?'selected':''}>Em Análise</option>
+              <option value="resolved" ${o.status==='resolved'?'selected':''}>Resolvido</option>
+            </select>`:''}
+          </div>
+        </div>`;
+      });
+    } else {
+      html+=`<div class="empty"><div class="ei">✅</div><p>Nenhuma ocorrência ativa.</p></div>`;
+    }
+    document.getElementById('p-occ').innerHTML=html;
+
+  // ── ABA HISTÓRICO ──
   } else {
-    html+=`<div class="empty"><div class="ei">✅</div><p>Nenhuma ocorrência registrada.</p></div>`;
+    const typeLabel={error:'Erro',improve:'Melhoria',obs:'Observação'};
+    const occCard=o=>`<div class="occ-card ${o.type}" style="margin-bottom:8px;">
+      <div class="occ-hd">
+        <span class="occ-tag ${o.type}">${typeLabel[o.type]||o.type}</span>
+        <span class="occ-title">${esc(o.title)}</span>
+      </div>
+      ${o.step?`<div style="font-size:.7rem;color:var(--blue);margin-bottom:4px;">📍 ${esc(o.step)}</div>`:''}
+      <div class="occ-txt">${esc(o.desc)}</div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <span class="occ-date">${fmtDate(o.date)}</span>
+        <span style="font-size:.65rem;color:var(--muted)">por ${M[o.member]?.name||o.member}</span>
+      </div>
+    </div>`;
+    const html=`<div class="page-head"><h2 style="font-family:var(--serif)">Ocorrências</h2></div>
+    <div style="display:flex;gap:6px;margin-bottom:18px;">
+      <button class="ev-type-btn" onclick="window._occTab='ativo';renderOcc()">📋 Ativos</button>
+      <button class="ev-type-btn sel">📁 Histórico</button>
+    </div>
+    ${histAcordiao('occ',S.occ,occCard,'downloadOccHist','renderOcc')}`;
+    document.getElementById('p-occ').innerHTML=html;
   }
-  document.getElementById('p-occ').innerHTML=html;
+}
+function downloadOccHist(mes){
+  const tl={error:'Erro',improve:'Melhoria',obs:'Observação'};
+  const sl={open:'Aberto',analysis:'Em Análise',resolved:'Resolvido'};
+  const rows=S.occ.filter(o=>o._arq&&o._arqMes===mes).map(o=>({'Data':o.date,'Tipo':tl[o.type]||o.type,'Titulo':o.title,'Etapa':o.step||'','Descricao':o.desc,'Status':sl[o.status]||o.status,'Membro':M[o.member]?.name||o.member}));
+  downloadCSV(rows,'ocorrencias_'+mes+'.csv');
 }
 
 function saveOcc(){
@@ -2005,37 +2122,95 @@ function isContasPagar(){return CONTAS_PAGAR_MEMBERS.includes(me);}
 function isCompras(){return COMPRAS_MEMBERS.includes(me);}
 function isFinanceiro(){return isCaixa()||isContasPagar();}
 
+function weekToMonth(wk){
+  // Convert "2026-W12" to "2026-03" (month of Monday of that week)
+  if(!wk)return'';
+  const [yr,wPart]=wk.split('-W');
+  const y=parseInt(yr),w=parseInt(wPart);
+  const jan4=new Date(y,0,4);
+  const monday=new Date(jan4);
+  monday.setDate(jan4.getDate()-(jan4.getDay()||7)+1+(w-1)*7);
+  return monday.getFullYear()+'-'+String(monday.getMonth()+1).padStart(2,'0');
+}
+function arquivarMesReport(){
+  if(!S.reports)return;
+  const prevMes=prevMonthKey();
+  let count=0;
+  Object.entries(S.reports).forEach(([k,r])=>{
+    if(!r._arq){
+      const wk=r.week||(k.includes('-W')?k.split(me+'-')[1]:null);
+      const mes=weekToMonth(wk);
+      if(mes===prevMes){r._arq=true;r._arqMes=prevMes;count++;}
+    }
+  });
+  saveLocal();
+  toast(count?`${count} relatório(s) arquivados — ${monthLabel(prevMes)}`:'Nenhum relatório do mês anterior para arquivar');
+  renderReport();
+}
+function downloadReportHist(mes){
+  if(!S.reports)return;
+  const reps=Object.entries(S.reports).filter(([,r])=>r._arq&&r._arqMes===mes&&(r.member===me||!r.member));
+  const rows=reps.map(([k,r])=>({
+    'Semana':r.week||k,'Membro':r.member||me,'Salvo em':r.savedAt||'',
+    'Resumo':r.conteudo_gravado||r.done||'',
+    'Pendentes':r.pending||r.pendentes||'','Próxima semana':r.proxima_semana||r.next||'',
+    'Mês Arquivado':r._arqMes||''
+  }));
+  downloadCSV(rows,'relatorios_'+mes+'.csv');
+}
 function renderReport(){
   if(!S.reports)S.reports={};
+  const tab=window._reportTab||'atual';
   const wk=weekId();const key=me+'-'+wk;
   const saved=S.reports[key]||{};
-  const allReps=Object.entries(S.reports).filter(([k])=>k.startsWith(me+'-')).sort((a,b)=>b[0].localeCompare(a[0]));
-  const wkLabel=wk;
   const dateRange=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
-
   const formHtml=isMarketing()?repFormMarketing(saved):isCaixa()?repFormFinanceiro(saved):isContasPagar()?repFormMarco(saved):isCompras()?repFormCarlos(saved):repFormGenerico(saved);
 
-  let html=`<div class="rep-form">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-      <div>
-        <div style="font-size:1.05rem;font-weight:800;">${isMarketing()?'Relatório Semanal — Marketing MRZ':isCaixa()?'Relatório Semanal — Controle Financeiro':isContasPagar()?'Relatório Semanal — Contas a Pagar':isCompras()?'Relatório Semanal — Compras':'Relatório Semanal'}</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${wkLabel} · ${dateRange} · Responsável: ${M[me]?.name||me}</div>
-      </div>
-      <button class="btn-gold btn-sm" onclick="saveReport()">Salvar relatório</button>
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
+    <div class="ev-type-row" style="flex:1;min-width:200px;">
+      <button class="ev-type-btn${tab==='atual'?' sel':''}" onclick="window._reportTab='atual';renderReport()">📝 Atual</button>
+      <button class="ev-type-btn${tab==='historico'?' sel':''}" onclick="window._reportTab='historico';renderReport()">📁 Histórico</button>
     </div>
-    ${formHtml}
+    ${isLeader()?`<button class="btn-ghost btn-sm" onclick="arquivarMesReport()" title="Arquiva relatórios do mês anterior">📦 Fechar Mês</button>`:''}
   </div>`;
 
-  if(allReps.length){
-    html+=`<div class="sec" style="margin-top:24px">Relatórios anteriores</div>`;
-    allReps.forEach(([k,r])=>{
-      const lbl=k.replace(me+'-','');
-      const preview=r.conteudo_gravado||r.done||'';
-      html+=`<div class="rep-card" onclick="viewReport('${k}')">
-        <div class="rc-hd"><span class="rc-week">${lbl}</span><span class="rc-date">${r.savedAt||''}</span></div>
+  if(tab==='atual'){
+    html+=`<div class="rep-form">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:1.05rem;font-weight:800;">${isMarketing()?'Relatório Semanal — Marketing MRZ':isCaixa()?'Relatório Semanal — Controle Financeiro':isContasPagar()?'Relatório Semanal — Contas a Pagar':isCompras()?'Relatório Semanal — Compras':'Relatório Semanal'}</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${wk} · ${dateRange} · Responsável: ${M[me]?.name||me}</div>
+        </div>
+        <button class="btn-gold btn-sm" onclick="saveReport()">Salvar relatório</button>
+      </div>
+      ${formHtml}
+    </div>`;
+    // Relatórios anteriores não arquivados
+    const prevReps=Object.entries(S.reports).filter(([k,r])=>k.startsWith(me+'-')&&k!==key&&!r._arq).sort((a,b)=>b[0].localeCompare(a[0]));
+    if(prevReps.length){
+      html+=`<div class="sec" style="margin-top:24px">Relatórios anteriores</div>`;
+      prevReps.forEach(([k,r])=>{
+        const lbl=k.replace(me+'-','');
+        const preview=r.conteudo_gravado||r.done||'';
+        html+=`<div class="rep-card" onclick="viewReport('${k}')">
+          <div class="rc-hd"><span class="rc-week">${lbl}</span><span class="rc-date">${r.savedAt||''}</span></div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:3px;">${preview.slice(0,90)}${preview.length>90?'...':''}</div>
+        </div>`;
+      });
+    }
+  } else {
+    // ABA HISTÓRICO — accordion por mês
+    const arqArr=Object.entries(S.reports)
+      .filter(([k,r])=>r._arq&&k.startsWith(me+'-'))
+      .map(([k,r])=>({...r,_repKey:k,date:weekToMonth(r.week||'')+(r.week||'').replace(/.*W/,'-W')||r._arqMes+'-01'}));
+    const repCard=item=>{
+      const preview=item.conteudo_gravado||item.done||'';
+      return`<div class="rep-card" onclick="viewReport('${item._repKey}')" style="opacity:.9;cursor:pointer;">
+        <div class="rc-hd"><span class="rc-week">${item.week||item._repKey?.split('-').slice(-1)[0]||''}</span><span class="rc-date">${item.savedAt||''}</span></div>
         <div style="font-size:.75rem;color:var(--muted);margin-top:3px;">${preview.slice(0,90)}${preview.length>90?'...':''}</div>
       </div>`;
-    });
+    };
+    html+=histAcordiao('report',arqArr,repCard,'downloadReportHist','renderReport');
   }
   document.getElementById('p-report').innerHTML=html;
 }
@@ -2431,8 +2606,35 @@ function renderCotacao(){
 
   const fornOpts=['A','B','C'].map(f=>{const n=({A:cotFornA,B:cotFornB,C:cotFornC}[f])||'Fornecedor '+f;return`<option value="${f}">${esc(n)}</option>`;}).join('');
 
+  const cotTab=window._cotTab||'ativo';
+
+  // ── ABA HISTÓRICO (Cotação) ──
+  if(cotTab==='hist'){
+    const cotCard=c=>`<div class="cot-saved" style="margin-bottom:6px;">
+      <div style="flex:1">
+        <div style="font-size:.88rem;font-weight:700">${esc(c.name||'Sem título')}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px">${fmtDate(c.date)} · ${c.rows?.length||0} itens${c.escolhido?` · Escolhido: <strong>${esc(c.fornNames?.[c.escolhido]||'Forn. '+c.escolhido)}</strong>`:''}</div>
+        ${c.motivo?`<div style="font-size:.72rem;color:var(--muted);margin-top:2px;font-style:italic">${esc(c.motivo.slice(0,100))}${c.motivo.length>100?'...':''}</div>`:''}
+      </div>
+    </div>`;
+    document.getElementById('p-cotacao').innerHTML=`
+      <div class="page-head"><h2>Cotação</h2></div>
+      <div style="display:flex;gap:6px;margin-bottom:18px;">
+        <button class="ev-type-btn" onclick="window._cotTab='ativo';renderCotacao()">📋 Ativas</button>
+        <button class="ev-type-btn sel">📁 Histórico</button>
+      </div>
+      ${histAcordiao('cot',S.cotacoes||[],cotCard,'downloadCotacaoHist','renderCotacao')}`;
+    return;
+  }
+
   document.getElementById('p-cotacao').innerHTML=`
-    <div class="page-head"><h2>Cotação</h2></div>
+    <div class="page-head"><h2>Cotação</h2>
+      <button class="btn-ghost btn-sm" onclick="arquivarMesCotacao()" title="Arquiva cotações do mês anterior">📁 Fechar Mês</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:18px;">
+      <button class="ev-type-btn sel">📋 Ativas</button>
+      <button class="ev-type-btn" onclick="window._cotTab='hist';renderCotacao()">📁 Histórico</button>
+    </div>
     <div class="card-panel" style="margin-bottom:20px">
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div style="flex:2;min-width:150px"><label class="f-lb">Nome da cotação</label><input class="f-in" id="cot-name" placeholder="Ex: Carnes — Semana 18"></div>
@@ -2482,7 +2684,7 @@ function renderCotacao(){
       </div>
     </div>
 
-    ${S.cotacoes.length?`<div class="sec">Cotações salvas</div>`+S.cotacoes.slice().reverse().map(c=>`
+    ${(S.cotacoes||[]).filter(c=>!c._arq).length?`<div class="sec">Cotações salvas</div>`+(S.cotacoes||[]).filter(c=>!c._arq).slice().reverse().map(c=>`
       <div class="cot-saved" onclick="loadCotacao('${c.id}')">
         <div style="flex:1">
           <div style="font-size:.88rem;font-weight:700">${esc(c.name||'Sem título')}</div>
@@ -2555,6 +2757,25 @@ function loadCotacao(id){
 }
 
 function deleteCotacao(id){S.cotacoes=S.cotacoes.filter(x=>x.id!==id);saveLocal();renderCotacao();}
+function downloadECHist(mes){
+  const sl={pendente:'Pendente',resolvido:'Resolvido','sem-erro':'Nao achou'};
+  const rows=S.errosCaixa.filter(e=>e._arq&&e._arqMes===mes).map(e=>({'Data':e.date,'Loja':e.loja,'Titulo':e.titulo,'Tipo':e.tipo,'Valor':e.valor||'','Status':sl[e.status]||e.status,'Obs':e.obs||'','Membro':M[e.member]?.name||e.member||''}));
+  downloadCSV(rows,'erros_caixa_'+mes+'.csv');
+}
+function downloadCotacaoHist(mes){
+  const filtrado=(S.cotacoes||[]).filter(c=>c._arq&&c._arqMes===mes);
+  const rows=filtrado.map(c=>({'Nome':c.name||'','Data':c.date||'','Fornecedor A':c.fornNames?.A||'','Fornecedor B':c.fornNames?.B||'','Fornecedor C':c.fornNames?.C||'','Escolhido':c.fornNames?.[c.escolhido]||c.escolhido||'','Observacoes':c.obs||'','Motivo':c.motivo||'','Mes Arquivado':c._arqMes||''}));
+  downloadCSV(rows,'cotacoes_'+mes+'.csv');
+}
+function arquivarMesCotacao(){
+  const prevMes=prevMonthKey();
+  let count=0;
+  (S.cotacoes||[]).forEach(c=>{
+    if(!c._arq&&c.date&&c.date.startsWith(prevMes)){c._arq=true;c._arqMes=prevMes;count++;}
+  });
+  if(!count){toast('Nenhuma cotação do mês anterior para arquivar.');return;}
+  saveLocal();toast(count+' cotação(ões) arquivada(s)!');renderCotacao();
+}
 
 // ══════════════════════════════════════
 // FORNECEDORES
@@ -3474,6 +3695,7 @@ function renderRH(){
     <button class="ev-type-btn${tab==='agendamentos'?' sel':''}" onclick="window._rhTab='agendamentos';renderRH()">📅 Agendamentos</button>
     <button class="ev-type-btn${tab==='documentos'?' sel':''}" onclick="window._rhTab='documentos';renderRH()">📄 Documentos</button>
     <button class="ev-type-btn${tab==='ocorrencias'?' sel':''}" onclick="window._rhTab='ocorrencias';renderRH()">⚠️ Advertências</button>
+    <button class="ev-type-btn${tab==='historico'?' sel':''}" onclick="window._rhTab='historico';renderRH()">📁 Histórico</button>
   </div>`;
 
   // ── ABA: PONTOS — KANBAN ─────────────────────────────────
@@ -3752,10 +3974,79 @@ function renderRH(){
     }
   }
 
+  // ── ABA HISTÓRICO RH ────────────────────────────────────
+  if(tab==='historico'){
+    const allArq=[
+      ...(S.rh.pontos||[]).filter(p=>p._arq).map(p=>({...p,_tipo:'ponto',date:p.mes||p._arqMes||''})),
+      ...(S.rh.contratacoes||[]).filter(c=>c._arq).map(c=>({...c,_tipo:'contratacao',date:c.criadoEm||c._arqMes+'-01'})),
+      ...(S.rh.agendamentos||[]).filter(a=>a._arq).map(a=>({...a,_tipo:'agendamento',date:a.data||a._arqMes||''})),
+    ];
+    const rhCard=item=>{
+      if(item._tipo==='ponto'){
+        return`<div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:8px;border-left:3px solid #6c8ebf;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            <span style="font-size:.65rem;background:#6c8ebf22;color:#6c8ebf;border-radius:4px;padding:1px 6px;">🕐 Ponto</span>
+            <span style="font-weight:700;font-size:.85rem;">${esc(item.funcionario||'—')}</span>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);">${item.loja||''} · ${item.mes||''} · ${item.status||''}</div>
+          ${item.obs?`<div style="font-size:.72rem;color:var(--text);margin-top:4px;">${esc(item.obs)}</div>`:''}
+        </div>`;
+      }
+      if(item._tipo==='contratacao'){
+        return`<div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:8px;border-left:3px solid #82b366;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            <span style="font-size:.65rem;background:#82b36622;color:#82b366;border-radius:4px;padding:1px 6px;">👤 Contratação</span>
+            <span style="font-weight:700;font-size:.85rem;">${esc(item.cargo||'—')}</span>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);">${item.loja||''} · Fase: ${item.fase||''} · ${item.status||''}</div>
+        </div>`;
+      }
+      if(item._tipo==='agendamento'){
+        return`<div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:8px;border-left:3px solid #d6b656;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            <span style="font-size:.65rem;background:#d6b65622;color:#d6b656;border-radius:4px;padding:1px 6px;">📅 Agendamento</span>
+            <span style="font-weight:700;font-size:.85rem;">${esc(item.funcionario||'—')}</span>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);">${item.tipo||''} · ${item.data||''} · ${item.status||''}</div>
+        </div>`;
+      }
+      return'';
+    };
+    html+=histAcordiao('rh',allArq,rhCard,'downloadRHHist','renderRH');
+  }
+
   document.getElementById('p-rh').innerHTML=html;
 }
 
 // ── Helpers RH ──────────────────────────────────────────
+function downloadRHHist(mes){
+  const pFil=(S.rh.pontos||[]).filter(p=>p._arq&&p._arqMes===mes);
+  const cFil=(S.rh.contratacoes||[]).filter(c=>c._arq&&c._arqMes===mes);
+  const aFil=(S.rh.agendamentos||[]).filter(a=>a._arq&&a._arqMes===mes);
+  const rows=[
+    ...pFil.map(p=>({'Tipo':'Ponto','Funcionario':p.funcionario||'','Loja':p.loja||'','Mes':p.mes||'','Status':p.status||'','Obs':p.obs||'','Mes Arquivado':p._arqMes||''})),
+    ...cFil.map(c=>({'Tipo':'Contratacao','Cargo':c.cargo||'','Loja':c.loja||'','Fase':c.fase||'','Status':c.status||'','Mes Arquivado':c._arqMes||''})),
+    ...aFil.map(a=>({'Tipo':'Agendamento','Funcionario':a.funcionario||'','Tipo Agend':a.tipo||'','Data':a.data||'','Status':a.status||'','Mes Arquivado':a._arqMes||''})),
+  ];
+  downloadCSV(rows,'rh_historico_'+mes+'.csv');
+}
+function arquivarMesRH(){
+  const prevMes=prevMonthKey();
+  let count=0;
+  const arqArr=(arr,resolvedStatuses)=>{
+    (arr||[]).forEach(item=>{
+      if(!item._arq&&(item.data||item.mes||item.criadoEm||'').startsWith(prevMes)&&resolvedStatuses.includes(item.status)){
+        item._arq=true;item._arqMes=prevMes;count++;
+      }
+    });
+  };
+  arqArr(S.rh.pontos,['resolvido']);
+  arqArr(S.rh.contratacoes,['contratado','reprovado']);
+  arqArr(S.rh.agendamentos,['realizado','cancelado']);
+  if(!count){toast('Nenhum item resolvido do mês anterior para arquivar.');return;}
+  saveLocal();toast(count+' item(s) de RH arquivado(s)!');renderRH();
+}
+
 function rhPontoStatus(id,status){
   const p=(S.rh.pontos||[]).find(x=>x.id===id);
   if(p){p.status=status;saveLocal();renderRH();}
@@ -4027,7 +4318,37 @@ function saveRhAdv(){
 
 function renderErrosCaixa(){
   if(!S.errosCaixa)S.errosCaixa=[];
-  const todos=S.errosCaixa;
+  const ecTab=window._ecTab||'ativo';
+
+  // ── ABA HISTÓRICO ──
+  if(ecTab==='hist'){
+    const sl={pendente:'Pendente',resolvido:'Resolvido','sem-erro':'Não achou'};
+    const ecCard=e=>{
+      const lojaColor=LOJAS.indexOf(e.loja)>=0?['#6366f1','#f472b6','#22d3ee','#f59e0b','#22c55e'][LOJAS.indexOf(e.loja)]:'var(--muted)';
+      return`<div class="ec-card" style="margin-bottom:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+            <span class="ec-status resolvido">${sl[e.status]||e.status}</span>
+            <span style="font-size:.65rem;font-weight:800;padding:2px 8px;border-radius:999px;background:${lojaColor}18;color:${lojaColor};border:1px solid ${lojaColor}33;">${esc(e.loja)}</span>
+          </div>
+          <div style="font-size:.88rem;font-weight:700;margin-bottom:3px;">${esc(e.titulo)}</div>
+          <div class="ec-meta"><span>🗂 ${esc(e.tipo)}</span><span>📅 ${fmtDate(e.date)}</span>${e.valor?`<span class="ec-valor">R$ ${esc(e.valor)}</span>`:''}</div>
+          ${e.obs?`<div style="font-size:.76rem;color:var(--muted);margin-top:5px;">${esc(e.obs)}</div>`:''}
+        </div>
+      </div>`;
+    };
+    document.getElementById('p-erros-caixa').innerHTML=`
+      <div class="page-head"><h2>Erros de Caixa</h2></div>
+      <div style="display:flex;gap:6px;margin-bottom:18px;">
+        <button class="ev-type-btn" onclick="window._ecTab='ativo';renderErrosCaixa()">📋 Ativos</button>
+        <button class="ev-type-btn sel">📁 Histórico</button>
+      </div>
+      ${histAcordiao('ec',S.errosCaixa,ecCard,'downloadECHist','renderErrosCaixa')}`;
+    return;
+  }
+
+  // ── ABA ATIVO ──
+  const todos=S.errosCaixa.filter(e=>!e._arq);
   const lojaFil=window._ecLoja||'todas';
   const statusFil=window._ecStatus||'todos';
 
@@ -4088,7 +4409,16 @@ function renderErrosCaixa(){
   }
 
   document.getElementById('p-erros-caixa').innerHTML=`
-    <div class="page-head"><h2>Erros de Caixa</h2><button class="btn-gold" onclick="openNovoErroCaixa()">+ Registrar erro</button></div>
+    <div class="page-head"><h2>Erros de Caixa</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost btn-sm" onclick="arquivarMes(S.errosCaixa,['resolvido','sem-erro'],renderErrosCaixa)" title="Arquiva resolvidos do mês anterior">📁 Fechar Mês</button>
+        <button class="btn-gold" onclick="openNovoErroCaixa()">+ Registrar erro</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:18px;">
+      <button class="ev-type-btn sel">📋 Ativos</button>
+      <button class="ev-type-btn" onclick="window._ecTab='hist';renderErrosCaixa()">📁 Histórico</button>
+    </div>
     <div class="ec-summary">
       <div class="ec-sum-card"><b style="color:#fbbf24">${pendentes}</b><span>Pendentes</span></div>
       <div class="ec-sum-card"><b style="color:#4ade80">${resolvidos}</b><span>Resolvidos</span></div>
