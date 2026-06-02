@@ -1047,7 +1047,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:18,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},lastUp:null};}
+function defState(){return{v:18,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1084,6 +1084,7 @@ function migrateState(d){
   if(!Array.isArray(d.customUsers))d.customUsers=[];
   if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
   if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
+  if(!d.usernames||typeof d.usernames!=='object')d.usernames={};
   // v17: add manutencao array
   if(!Array.isArray(d.manutencao))d.manutencao=[];
   // v18: refresh rotinas (corrections + new routines for Marco, Nelci, Carol, Iza, Dário, Bruna)
@@ -1276,8 +1277,12 @@ function doLogin(){
   const pwd=pwdEl.value||'';
   errEl.textContent='';
   if(!username||!pwd){errEl.textContent='Preencha usuário e senha.';return;}
-  // Busca pelo username (chave do M) — case insensitive
-  const found=Object.entries(M).find(([k])=>k.toLowerCase()===username);
+  // Busca: primeiro pelo username customizado (S.usernames), depois pelo key do M
+  const found=Object.entries(M).find(([k])=>{
+    const custom=(S&&S.usernames&&S.usernames[k])||'';
+    if(custom&&custom.toLowerCase()===username)return true;
+    return k.toLowerCase()===username;
+  });
   if(!found){errEl.textContent='Usuário não encontrado.';return;}
   const [k]=found;
   // Verifica senha
@@ -7877,7 +7882,7 @@ function renderUsuarios(){
         <div style="width:42px;height:42px;border-radius:12px;background:${u.color}22;display:grid;place-items:center;font-size:.75rem;font-weight:800;color:${u.color};flex-shrink:0;">${u.icon}</div>
         <div style="flex:1;min-width:120px;">
           <div style="font-weight:700;font-size:.9rem;">${esc(u.name)}${u.isLeader?'<span style="font-size:.6rem;color:var(--gold);background:rgba(197,165,114,.12);border-radius:999px;padding:2px 7px;margin-left:6px;">Líder</span>':''}</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:1px;">${esc(u.role)} · ${esc((S.userEmail||{})[uid]||u.email||'—')}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:1px;">${esc(u.role)} · <span style="font-family:monospace;letter-spacing:.03em;">@${esc((S.usernames||{})[uid]||uid)}</span></div>
           <div style="font-size:.67rem;margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
             ${hasCustomPerms?'<span style="background:rgba(96,165,250,.1);color:#60a5fa;border-radius:999px;padding:2px 7px;">Permissões customizadas</span>':'<span style="background:rgba(255,255,255,.05);color:var(--muted);border-radius:999px;padding:2px 7px;">Acesso padrão</span>'}
             ${pwdSet?'<span style="background:rgba(52,211,153,.08);color:#34d399;border-radius:999px;padding:2px 7px;">Senha definida</span>':'<span style="background:rgba(251,146,60,.1);color:#fb923c;border-radius:999px;padding:2px 7px;">Senha padrão (mrz2026)</span>'}
@@ -7886,7 +7891,7 @@ function renderUsuarios(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn-ghost btn-sm" onclick="openPermModal('${uid}')">🔒 Permissões</button>
           <button class="btn-ghost btn-sm" onclick="openResetPwdModal('${uid}')">🔑 Senha</button>
-          <button class="btn-ghost btn-sm" onclick="openEditEmailModal('${uid}')">✉️ Email</button>
+          <button class="btn-ghost btn-sm" onclick="openEditUsernameModal('${uid}')">👤 Usuário</button>
           ${isCustom?`<button class="btn-ghost btn-sm" style="color:var(--red);" onclick="deleteCustomUser('${uid}')">🗑</button>`:''}
         </div>
       </div>`;
@@ -7901,7 +7906,7 @@ function openNewUserModal(){
     <h3 style="margin-bottom:16px;">Novo Usuário</h3>
     <div class="f-grp"><label class="f-lb">Nome completo</label><input class="f-in" id="nu-name" placeholder="Ex: Ana Lima"></div>
     <div class="f-grp"><label class="f-lb">Cargo / Função</label><input class="f-in" id="nu-role" placeholder="Ex: Financeiro · Analista"></div>
-    <div class="f-grp"><label class="f-lb">Email de acesso</label><input class="f-in" type="email" id="nu-email" placeholder="nome@grupomrz.com"></div>
+    <div class="f-grp"><label class="f-lb">Usuário de login</label><input class="f-in" type="text" id="nu-email" placeholder="ex: ana.lima" autocomplete="off" style="font-family:monospace;"></div>
     <div class="f-grp"><label class="f-lb">Senha inicial</label><input class="f-in" type="password" id="nu-pwd" placeholder="Mínimo 4 caracteres"></div>
     <div class="f-grp">
       <label class="f-lb">Cor</label>
@@ -7926,21 +7931,25 @@ function selectUColor(c,el){
 function saveNewUser(){
   const name=(document.getElementById('nu-name').value||'').trim();
   const role=(document.getElementById('nu-role').value||'').trim();
-  const email=(document.getElementById('nu-email').value||'').trim().toLowerCase();
+  const username=(document.getElementById('nu-email').value||'').trim().toLowerCase().replace(/\s+/g,'');
   const pwd=document.getElementById('nu-pwd').value||'';
   const color=document.getElementById('nu-color').value;
   const isLeaderVal=document.getElementById('nu-leader').value==='1';
   const errEl=document.getElementById('nu-err');
   if(!name){errEl.textContent='Nome obrigatório.';return;}
-  if(!email||!email.includes('@')){errEl.textContent='Email inválido.';return;}
+  if(!username||username.length<2){errEl.textContent='Usuário de login obrigatório (mín. 2 caracteres).';return;}
   if(pwd.length<4){errEl.textContent='Senha mínima de 4 caracteres.';return;}
-  // Checar email duplicado
-  if(Object.values(M).some(m=>m.email&&m.email.toLowerCase()===email)){errEl.textContent='Email já cadastrado.';return;}
+  // Checar username duplicado
+  const usedNames=Object.entries(M).map(([k])=>[(S.usernames||{})[k]||k,k]).flat().map(x=>x.toLowerCase());
+  if(usedNames.includes(username)){errEl.textContent='Usuário já está em uso.';return;}
   const id='u_'+Date.now().toString(36);
   const icon=name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'US';
-  const newUser={id,name,role,email,color,icon,isLeader:isLeaderVal};
+  const newUser={id,name,role,email:'',color,icon,isLeader:isLeaderVal};
   if(!S.customUsers)S.customUsers=[];
   S.customUsers.push(newUser);
+  // Salvar username de login
+  if(!S.usernames)S.usernames={};
+  S.usernames[id]=username;
   // Salvar senha
   if(!S.pins)S.pins={};
   S.pins[id]=pwdHash(pwd);
@@ -8006,7 +8015,7 @@ function openResetPwdModal(uid){
   const u=M[uid];if(!u)return;
   openModal(`
     <h3 style="margin-bottom:4px;">Redefinir Senha</h3>
-    <div style="font-size:.78rem;color:var(--muted);margin-bottom:16px;">${esc(u.name)} · ${esc(u.email||'')}</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:16px;">${esc(u.name)} · <span style="font-family:monospace;">@${esc((S.usernames||{})[uid]||uid)}</span></div>
     <div class="f-grp"><label class="f-lb">Nova senha</label><input class="f-in" type="password" id="rp-pwd1" placeholder="Mínimo 4 caracteres"></div>
     <div class="f-grp"><label class="f-lb">Confirmar senha</label><input class="f-in" type="password" id="rp-pwd2" placeholder="Repita a senha"></div>
     <div id="rp-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
@@ -8029,36 +8038,37 @@ function saveResetPwd(uid){
 
 // ── Deletar usuário customizado ──
 // ── Modal: Editar Email ──
-function openEditEmailModal(uid){
+function openEditUsernameModal(uid){
   const u=M[uid];if(!u)return;
-  const currentEmail=(S.userEmail||{})[uid]||u.email||'';
+  const currentUsername=(S.usernames||{})[uid]||uid;
   openModal(`
-    <h3 style="margin-bottom:4px;">Editar Email</h3>
+    <h3 style="margin-bottom:4px;">Editar Usuário de Login</h3>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:16px;">${esc(u.name)}</div>
     <div class="f-grp">
-      <label class="f-lb">Email de acesso</label>
-      <input class="f-in" type="email" id="ee-email" value="${esc(currentEmail)}" placeholder="email@dominio.com">
+      <label class="f-lb">Nome de usuário</label>
+      <input class="f-in" type="text" id="eu-username" value="${esc(currentUsername)}" placeholder="ex: carol.mkt" autocomplete="off" style="font-family:monospace;">
     </div>
-    <div id="ee-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
-    <button class="btn-gold" style="width:100%;margin-top:10px;" onclick="saveEditEmail('${uid}')">Salvar Email</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-top:-6px;margin-bottom:10px;">Sem espaços. Este é o nome que a pessoa vai digitar para entrar.</div>
+    <div id="eu-err" style="font-size:.74rem;color:var(--red);min-height:16px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:10px;" onclick="saveEditUsername('${uid}')">Salvar Usuário</button>
   `);
 }
-function saveEditEmail(uid){
-  const email=(document.getElementById('ee-email').value||'').trim().toLowerCase();
-  const errEl=document.getElementById('ee-err');
-  if(!email||!email.includes('@')){errEl.textContent='Email inválido.';return;}
+function saveEditUsername(uid){
+  const username=(document.getElementById('eu-username').value||'').trim().toLowerCase().replace(/\s+/g,'');
+  const errEl=document.getElementById('eu-err');
+  if(!username||username.length<2){errEl.textContent='Usuário deve ter ao menos 2 caracteres.';return;}
   // Checar duplicata em outros usuários
-  const conflict=Object.entries(M).find(([k,m])=>{
+  const conflict=Object.entries(M).find(([k])=>{
     if(k===uid)return false;
-    const eff=(S.userEmail||{})[k]||m.email||'';
-    return eff.toLowerCase()===email;
+    const custom=(S.usernames||{})[k]||k;
+    return custom.toLowerCase()===username||k.toLowerCase()===username;
   });
-  if(conflict){errEl.textContent='Este email já está em uso por outro usuário.';return;}
-  if(!S.userEmail)S.userEmail={};
-  S.userEmail[uid]=email;
+  if(conflict){errEl.textContent='Este usuário já está em uso por outra pessoa.';return;}
+  if(!S.usernames)S.usernames={};
+  S.usernames[uid]=username;
   saveLocal();
   closeModal();
-  toast('Email atualizado!');
+  toast('Usuário atualizado!');
   renderUsuarios();
 }
 
