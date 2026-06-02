@@ -110,6 +110,20 @@ html,body{transition:background .35s,color .35s;}
 
 /* ══ CALENDÁRIO ══ */
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.ag-day{margin-bottom:18px;}
+.ag-day-hdr{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.ag-day-label{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.ag-day-label.today{color:var(--gold);}
+.ag-day-num{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:.9rem;font-weight:700;background:var(--panel2);border:1px solid var(--line);}
+.ag-day-num.today{background:var(--gold);color:#000;border-color:var(--gold);}
+.ag-item{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);margin-bottom:6px;cursor:pointer;transition:.15s;}
+.ag-item:hover{border-color:var(--line2);}
+.ag-item-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.ag-item-body{flex:1;min-width:0;}
+.ag-item-title{font-size:.84rem;font-weight:600;line-height:1.3;}
+.ag-item-sub{font-size:.7rem;color:var(--muted);margin-top:2px;}
+.ag-pessoal{border-left:3px solid var(--gold);}
+.ag-empty{font-size:.78rem;color:var(--muted);text-align:center;padding:32px;}
 .cal-nav{display:flex;gap:8px;align-items:center;}
 .cal-nav button{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:6px 14px;cursor:pointer;font-size:.82rem;transition:.2s;}
 .cal-nav button:hover{color:var(--text);border-color:var(--line2);}
@@ -129,6 +143,7 @@ html,body{transition:background .35s,color .35s;}
 .cal-ev.tipo-reuniao{background:rgba(56,189,248,.18);color:#7dd3fc;}
 .cal-ev.tipo-prazo{background:rgba(239,68,68,.18);color:#fca5a5;}
 .cal-ev.tipo-outro{background:rgba(255,255,255,.07);color:var(--muted);}
+.cal-ev.tipo-pessoal{background:rgba(197,165,114,.22);color:var(--gold);border-left:2px solid var(--gold);}
 .cal-ev.tipo-story{background:rgba(34,211,238,.18);color:#a5f3fc;}
 .cal-more{font-size:.62rem;color:var(--muted2);margin-top:1px;}
 .ev-type-row{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 6px;}
@@ -3024,15 +3039,22 @@ function saveFornecedor(){
 // ══════════════════════════════════════
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
 const TIPOS_EV=['post','story','reels','campanha','reuniao','prazo','outro'];
-const TIPO_LABEL={'post':'Post','story':'Story','reels':'Reels','campanha':'Campanha','reuniao':'Reunião','prazo':'Prazo','outro':'Outro'};
+const TIPO_LABEL={'post':'Post','story':'Story','reels':'Reels','campanha':'Campanha','reuniao':'Reunião','prazo':'Prazo','outro':'Outro','pessoal':'Pessoal'};
 let newEvTipo='outro';
 
 function renderCalendar(){
   if(!S.calendar)S.calendar=[];
+  const calView=window._calView||'grid';
   const el=document.getElementById('p-calendar');
   const mNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const today=new Date(); const todayStr=today.toISOString().slice(0,10);
+  const tabBar=`<div class="ev-type-row" style="margin-bottom:18px;">
+    <button class="ev-type-btn${calView==='grid'?' sel':''}" onclick="window._calView='grid';renderCalendar()">📅 Calendário</button>
+    <button class="ev-type-btn${calView==='agenda'?' sel':''}" onclick="window._calView='agenda';renderCalendar()">📋 Minha Agenda</button>
+  </div>`;
+  if(calView==='agenda'){renderAgendaPessoal(el,tabBar,todayStr);return;}
+
   const firstDay=new Date(calYear,calMonth,1);
   const lastDay=new Date(calYear,calMonth+1,0);
   const startDow=firstDay.getDay();
@@ -3068,6 +3090,7 @@ function renderCalendar(){
   for(let i=1;i<=rem;i++){cells+=`<div class="cal-cell other-month"><div class="cal-dn">${i}</div></div>`;}
   el.innerHTML=`
     <div class="page-head"><h2>Calendário</h2><button class="btn-gold" onclick="openAddEvent('')">+ Novo evento</button></div>
+    ${tabBar}
     <div class="cal-header">
       <div class="cal-nav">
         <button onclick="calPrev()">←</button>
@@ -3095,6 +3118,97 @@ function renderCalendar(){
       }).join('')}
     </div>
   `;
+}
+function renderAgendaPessoal(el,tabBar,todayStr){
+  const m=M[me];
+  const rotEvs=rotCalEvents();
+  const projEvs=projetosCalEvents();
+  // Mostra 7 dias passados + hoje + 60 dias futuros
+  const days=[];
+  for(let i=-7;i<=60;i++){
+    const d=new Date();d.setDate(d.getDate()+i);
+    days.push(d.toISOString().slice(0,10));
+  }
+  const DAY_NAMES_PT=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const MONTH_SHORT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  let html=`<div class="page-head"><h2>Minha Agenda</h2><button class="btn-gold" onclick="openAddPessoal()">+ Lembrete</button></div>${tabBar}`;
+  let hasContent=false;
+  days.forEach(ds=>{
+    const dt=new Date(ds+'T12:00');
+    const isToday=ds===todayStr;
+    const isPast=ds<todayStr;
+    // Eventos do calendário para mim
+    const calEvs=(S.calendar||[]).filter(e=>e.date===ds&&(e.member===me||e.assignedTo===me||e.pessoal&&e.member===me));
+    // Rotinas minhas neste dia
+    const myRots=rotEvs.filter(e=>e.date===ds&&e.assignees&&e.assignees.includes(me));
+    // Projetos com minha presença
+    const myProj=projEvs.filter(e=>e.date===ds&&(e.assignees?.includes(me)||e.createdBy===me));
+    if(!calEvs.length&&!myRots.length&&!myProj.length)return;
+    hasContent=true;
+    const dayLabel=`${DAY_NAMES_PT[dt.getDay()]}, ${dt.getDate()} ${MONTH_SHORT[dt.getMonth()]}`;
+    html+=`<div class="ag-day" style="${isPast?'opacity:.6':''}">
+      <div class="ag-day-hdr">
+        <div class="ag-day-num${isToday?' today':''}">${dt.getDate()}</div>
+        <div class="ag-day-label${isToday?' today':''}">${isToday?'HOJE — ':''} ${dayLabel}</div>
+      </div>`;
+    // Rotinas
+    myRots.forEach(r=>{
+      const done=(S.rotinas?.completions||{})[r.rotId+'_'+ds];
+      html+=`<div class="ag-item" onclick="openCalDay('${ds}')">
+        <div class="ag-item-dot" style="background:${r.color};"></div>
+        <div class="ag-item-body">
+          <div class="ag-item-title" style="${done?'text-decoration:line-through;opacity:.5':''}">🔄 ${esc(r.title)}</div>
+          <div class="ag-item-sub">Rotina${done?' · ✅ Concluída':''}</div>
+        </div>
+      </div>`;
+    });
+    // Projetos
+    myProj.forEach(p=>{
+      html+=`<div class="ag-item" onclick="goPanel('projetos')">
+        <div class="ag-item-dot" style="background:${p.cor||'var(--gold)'};"></div>
+        <div class="ag-item-body">
+          <div class="ag-item-title">📁 ${esc(p.title)}</div>
+          <div class="ag-item-sub">Projeto</div>
+        </div>
+      </div>`;
+    });
+    // Eventos de calendário
+    calEvs.forEach(e=>{
+      const isPessoal=e.pessoal&&e.member===me;
+      html+=`<div class="ag-item${isPessoal?' ag-pessoal':''}" onclick="openCalEventDetail('${e.id}')">
+        <div class="ag-item-dot" style="background:${isPessoal?'var(--gold)':'var(--accent)'};"></div>
+        <div class="ag-item-body">
+          <div class="ag-item-title">${isPessoal?'📌 ':''}${esc(e.title)}</div>
+          <div class="ag-item-sub">${isPessoal?'Lembrete pessoal':(TIPO_LABEL[e.tipo]||e.tipo||'Evento')}${e.desc?` · ${esc(e.desc)}`:''}</div>
+        </div>
+        ${e.member===me?`<button class="icon-btn" onclick="event.stopPropagation();delCalEvent('${e.id}')">×</button>`:''}
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  if(!hasContent){
+    html+=`<div class="ag-empty">Sua agenda está vazia por enquanto.<br><span style="font-size:.7rem;">Use "+ Lembrete" para adicionar compromissos pessoais.</span></div>`;
+  }
+  el.innerHTML=html;
+}
+function openAddPessoal(){
+  document.getElementById('modal-body').innerHTML=`
+    <h3 style="margin-bottom:16px;">📌 Novo Lembrete Pessoal</h3>
+    <div class="f-grp"><label class="f-lb">Título</label><input class="f-in" id="pp-title" placeholder="Ex: Reunião com cliente, Dentista..."></div>
+    <div class="f-grp"><label class="f-lb">Data</label><input class="f-in" type="date" id="pp-date" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="f-grp"><label class="f-lb">Descrição (opcional)</label><input class="f-in" id="pp-desc" placeholder="Detalhes..."></div>
+    <div id="pp-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="savePessoal()">Salvar Lembrete</button>
+  `;
+  openModal();
+}
+function savePessoal(){
+  const title=document.getElementById('pp-title').value.trim();
+  const date=document.getElementById('pp-date').value;
+  if(!title||!date){document.getElementById('pp-err').textContent='Título e data são obrigatórios.';return;}
+  if(!S.calendar)S.calendar=[];
+  S.calendar.push({id:uid(),member:me,pessoal:true,tipo:'pessoal',title,date,desc:document.getElementById('pp-desc').value.trim(),createdAt:todayKey()});
+  saveLocal();closeModal();window._calView='agenda';renderCalendar();toast('Lembrete salvo!');
 }
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
