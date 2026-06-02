@@ -3256,50 +3256,120 @@ function renderCampanhas(){
   const lista=isLdr?S.campanhas:S.campanhas.filter(c=>c.member===me);
   const el=document.getElementById('p-campanhas');
   // Agrupa por membro quando líder
-  const renderCard=c=>`
-      <div class="camp-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>
-            ${isLdr&&c.member&&M[c.member]?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><div style="width:22px;height:22px;border-radius:6px;background:${M[c.member].color}22;display:grid;place-items:center;font-size:.6rem;font-weight:800;color:${M[c.member].color};">${M[c.member].icon}</div><span style="font-size:.68rem;color:var(--muted);">${esc(M[c.member].name)}</span></div>`:''}
-            <span class="camp-status ${c.status}">${c.status==='ativa'?'Ativa':c.status==='pausada'?'Pausada':'Encerrada'}</span>
-            <div style="font-size:1rem;font-weight:700;margin-bottom:4px">${esc(c.nome)}</div>
-            <div class="small">${esc(c.objetivo||'')}</div>
+  const STATUS_LABEL={estruturacao:'🔧 Em Estruturação',ativa:'✅ Ativa',pausada:'⏸ Pausada',encerrada:'🔴 Encerrada'};
+  const STATUS_COLOR={estruturacao:'#a78bfa',ativa:'var(--green)',pausada:'var(--gold)',encerrada:'var(--muted)'};
+  const renderCard=c=>{
+    const invs=Array.isArray(c.investimentos)?c.investimentos:(c.investimento?[{tipo:'Investimento',valor:c.investimento,fornecedor:''}]:[]);
+    const totalInv=invs.reduce((s,i)=>{const n=parseFloat((i.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'))||0;return s+n;},0);
+    const dateRange=(c.dataInicio||c.dataFim)?`<span style="font-size:.68rem;color:var(--muted);margin-left:8px;">📅 ${c.dataInicio?new Date(c.dataInicio+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'?'} → ${c.dataFim?new Date(c.dataFim+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'em aberto'}</span>`:'';
+    return`<div class="camp-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          ${isLdr&&c.member&&M[c.member]?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><div style="width:20px;height:20px;border-radius:5px;background:${M[c.member].color}22;display:grid;place-items:center;font-size:.58rem;font-weight:800;color:${M[c.member].color};">${M[c.member].icon}</div><span style="font-size:.65rem;color:var(--muted);">${esc(M[c.member].name)}</span></div>`:''}
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+            <span style="font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:999px;background:${STATUS_COLOR[c.status]||'var(--muted)'}20;color:${STATUS_COLOR[c.status]||'var(--muted)'};">${STATUS_LABEL[c.status]||c.status}</span>
+            ${dateRange}
           </div>
+          <div style="font-size:1rem;font-weight:700;margin-bottom:3px;">${esc(c.nome)}</div>
+          ${c.objetivo?`<div class="small" style="margin-bottom:8px;">${esc(c.objetivo)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          ${c.member===me||isLdr?`<button class="icon-btn" title="Editar" onclick="openNovaCampanha('${c.id}')">✏️</button>`:''}
           ${c.member===me||isLdr?`<button class="icon-btn" onclick="delCampanha('${c.id}')">×</button>`:''}
         </div>
-        <div class="camp-grid">
-          <div class="camp-kpi"><span>Investimento</span><b>${esc(c.investimento||'—')}</b></div>
-          <div class="camp-kpi"><span>Público</span><b>${esc(c.publico||'—')}</b></div>
-          <div class="camp-kpi"><span>Resultado</span><b>${esc(c.resultado||'—')}</b></div>
-        </div>
-        ${c.obs?`<div class="small" style="margin-top:10px;color:var(--muted)">${esc(c.obs)}</div>`:''}
-      </div>`;
+      </div>
+      ${invs.length?`<div style="margin:8px 0 4px;border-top:1px solid var(--line);padding-top:8px;">
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">Investimentos${totalInv>0?` · <span style="color:var(--gold)">Total: R$ ${totalInv.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:''}</div>
+        ${invs.map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line);font-size:.78rem;">
+          <span style="flex:1;font-weight:600;">${esc(i.tipo||'—')}</span>
+          <span style="color:var(--gold);font-weight:700;">${esc(i.valor||'—')}</span>
+          ${i.fornecedor?`<span style="color:var(--muted);font-size:.7rem;">· ${esc(i.fornecedor)}</span>`:''}
+        </div>`).join('')}
+      </div>`:''}
+      <div class="camp-grid" style="margin-top:8px;">
+        ${c.publico?`<div class="camp-kpi"><span>Público-alvo</span><b>${esc(c.publico)}</b></div>`:''}
+        ${c.resultado?`<div class="camp-kpi"><span>Resultado / KPI</span><b>${esc(c.resultado)}</b></div>`:''}
+      </div>
+      ${c.obs?`<div class="small" style="margin-top:8px;color:var(--muted)">${esc(c.obs)}</div>`:''}
+    </div>`;
+  };
   el.innerHTML=`
     <div class="page-head"><h2>Campanhas</h2><button class="btn-gold" onclick="openNovaCampanha()">+ Nova campanha</button></div>
     ${lista.length===0?'<div class="empty-state">Nenhuma campanha cadastrada ainda.</div>':lista.map(c=>renderCard(c)).join('')}
   `;
 }
-function openNovaCampanha(){
+function _campInvHtml(){
+  const rows=(window._campInvs||[]).map((inv,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 90px 1fr auto;gap:6px;align-items:center;margin-bottom:6px;" id="cinv-row-${i}">
+      <input class="finput" placeholder="Tipo (ex: Tráfego pago)" value="${esc(inv.tipo||'')}" oninput="window._campInvs[${i}].tipo=this.value" style="font-size:.8rem;">
+      <input class="finput" placeholder="R$" value="${esc(inv.valor||'')}" oninput="window._campInvs[${i}].valor=this.value" style="font-size:.8rem;text-align:right;">
+      <input class="finput" placeholder="Fornecedor" value="${esc(inv.fornecedor||'')}" oninput="window._campInvs[${i}].fornecedor=this.value" style="font-size:.8rem;">
+      <button onclick="window._campInvs.splice(${i},1);document.getElementById('cinv-list').innerHTML=_campInvHtml();" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px;">✕</button>
+    </div>`).join('');
+  return rows||'<div style="font-size:.72rem;color:var(--muted);padding:4px 0;">Nenhum investimento adicionado.</div>';
+}
+function openNovaCampanha(editId){
+  window._campInvs=editId?(S.campanhas.find(c=>c.id===editId)?.investimentos||[]).map(x=>({...x})):[];
+  const c=editId?S.campanhas.find(x=>x.id===editId):{};
   document.getElementById('modal-body').innerHTML=`
-    <h3 style="margin-bottom:16px">Nova campanha</h3>
-    <div class="form-row"><label>Nome da campanha</label><input id="cn-nome" class="finput" placeholder="Ex: Almoço de quinta"></div>
-    <div class="form-row"><label>Objetivo</label><input id="cn-obj" class="finput" placeholder="Ex: Aumentar reservas de quinta"></div>
+    <h3 style="margin-bottom:16px">${editId?'Editar':'Nova'} campanha</h3>
+    <div class="form-row"><label>Nome da campanha</label><input id="cn-nome" class="finput" placeholder="Ex: Almoço de quinta" value="${esc(c.nome||'')}"></div>
+    <div class="form-row"><label>Objetivo</label><input id="cn-obj" class="finput" placeholder="Ex: Aumentar reservas de quinta" value="${esc(c.objetivo||'')}"></div>
     <div class="form-row"><label>Status</label>
-      <select id="cn-status" class="finput"><option value="ativa">Ativa</option><option value="pausada">Pausada</option><option value="encerrada">Encerrada</option></select>
+      <select id="cn-status" class="finput">
+        <option value="estruturacao"${(c.status||'')==='estruturacao'?' selected':''}>🔧 Em Estruturação</option>
+        <option value="ativa"${(c.status||'ativa')==='ativa'?' selected':''}>✅ Ativa</option>
+        <option value="pausada"${(c.status||'')==='pausada'?' selected':''}>⏸ Pausada</option>
+        <option value="encerrada"${(c.status||'')==='encerrada'?' selected':''}>🔴 Encerrada</option>
+      </select>
     </div>
-    <div class="form-row"><label>Investimento</label><input id="cn-inv" class="finput" placeholder="Ex: R$ 200/semana"></div>
-    <div class="form-row"><label>Público-alvo</label><input id="cn-pub" class="finput" placeholder="Ex: Mulheres 25-40, Londrina"></div>
-    <div class="form-row"><label>Resultado / KPI</label><input id="cn-res" class="finput" placeholder="Ex: 40 cliques, 3 reservas"></div>
-    <div class="form-row"><label>Observações</label><textarea id="cn-obs" class="finput" rows="2"></textarea></div>
-    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn-gold" onclick="saveCampanha()">Salvar</button><button class="btn-sm" onclick="closeModal()">Cancelar</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-row"><label>Data de início</label><input id="cn-inicio" class="finput" type="date" value="${c.dataInicio||''}"></div>
+      <div class="form-row"><label>Data de encerramento</label><input id="cn-fim" class="finput" type="date" value="${c.dataFim||''}"></div>
+    </div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Investimentos</span>
+        <button onclick="window._campInvs.push({tipo:'',valor:'',fornecedor:''});document.getElementById('cinv-list').innerHTML=_campInvHtml();" class="btn-sm" style="font-size:.7rem;">+ Adicionar</button>
+      </label>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:4px;">
+        <div style="display:grid;grid-template-columns:1fr 90px 1fr auto;gap:6px;margin-bottom:6px;">
+          <span style="font-size:.6rem;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.08em;">Tipo</span>
+          <span style="font-size:.6rem;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.08em;">Valor</span>
+          <span style="font-size:.6rem;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.08em;">Fornecedor</span>
+          <span></span>
+        </div>
+        <div id="cinv-list">${_campInvHtml()}</div>
+      </div>
+    </div>
+    <div class="form-row"><label>Público-alvo</label><input id="cn-pub" class="finput" placeholder="Ex: Mulheres 25-40, Londrina" value="${esc(c.publico||'')}"></div>
+    <div class="form-row"><label>Resultado / KPI esperado</label><input id="cn-res" class="finput" placeholder="Ex: 40 cliques, 3 reservas" value="${esc(c.resultado||'')}"></div>
+    <div class="form-row"><label>Observações</label><textarea id="cn-obs" class="finput" rows="2">${esc(c.obs||'')}</textarea></div>
+    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn-gold" onclick="saveCampanha('${editId||''}')">Salvar</button><button class="btn-sm" onclick="closeModal()">Cancelar</button></div>
   `;
   openModal();
 }
-function saveCampanha(){
+function saveCampanha(editId){
   const nome=document.getElementById('cn-nome').value.trim();
   if(!nome){toast('Informe o nome da campanha.');return;}
   if(!S.campanhas)S.campanhas=[];
-  S.campanhas.push({id:uid(),member:me,nome,objetivo:document.getElementById('cn-obj').value.trim(),status:document.getElementById('cn-status').value,investimento:document.getElementById('cn-inv').value.trim(),publico:document.getElementById('cn-pub').value.trim(),resultado:document.getElementById('cn-res').value.trim(),obs:document.getElementById('cn-obs').value.trim(),date:todayKey()});
+  const data={
+    nome,
+    objetivo:document.getElementById('cn-obj').value.trim(),
+    status:document.getElementById('cn-status').value,
+    dataInicio:document.getElementById('cn-inicio').value||'',
+    dataFim:document.getElementById('cn-fim').value||'',
+    investimentos:(window._campInvs||[]).filter(i=>i.tipo||i.valor),
+    publico:document.getElementById('cn-pub').value.trim(),
+    resultado:document.getElementById('cn-res').value.trim(),
+    obs:document.getElementById('cn-obs').value.trim(),
+  };
+  if(editId){
+    const idx=S.campanhas.findIndex(c=>c.id===editId);
+    if(idx>=0)S.campanhas[idx]={...S.campanhas[idx],...data};
+  } else {
+    S.campanhas.push({id:uid(),member:me,date:todayKey(),...data});
+  }
   saveLocal();closeModal();renderCampanhas();toast('Campanha salva!');
 }
 function delCampanha(id){S.campanhas=S.campanhas.filter(c=>c.id!==id);saveLocal();renderCampanhas();toast('Campanha removida.');}
