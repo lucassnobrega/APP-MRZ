@@ -790,8 +790,8 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 
     <!-- Campos -->
     <div class="lc-field">
-      <label class="lc-label">Email</label>
-      <input class="lc-input" type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-pwd').focus()">
+      <label class="lc-label">Usuário</label>
+      <input class="lc-input" type="text" id="login-email" placeholder="seu.usuario" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pwd').focus()">
     </div>
     <div class="lc-field">
       <label class="lc-label">Senha</label>
@@ -1261,7 +1261,6 @@ function buildLoginGrid(){
     document.getElementById('loginApprovals').textContent=approvals;
     document.getElementById('loginIssues').textContent=issues;
   }
-  // Clear any previous error
   const errEl=document.getElementById('login-err');
   if(errEl)errEl.textContent='';
 }
@@ -1270,25 +1269,21 @@ function togglePwdVis(){
   el.type=el.type==='password'?'text':'password';
 }
 function doLogin(){
-  const emailEl=document.getElementById('login-email');
+  const userEl=document.getElementById('login-email');
   const pwdEl=document.getElementById('login-pwd');
   const errEl=document.getElementById('login-err');
-  const email=(emailEl.value||'').trim().toLowerCase();
+  const username=(userEl.value||'').trim().toLowerCase();
   const pwd=pwdEl.value||'';
   errEl.textContent='';
-  if(!email||!pwd){errEl.textContent='Preencha email e senha.';return;}
-  // S.userEmail sobrescreve o email fixo de M
-  const found=Object.entries(M).find(([k,m])=>{
-    const eff=(S&&S.userEmail&&S.userEmail[k])||m.email||'';
-    return eff.toLowerCase()===email;
-  });
-  if(!found){errEl.textContent='Email não encontrado.';return;}
+  if(!username||!pwd){errEl.textContent='Preencha usuário e senha.';return;}
+  // Busca pelo username (chave do M) — case insensitive
+  const found=Object.entries(M).find(([k])=>k.toLowerCase()===username);
+  if(!found){errEl.textContent='Usuário não encontrado.';return;}
   const [k]=found;
-  // Check new pwdHash first, fallback to legacy pinHash for old accounts
+  // Verifica senha
   const stored=(S&&S.pins||{})[k];
   const defaultOk=pwdHash('mrz2026');
   if(!stored){
-    // No stored password — accept default
     if(pwdHash(pwd)!==defaultOk){errEl.textContent='Senha incorreta. Padrão: mrz2026';return;}
   } else {
     if(pwdHash(pwd)!==stored&&pinHash(pwd)!==stored){errEl.textContent='Senha incorreta.';return;}
