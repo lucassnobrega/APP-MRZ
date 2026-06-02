@@ -114,7 +114,7 @@ html,body{transition:background .35s,color .35s;}
 .cal-nav button{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:6px 14px;cursor:pointer;font-size:.82rem;transition:.2s;}
 .cal-nav button:hover{color:var(--text);border-color:var(--line2);}
 .cal-month-label{font-size:1rem;font-weight:700;letter-spacing:-.02em;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:var(--line);border-radius:16px;overflow:hidden;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:2px;background:var(--line);border-radius:16px;overflow:visible;}
 .cal-day-hdr{background:var(--panel2);text-align:center;padding:10px 4px;font-size:.68rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
 .cal-cell{background:var(--panel);min-height:90px;padding:8px;font-size:.72rem;cursor:pointer;transition:.15s;position:relative;}
 .cal-cell:hover{background:var(--panel2);}
@@ -1320,7 +1320,7 @@ function enterApp(k){
   const av=document.getElementById('sb-av');av.textContent=m.icon;av.style.background=m.color+'33';
   document.getElementById('sb-nm').textContent=m.name;
   document.getElementById('sb-rl').textContent=m.role;
-  buildSidebar();goPanel('home');
+  buildSidebar();goPanel(me==='marlon'?'gestao':'home');
   // Notificação de tarefas atrasadas — roda após carregar dados
   setTimeout(checkAtrasadas, 3000);
 }
@@ -1329,6 +1329,7 @@ function toggleSB(){document.getElementById('sidebar').classList.toggle('open');
 function closeSB(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-ov').classList.remove('open');}
 
 const NAV_ITEMS=[
+  {id:'gestao', label:'Painel CEO',           grp:'Visão Geral', leader:true},
   {id:'home',   label:'Início',              grp:'Pessoal'},
   {id:'calendar',label:'Calendário',          grp:'Pessoal'},
   {id:'tasks',  label:'Tarefas',              grp:'Pessoal'},
@@ -1348,7 +1349,6 @@ const NAV_ITEMS=[
   {id:'processos',label:'Processos',           grp:'Gestão',    leader:true, exclude:['marlon']},
   {id:'projetos',label:'Projetos',            grp:'Gestão',    leader:true},
   {id:'timeline',label:'Timeline',            grp:'Gestão',    leader:true},
-  {id:'gestao', label:'Painel CEO',           grp:'Gestão',    leader:true},
   {id:'contas', label:'Contas a Pagar',       grp:'Financeiro',leader:true, extra:['marco']},
   {id:'manutencao',label:'Manutenção',        grp:'Pessoal',   roles:['bredi'], leader:true},
 ];
@@ -2192,7 +2192,7 @@ function renderReport(){
       <button class="ev-type-btn${tab==='atual'?' sel':''}" onclick="window._reportTab='atual';renderReport()">📝 Atual</button>
       <button class="ev-type-btn${tab==='historico'?' sel':''}" onclick="window._reportTab='historico';renderReport()">📁 Histórico</button>
     </div>
-    ${isLeader()?`<button class="btn-ghost btn-sm" onclick="arquivarMesReport()" title="Arquiva relatórios do mês anterior">📦 Fechar Mês</button>`:''}
+    ${M[me]?.isLeader?`<button class="btn-ghost btn-sm" onclick="arquivarMesReport()" title="Arquiva relatórios do mês anterior">📦 Fechar Mês</button>`:''}
   </div>`;
 
   if(tab==='atual'){
@@ -3047,8 +3047,8 @@ function renderCalendar(){
       </div>
       <button class="btn-sm" onclick="calYear=new Date().getFullYear();calMonth=new Date().getMonth();renderCalendar()">Hoje</button>
     </div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-      <div class="cal-grid" style="min-width:560px;">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;display:block;">
+      <div class="cal-grid" style="min-width:910px;">
         ${dayNames.map(d=>`<div class="cal-day-hdr">${d}</div>`).join('')}
         ${cells}
       </div>
