@@ -885,7 +885,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
             <span class="theme-toggle-icon theme-toggle-moon">🌙</span>
           </button>
           <div class="sdot" id="sdot" title="Status Firebase"></div>
-          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v18</span>
+          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v19</span>
         </div>
       </div>
       <div id="p-home" class="panel"></div>
@@ -1062,7 +1062,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:18,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},lastUp:null};}
+function defState(){return{v:19,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1086,9 +1086,9 @@ function migrateState(d){
   if(!d.rotinas||typeof d.rotinas!=='object')d.rotinas={defs:defRotinas(),completions:{}};
   if(!Array.isArray(d.rotinas.defs))d.rotinas.defs=defRotinas();
   if(!d.rotinas.completions||typeof d.rotinas.completions!=='object')d.rotinas.completions={};
-  // v11: força atualização das defs de rotinas — preserva rotinas customizadas (ID longo)
+  // v11: força atualização das defs de rotinas — preserva rotinas customizadas (ID começa com u_)
   if(!d.v||d.v<14){
-    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.length>10);
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
     d.rotinas.defs=[...defRotinas(),...custom];
   }
   if(!d.rh||typeof d.rh!=='object')d.rh={pontos:[],contratacoes:[],agendamentos:[]};
@@ -1103,8 +1103,15 @@ function migrateState(d){
   // v17: add manutencao array
   if(!Array.isArray(d.manutencao))d.manutencao=[];
   // v18: refresh rotinas (corrections + new routines for Marco, Nelci, Carol, Iza, Dário, Bruna)
-  if(!d.v||d.v<18){const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.length>10);d.rotinas={...(d.rotinas||{}),defs:[...defRotinas(),...custom]};}
-  d.v=18;return d;
+  if(!d.v||d.v<18){const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));d.rotinas={...(d.rotinas||{}),defs:[...defRotinas(),...custom]};}
+  // v19: deduplicar rotinas corrompidas por migrações anteriores com filtro errado
+  if(!d.v||d.v<19){
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+  }
+  d.v=19;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -6028,6 +6035,9 @@ function rotMarkCalDone(evId){
 
 function renderRotinas(){
   if(!S.rotinas)S.rotinas={defs:defRotinas(),completions:{}};
+  // Deduplicar por ID (segurança contra migrações corrompidas)
+  const _seen=new Set();
+  S.rotinas.defs=(S.rotinas.defs||[]).filter(r=>{if(!r.id||_seen.has(r.id))return false;_seen.add(r.id);return true;});
   const isL=M[me]?.isLeader;
   const tab=window._rotTab||'hoje';
   const defs=S.rotinas.defs||[];
