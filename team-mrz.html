@@ -304,6 +304,8 @@ html,body{transition:background .35s,color .35s;}
 .kan-body.drag-over{background:rgba(255,255,255,.04);outline:2px dashed var(--gold);outline-offset:-4px;border-radius:8px;}
 .task-card[draggable="true"]{cursor:grab;}
 .task-card.dragging{opacity:.4;}
+.task-card.drop-before{border-top:3px solid var(--gold);margin-top:-1px;}
+.task-card.drop-after{border-bottom:3px solid var(--gold);margin-bottom:-1px;}
 .task-card{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:11px;padding:12px;cursor:pointer;transition:var(--tr);}
 .task-card:hover{border-color:var(--line2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.25);}
 .tc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px;}
@@ -1678,7 +1680,7 @@ const COLS=[
   {id:'aprovado',  label:'Aprovado',      dot:'aprovado'},
   {id:'ajuste',    label:'Em Ajuste',     dot:'ajuste'},
 ];
-let _dragId=null;
+let _dragId=null,_dragOverId=null,_dragOverBefore=true;
 
 function pendingAll(){return(S.tasks||[]).filter(t=>t.status==='review').length;} // tasks awaiting devolutiva
 
@@ -1686,7 +1688,7 @@ function renderTasks(){
   if(!S||!me)return;
   const isL=M[me].isLeader;
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-    <div style="font-size:.74rem;color:var(--muted);">Arraste para mover entre colunas</div>
+    <div style="font-size:.74rem;color:var(--muted);">Arraste para mover entre colunas ou reordenar dentro delas</div>
     <button class="btn-gold btn-sm" onclick="openNewTask()">+ Nova Tarefa</button>
   </div><div class="kanban-wrap"><div class="kanban">`;
   COLS.forEach(col=>{
@@ -1709,6 +1711,7 @@ function renderTasks(){
       const assigneesHtml=(t.assignees||[]).slice(0,3).map(a=>`<span class="av-chip" style="background:${M[a]?.color||'#888'}22;color:${M[a]?.color||'#888'}">${M[a]?.icon||'?'} ${M[a]?.name.split(' ')[0]||a}</span>`).join('');
       const attCount=(t.attachments||[]).length;
       const ajusteBadge=t.ajusteNote?`<span class="approval-badge" style="background:rgba(249,115,22,.12);color:#fb923c;">↺ Em Ajuste</span>`:'';
+      const cotBadge=(t.cotacaoItems||[]).length?`<span class="approval-badge" style="background:rgba(197,165,114,.1);color:var(--gold);">💰 ${(t.cotacaoItems||[]).length} cot${(t.cotacaoItems||[]).some(x=>x.escolhido)?' ✅':''}</span>`:'';
       const devBadge=t.status==='review'&&isL?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">📋 Aguarda devolutiva</span>`:'';
       const reviewBadge=t.status==='review'&&!isL?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">⏳ Em aprovação</span>`:'';
       const _ = reviewBadge; // used below
@@ -1716,6 +1719,8 @@ function renderTasks(){
         draggable="${canDrag}"
         ondragstart="kDragStart(event,'${t.id}')"
         ondragend="kDragEnd(event)"
+        ondragover="kCardDragOver(event,'${t.id}')"
+        ondragleave="kCardDragLeave(event,'${t.id}')"
         onclick="openTask('${t.id}')">
         <div class="tc-top"><div class="tc-title">${esc(t.title)}</div><span class="prio ${t.priority}">${t.priority==='h'?'Alta':t.priority==='m'?'Média':'Baixa'}</span></div>
         ${t.desc?`<div class="tc-meta">${esc(t.desc.slice(0,60))}${t.desc.length>60?'...':''}</div>`:''}
@@ -1723,7 +1728,7 @@ function renderTasks(){
         <div class="tc-footer">
           ${attCount?`<span class="tc-att">📎 ${attCount}</span>`:''}
           ${t.deadline?`<span class="tc-att">📅 ${fmtDate(t.deadline)}</span>`:''}
-          ${ajusteBadge}${devBadge}${reviewBadge}
+          ${ajusteBadge}${cotBadge}${devBadge}${reviewBadge}
         </div>
       </div>`;
     });
@@ -1739,9 +1744,22 @@ function kDragStart(e,id){
   setTimeout(()=>{const el=document.getElementById('tc-'+id);if(el)el.classList.add('dragging');},0);
 }
 function kDragEnd(e){
-  _dragId=null;
-  document.querySelectorAll('.task-card').forEach(c=>c.classList.remove('dragging'));
+  _dragId=null;_dragOverId=null;
+  document.querySelectorAll('.task-card').forEach(c=>c.classList.remove('dragging','drop-before','drop-after'));
   document.querySelectorAll('.kan-body').forEach(c=>c.classList.remove('drag-over'));
+}
+function kCardDragOver(e,cardId){
+  if(!_dragId||cardId===_dragId)return;
+  e.preventDefault();e.stopPropagation();
+  const rect=e.currentTarget.getBoundingClientRect();
+  _dragOverId=cardId;
+  _dragOverBefore=e.clientY<rect.top+rect.height/2;
+  document.querySelectorAll('.task-card').forEach(c=>c.classList.remove('drop-before','drop-after'));
+  e.currentTarget.classList.add(_dragOverBefore?'drop-before':'drop-after');
+}
+function kCardDragLeave(e,cardId){
+  if(_dragOverId===cardId){_dragOverId=null;}
+  e.currentTarget.classList.remove('drop-before','drop-after');
 }
 function kDragOver(e,colId,allowed){
   if(!allowed){e.dataTransfer.dropEffect='none';return;}
@@ -1753,6 +1771,7 @@ function kDragLeave(e){e.currentTarget.classList.remove('drag-over');}
 function kDrop(e,colId,allowed){
   e.preventDefault();
   document.querySelectorAll('.kan-body').forEach(c=>c.classList.remove('drag-over'));
+  document.querySelectorAll('.task-card').forEach(c=>c.classList.remove('drop-before','drop-after'));
   if(!allowed){toast('Apenas líderes podem mover para esta coluna.');return;}
   if(!_dragId)return;
   const t=S.tasks.find(x=>x.id===_dragId);if(!t)return;
@@ -1761,12 +1780,28 @@ function kDrop(e,colId,allowed){
   if(!isL&&!isAssignee){toast('Você não é responsável por esta tarefa.');return;}
   if((colId==='aprovado'||colId==='ajuste')&&!isL){toast('Apenas líderes podem dar devolutiva.');return;}
   if(colId==='review'&&!isAssignee&&!isL){toast('Você não pode submeter esta tarefa.');return;}
-  if(colId==='doing'&&t.ajusteNote)t.ajusteNote=''; // clear ajuste flag when back to doing
+  if(colId==='doing'&&t.ajusteNote)t.ajusteNote='';
   const prevStatus=t.status;
+  // Reordenação: remove do array e reinsere na posição correta
+  const fromIdx=S.tasks.findIndex(x=>x.id===_dragId);
+  S.tasks.splice(fromIdx,1);
   t.status=colId;
-  _dragId=null;
-  saveLocal();renderTasks();renderHome();toast('Tarefa movida!');
-  // Notifica Marlon via WhatsApp quando tarefa entra em aprovação
+  if(_dragOverId&&_dragOverId!==_dragId){
+    const toIdx=S.tasks.findIndex(x=>x.id===_dragOverId);
+    if(toIdx>=0){
+      const insertAt=_dragOverBefore?toIdx:toIdx+1;
+      S.tasks.splice(insertAt,0,t);
+    } else {
+      S.tasks.push(t);
+    }
+  } else {
+    // Solta na coluna sem posição específica — vai para o início
+    const firstInCol=S.tasks.findIndex(x=>x.status===colId);
+    if(firstInCol>=0)S.tasks.splice(firstInCol,0,t);else S.tasks.push(t);
+  }
+  _dragId=null;_dragOverId=null;
+  saveLocal();renderTasks();renderHome();
+  if(prevStatus!==colId)toast('Tarefa movida!');
   if(colId==='review'&&prevStatus!=='review'){
     waNotify('aprovacao',{title:t.title,from:M[me]?.name||me});
   }
@@ -1816,7 +1851,8 @@ function renderTaskModal(t){
   // Show ajuste note if exists
   const ajusteNoteHtml=t.ajusteNote?`<div style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.8rem;"><span style="color:#fb923c;font-weight:700;">↺ Pedido de ajuste:</span> ${esc(t.ajusteNote)}</div>`:'';
 
-  window.tmpTask={...t};
+  window.tmpTask={...t,cotacaoItems:[...(t.cotacaoItems||[])]};
+  _tcotOpen=!!(t.cotacaoItems&&t.cotacaoItems.length);
 
   document.getElementById('task-modal-inner').innerHTML=`
     <div class="modal-hd">
@@ -1856,6 +1892,7 @@ function renderTaskModal(t){
         <p>📁 Clique ou arraste para anexar arquivo</p>
         <input type="file" id="file-in-${t.id}" class="file-input" multiple onchange="handleFileAtt('${t.id}',this)"/>
       </div>
+      <div id="tcot-wrap" style="margin-top:4px;">${renderTcot(t.id)}</div>
       ${(t.comments||[]).length?`<div class="sec">Comentários</div>`+(t.comments||[]).map(c=>`<div class="card" style="margin-bottom:6px;"><div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;">${M[c.author]?.name||c.author} · ${fmtDate(c.date)} ${c.time}</div><div style="font-size:.82rem;">${esc(c.text)}</div></div>`).join(''):''}
       <div style="margin-top:10px;display:flex;gap:8px;">
         <textarea class="f-in" id="new-comment" rows="2" placeholder="Adicionar comentário..." style="flex:1;"></textarea>
@@ -1871,6 +1908,57 @@ function renderTaskModal(t){
   setupFileDrop(t.id);
 }
 
+// ── Cotação dentro da tarefa ──────────────────────────────
+let _tcotOpen=false;
+function renderTcot(tid){
+  const t=window.tmpTask;if(!t)return'';
+  const items=t.cotacaoItems||[];
+  const hasChosen=items.some(i=>i.escolhido);
+  const btn=`<button onclick="tcotToggle()" style="width:100%;text-align:left;background:${_tcotOpen?'var(--panel2)':'transparent'};border:1px solid ${_tcotOpen?'var(--line2)':'var(--line)'};border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text);transition:.15s;">
+    <span style="font-size:1rem;">💰</span>
+    <span style="font-weight:600;">Cotação</span>
+    ${items.length?`<span style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:${hasChosen?'rgba(34,197,94,.12)':'rgba(197,165,114,.12)'};color:${hasChosen?'var(--green)':'var(--gold)'};">${items.length} ${items.length===1?'item':'itens'}${hasChosen?' · ✅ Escolhido':''}</span>`:'<span style="font-size:.68rem;color:var(--muted);">Clique para adicionar</span>'}
+    <span style="margin-left:auto;font-size:.7rem;color:var(--muted);">${_tcotOpen?'▲':'▼'}</span>
+  </button>`;
+  if(!_tcotOpen)return btn;
+  const rows=items.map((item,i)=>`
+    <tr>
+      <td style="padding:5px 6px;"><input class="f-in" value="${esc(item.produto||'')}" oninput="window.tmpTask.cotacaoItems[${i}].produto=this.value" placeholder="Ex: Azeite Native 500ml" style="font-size:.78rem;padding:5px 8px;"></td>
+      <td style="padding:5px 6px;"><input class="f-in" value="${esc(item.fornecedor||'')}" oninput="window.tmpTask.cotacaoItems[${i}].fornecedor=this.value" placeholder="Ex: Amazon" style="font-size:.78rem;padding:5px 8px;"></td>
+      <td style="padding:5px 6px;"><input class="f-in" value="${esc(item.preco||'')}" oninput="window.tmpTask.cotacaoItems[${i}].preco=this.value" placeholder="R$ 0,00" style="font-size:.78rem;padding:5px 8px;width:90px;text-align:right;"></td>
+      <td style="padding:5px 6px;"><input class="f-in" value="${esc(item.obs||'')}" oninput="window.tmpTask.cotacaoItems[${i}].obs=this.value" placeholder="Obs, acidez, qualidade..." style="font-size:.78rem;padding:5px 8px;"></td>
+      <td style="padding:5px 6px;text-align:center;">
+        <button onclick="tcotSetChosen(${i})" title="Marcar como escolhido" style="background:${item.escolhido?'rgba(34,197,94,.15)':'transparent'};border:1px solid ${item.escolhido?'var(--green)':'var(--line)'};border-radius:8px;padding:4px 10px;cursor:pointer;font-size:.78rem;color:${item.escolhido?'var(--green)':'var(--muted)'};">
+          ${item.escolhido?'✅ Escolhido':'○ Escolher'}
+        </button>
+      </td>
+      <td style="padding:5px 4px;"><button onclick="tcotRemove(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:2px 6px;">✕</button></td>
+    </tr>`).join('');
+  return`${btn}
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:0 0 10px 10px;margin-top:-2px;padding:10px;">
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);">
+              <th style="padding:4px 6px;text-align:left;">Produto</th>
+              <th style="padding:4px 6px;text-align:left;">Fornecedor</th>
+              <th style="padding:4px 6px;text-align:right;">Preço</th>
+              <th style="padding:4px 6px;text-align:left;">Observações</th>
+              <th style="padding:4px 6px;text-align:center;">Decisão</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${rows||`<tr><td colspan="6" style="text-align:center;padding:14px;font-size:.78rem;color:var(--muted);">Nenhum item ainda. Clique em "+ Adicionar" abaixo.</td></tr>`}</tbody>
+        </table>
+      </div>
+      <button onclick="tcotAddRow()" class="btn-ghost btn-sm" style="margin-top:8px;font-size:.75rem;">+ Adicionar item</button>
+    </div>`;
+}
+function tcotToggle(){_tcotOpen=!_tcotOpen;const w=document.getElementById('tcot-wrap');if(w)w.innerHTML=renderTcot(window.tmpTask?.id);}
+function tcotAddRow(){if(!window.tmpTask)return;if(!window.tmpTask.cotacaoItems)window.tmpTask.cotacaoItems=[];window.tmpTask.cotacaoItems.push({id:uid(),produto:'',fornecedor:'',preco:'',obs:'',escolhido:false});document.getElementById('tcot-wrap').innerHTML=renderTcot(window.tmpTask.id);}
+function tcotRemove(i){if(!window.tmpTask?.cotacaoItems)return;window.tmpTask.cotacaoItems.splice(i,1);document.getElementById('tcot-wrap').innerHTML=renderTcot(window.tmpTask.id);}
+function tcotSetChosen(i){if(!window.tmpTask?.cotacaoItems)return;window.tmpTask.cotacaoItems.forEach((x,j)=>x.escolhido=j===i);document.getElementById('tcot-wrap').innerHTML=renderTcot(window.tmpTask.id);}
+// ─────────────────────────────────────────────────────────
 function toggleTaskAssignee(tid,k){
   const t=window.tmpTask;if(!t)return;
   const i=(t.assignees||[]).indexOf(k);
@@ -1890,7 +1978,8 @@ function saveTask(id){
   const updated={...t,id,title,desc:document.getElementById('tm-desc').value.trim(),
     status:newStatus,priority:document.getElementById('tm-prio').value,
     deadline:document.getElementById('tm-dl').value,
-    assignees:t.assignees||[me],attachments:t.attachments||[]};
+    assignees:t.assignees||[me],attachments:t.attachments||[],
+    cotacaoItems:t.cotacaoItems||[]};
   if(newStatus==='doing'&&t.ajusteNote)updated.ajusteNote=''; // clear when back to doing
   const prevSt=t.status;
   const idx=S.tasks.findIndex(x=>x.id===id);
@@ -3127,95 +3216,114 @@ function renderCalendar(){
   `;
 }
 function renderAgendaPessoal(el,tabBar,todayStr){
-  const m=M[me];
+  if(!window._agYear){window._agYear=new Date().getFullYear();window._agMonth=new Date().getMonth();}
+  const agY=window._agYear,agM=window._agMonth;
+  const mNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const firstDay=new Date(agY,agM,1);
+  const lastDay=new Date(agY,agM+1,0);
+  const startDow=firstDay.getDay();
   const rotEvs=rotCalEvents();
-  const projEvs=projetosCalEvents();
-  // Mostra 7 dias passados + hoje + 60 dias futuros
-  const days=[];
-  for(let i=-7;i<=60;i++){
-    const d=new Date();d.setDate(d.getDate()+i);
-    days.push(d.toISOString().slice(0,10));
-  }
-  const DAY_NAMES_PT=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const MONTH_SHORT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  let html=`<div class="page-head"><h2>Minha Agenda</h2><button class="btn-gold" onclick="openAddPessoal()">+ Lembrete</button></div>${tabBar}`;
-  let hasContent=false;
-  days.forEach(ds=>{
-    const dt=new Date(ds+'T12:00');
+  const m=M[me];
+  let cells='';
+  // células em branco antes do dia 1
+  for(let i=0;i<startDow;i++){const d=new Date(agY,agM,-(startDow-i-1));cells+=`<div class="cal-cell other-month"><div class="cal-dn">${d.getDate()}</div></div>`;}
+  for(let d=1;d<=lastDay.getDate();d++){
+    const ds=`${agY}-${String(agM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday=ds===todayStr;
-    const isPast=ds<todayStr;
-    // Eventos do calendário para mim
-    const calEvs=(S.calendar||[]).filter(e=>e.date===ds&&(e.member===me||e.assignedTo===me||e.pessoal&&e.member===me));
-    // Rotinas minhas neste dia
+    // Eventos pessoais do usuário neste dia
+    const pessoais=(S.calendar||[]).filter(e=>e.date===ds&&e.pessoal&&e.member===me);
+    // Rotinas do usuário neste dia
     const myRots=rotEvs.filter(e=>e.date===ds&&e.assignees&&e.assignees.includes(me));
-    // Projetos com minha presença
-    const myProj=projEvs.filter(e=>e.date===ds&&(e.assignees?.includes(me)||e.createdBy===me));
-    if(!calEvs.length&&!myRots.length&&!myProj.length)return;
-    hasContent=true;
-    const dayLabel=`${DAY_NAMES_PT[dt.getDay()]}, ${dt.getDate()} ${MONTH_SHORT[dt.getMonth()]}`;
-    html+=`<div class="ag-day" style="${isPast?'opacity:.6':''}">
-      <div class="ag-day-hdr">
-        <div class="ag-day-num${isToday?' today':''}">${dt.getDate()}</div>
-        <div class="ag-day-label${isToday?' today':''}">${isToday?'HOJE — ':''} ${dayLabel}</div>
-      </div>`;
-    // Rotinas
-    myRots.forEach(r=>{
-      const done=(S.rotinas?.completions||{})[r.rotId+'_'+ds];
-      html+=`<div class="ag-item" onclick="openCalDay('${ds}')">
-        <div class="ag-item-dot" style="background:${r.color};"></div>
-        <div class="ag-item-body">
-          <div class="ag-item-title" style="${done?'text-decoration:line-through;opacity:.5':''}">🔄 ${esc(r.title)}</div>
-          <div class="ag-item-sub">Rotina${done?' · ✅ Concluída':''}</div>
-        </div>
-      </div>`;
-    });
-    // Projetos
-    myProj.forEach(p=>{
-      html+=`<div class="ag-item" onclick="goPanel('projetos')">
-        <div class="ag-item-dot" style="background:${p.cor||'var(--gold)'};"></div>
-        <div class="ag-item-body">
-          <div class="ag-item-title">📁 ${esc(p.title)}</div>
-          <div class="ag-item-sub">Projeto</div>
-        </div>
-      </div>`;
-    });
-    // Eventos de calendário
-    calEvs.forEach(e=>{
-      const isPessoal=e.pessoal&&e.member===me;
-      html+=`<div class="ag-item${isPessoal?' ag-pessoal':''}" onclick="openCalEventDetail('${e.id}')">
-        <div class="ag-item-dot" style="background:${isPessoal?'var(--gold)':'var(--accent)'};"></div>
-        <div class="ag-item-body">
-          <div class="ag-item-title">${isPessoal?'📌 ':''}${esc(e.title)}</div>
-          <div class="ag-item-sub">${isPessoal?'Lembrete pessoal':(TIPO_LABEL[e.tipo]||e.tipo||'Evento')}${e.desc?` · ${esc(e.desc)}`:''}</div>
-        </div>
-        ${e.member===me?`<button class="icon-btn" onclick="event.stopPropagation();delCalEvent('${e.id}')">×</button>`:''}
-      </div>`;
-    });
-    html+=`</div>`;
-  });
-  if(!hasContent){
-    html+=`<div class="ag-empty">Sua agenda está vazia por enquanto.<br><span style="font-size:.7rem;">Use "+ Lembrete" para adicionar compromissos pessoais.</span></div>`;
+    const rotDots=myRots.slice(0,2).map(r=>`<div style="font-size:.6rem;padding:1px 5px;border-radius:4px;background:${r.color}22;color:${r.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.icon||'🔄'} ${esc(r.title)}</div>`).join('');
+    const pessoalChips=pessoais.slice(0,3).map(e=>`<div class="cal-ev tipo-pessoal" style="cursor:pointer;" onclick="event.stopPropagation();agOpenEvDetail('${e.id}')" title="${esc(e.title)}">📌 ${esc(e.title)}</div>`).join('');
+    const more=(pessoais.length+myRots.length)>3?`<div class="cal-more">+${pessoais.length+myRots.length-3} mais</div>`:'';
+    cells+=`<div class="cal-cell${isToday?' today':''}" onclick="openAddPessoal('${ds}')">
+      <div class="cal-dn">${d}</div>
+      ${pessoalChips}${rotDots}${more}
+    </div>`;
   }
-  el.innerHTML=html;
+  // células em branco no final
+  const totalCells=startDow+lastDay.getDate();
+  const rem=(7-totalCells%7)%7;
+  for(let i=1;i<=rem;i++){cells+=`<div class="cal-cell other-month"><div class="cal-dn">${i}</div></div>`;}
+  // Próximos eventos pessoais
+  const upcoming=(S.calendar||[]).filter(e=>e.pessoal&&e.member===me&&e.date>=todayStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
+  el.innerHTML=`
+    <div class="page-head">
+      <div>
+        <h2>Minha Agenda</h2>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">Calendário pessoal — visível só para você</div>
+      </div>
+      <button class="btn-gold" onclick="openAddPessoal('')">+ Evento</button>
+    </div>
+    ${tabBar}
+    <div class="cal-header">
+      <div class="cal-nav">
+        <button onclick="agPrev()">←</button>
+        <span class="cal-month-label">${mNames[agM]} ${agY}</span>
+        <button onclick="agNext()">→</button>
+      </div>
+      <button class="btn-sm" onclick="window._agYear=new Date().getFullYear();window._agMonth=new Date().getMonth();window._calView='agenda';renderCalendar()">Hoje</button>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;display:block;">
+      <div class="cal-grid" style="min-width:910px;">
+        ${dayNames.map(d=>`<div class="cal-day-hdr">${d}</div>`).join('')}
+        ${cells}
+      </div>
+    </div>
+    ${upcoming.length?`<div style="margin-top:22px;">
+      <div class="sec">Próximos eventos</div>
+      ${upcoming.map(e=>`<div class="camp-card" style="display:flex;align-items:center;gap:14px;padding:12px 16px;cursor:pointer;" onclick="agOpenEvDetail('${e.id}')">
+        <div style="font-size:1.2rem;">📌</div>
+        <div style="flex:1;">
+          <div style="font-size:.88rem;font-weight:600;">${esc(e.title)}</div>
+          ${e.desc?`<div style="font-size:.72rem;color:var(--muted);">${esc(e.desc)}</div>`:''}
+        </div>
+        <div style="font-size:.75rem;color:var(--muted);white-space:nowrap;">${fmtDate(e.date)}</div>
+        <button class="icon-btn" onclick="event.stopPropagation();delCalEvent('${e.id}');window._calView='agenda';renderCalendar();">×</button>
+      </div>`).join('')}
+    </div>`:'<div class="ag-empty" style="margin-top:24px;">Clique em qualquer dia para adicionar um evento pessoal.</div>'}
+  `;
 }
-function openAddPessoal(){
+function agPrev(){window._agMonth--;if(window._agMonth<0){window._agMonth=11;window._agYear--;}window._calView='agenda';renderCalendar();}
+function agNext(){window._agMonth++;if(window._agMonth>11){window._agMonth=0;window._agYear++;}window._calView='agenda';renderCalendar();}
+function agOpenEvDetail(id){
+  const e=(S.calendar||[]).find(x=>x.id===id);if(!e)return;
+  openModal(`
+    <h3 style="margin-bottom:4px;">📌 ${esc(e.title)}</h3>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px;">${fmtDate(e.date)}</div>
+    ${e.desc?`<div style="font-size:.88rem;margin-bottom:16px;">${esc(e.desc)}</div>`:''}
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ghost btn-sm" style="color:var(--red);" onclick="delCalEvent('${e.id}');window._calView='agenda';renderCalendar();closeModal();">🗑 Remover</button>
+      <button class="btn-sm" onclick="closeModal()">Fechar</button>
+    </div>
+  `);
+}
+function openAddPessoal(ds){
+  const defaultDate=ds||new Date().toISOString().slice(0,10);
   document.getElementById('modal-body').innerHTML=`
-    <h3 style="margin-bottom:16px;">📌 Novo Lembrete Pessoal</h3>
-    <div class="f-grp"><label class="f-lb">Título</label><input class="f-in" id="pp-title" placeholder="Ex: Reunião com cliente, Dentista..."></div>
-    <div class="f-grp"><label class="f-lb">Data</label><input class="f-in" type="date" id="pp-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <div class="f-grp"><label class="f-lb">Descrição (opcional)</label><input class="f-in" id="pp-desc" placeholder="Detalhes..."></div>
+    <h3 style="margin-bottom:16px;">📌 Novo Evento Pessoal</h3>
+    <div class="f-grp"><label class="f-lb">Título</label><input class="f-in" id="pp-title" placeholder="Ex: Reunião com cliente, Consulta médica..."></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Data</label><input class="f-in" type="date" id="pp-date" value="${defaultDate}"></div>
+      <div class="f-grp"><label class="f-lb">Horário (opcional)</label><input class="f-in" type="time" id="pp-hora" placeholder="08:00"></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Descrição (opcional)</label><textarea class="f-in" id="pp-desc" rows="2" placeholder="Detalhes, local, observações..."></textarea></div>
     <div id="pp-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
-    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="savePessoal()">Salvar Lembrete</button>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="savePessoal()">Salvar Evento</button>
   `;
   openModal();
+  setTimeout(()=>document.getElementById('pp-title')?.focus(),100);
 }
 function savePessoal(){
   const title=document.getElementById('pp-title').value.trim();
   const date=document.getElementById('pp-date').value;
+  const hora=document.getElementById('pp-hora').value||'';
   if(!title||!date){document.getElementById('pp-err').textContent='Título e data são obrigatórios.';return;}
   if(!S.calendar)S.calendar=[];
-  S.calendar.push({id:uid(),member:me,pessoal:true,tipo:'pessoal',title,date,desc:document.getElementById('pp-desc').value.trim(),createdAt:todayKey()});
-  saveLocal();closeModal();window._calView='agenda';renderCalendar();toast('Lembrete salvo!');
+  S.calendar.push({id:uid(),member:me,pessoal:true,tipo:'pessoal',title,date,hora,desc:document.getElementById('pp-desc').value.trim(),createdAt:todayKey()});
+  saveLocal();closeModal();window._calView='agenda';renderCalendar();toast('Evento salvo!');
 }
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
