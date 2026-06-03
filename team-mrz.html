@@ -168,6 +168,11 @@ html,body{transition:background .35s,color .35s;}
 .ec-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:.72rem;color:var(--muted);}
 .ec-meta span{background:var(--panel2);border-radius:6px;padding:2px 8px;}
 .ec-valor{font-size:.92rem;font-weight:700;color:#fbbf24;}
+.ec-valor.falta{color:#f87171;background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.25);}
+.ec-valor.sobra{color:#4ade80;background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.25);}
+.ec-sinal-btn{padding:5px 14px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:.8rem;cursor:pointer;transition:.15s;}
+.ec-sinal-btn.sel.falta{background:rgba(248,113,113,.15);border-color:#f87171;color:#f87171;font-weight:700;}
+.ec-sinal-btn.sel.sobra{background:rgba(74,222,128,.15);border-color:#4ade80;color:#4ade80;font-weight:700;}
 .ec-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
 .ec-sum-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;}
 .ec-sum-card b{display:block;font-size:1.5rem;font-weight:900;margin-bottom:2px;}
@@ -4775,7 +4780,7 @@ function renderErrosCaixa(){
           <div class="ec-meta">
             <span>🗂 ${esc(e.tipo)}</span>
             <span>📅 ${fmtDate(e.date)}</span>
-            ${e.valor?`<span class="ec-valor">R$ ${esc(e.valor)}</span>`:''}
+            ${ecValorHtml(e)}
           </div>
           ${e.obs?`<div style="font-size:.78rem;color:var(--muted);margin-top:8px;line-height:1.4;">${esc(e.obs)}</div>`:''}
         </div>
@@ -4785,7 +4790,10 @@ function renderErrosCaixa(){
             <option value="resolvido"${e.status==='resolvido'?' selected':''}>Resolvido</option>
             <option value="sem-erro"${e.status==='sem-erro'?' selected':''}>Não achou</option>
           </select>
-          <button class="icon-btn" onclick="delEC('${e.id}')">×</button>
+          <div style="display:flex;gap:4px;">
+            <button class="btn-ghost btn-sm" style="font-size:.7rem;padding:3px 8px;" onclick="openNovoErroCaixa('${e.id}')">✏️ Editar</button>
+            <button class="icon-btn" onclick="delEC('${e.id}')">×</button>
+          </div>
         </div>
       </div>`;
     });
@@ -4827,17 +4835,26 @@ function renderErrosCaixa(){
   `;
 }
 
-function openNovoErroCaixa(){
-  const lojaFil=window._ecLoja&&window._ecLoja!=='todas'?window._ecLoja:'';
+function ecValorHtml(e){
+  if(!e.valor)return'';
+  const sinal=e.sinal||'falta';
+  const icon=sinal==='sobra'?'▲ Sobra':'▼ Falta';
+  const cls=sinal==='sobra'?'sobra':'falta';
+  return`<span class="ec-valor ${cls}" style="border-radius:6px;padding:2px 8px;border:1px solid;">${icon} R$ ${esc(e.valor)}</span>`;
+}
+function openNovoErroCaixa(editId){
+  const ec=editId?S.errosCaixa.find(x=>x.id===editId):null;
+  const lojaFil=ec?.loja||(window._ecLoja&&window._ecLoja!=='todas'?window._ecLoja:'');
   const lojaOpts=LOJAS.map(l=>`<option value="${l}"${l===lojaFil?' selected':''}>${l}</option>`).join('');
-  const tipoOpts=TIPOS_ERRO.map(t=>`<option>${t}</option>`).join('');
+  const tipoOpts=TIPOS_ERRO.map(t=>`<option${(ec?.tipo||''===t)?' selected':''}>${t}</option>`).join('');
+  const sinal=ec?.sinal||'falta';
   document.getElementById('modal-body').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-weight:800;font-size:1rem;">Registrar Erro de Caixa</div>
+      <div style="font-weight:800;font-size:1rem;">${ec?'Editar':'Registrar'} Erro de Caixa</div>
       <button class="btn-ghost btn-sm" onclick="closeModal()">✕</button>
     </div>
     <div class="form-row"><label>Título / Descrição curta *</label>
-      <input id="ec-titulo" class="finput" placeholder="Ex: Diferença no fechamento de R$ 45"/></div>
+      <input id="ec-titulo" class="finput" value="${esc(ec?.titulo||'')}" placeholder="Ex: Diferença no fechamento de R$ 45"/></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="form-row"><label>Loja *</label>
         <select id="ec-loja" class="finput">
@@ -4849,46 +4866,60 @@ function openNovoErroCaixa(){
         <select id="ec-tipo" class="finput">${tipoOpts}</select>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-row"><label>Valor impactado (R$)</label>
-        <input id="ec-valor" class="finput" type="number" step="0.01" placeholder="0,00"/></div>
-      <div class="form-row"><label>Status inicial</label>
-        <select id="ec-status" class="finput">
-          <option value="pendente">Pendente</option>
-          <option value="resolvido">Resolvido</option>
-          <option value="sem-erro">Não achou o erro</option>
-        </select>
+    <div class="form-row"><label>Valor impactado (R$)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="ecb-falta" class="ec-sinal-btn${sinal==='falta'?' sel falta':''}" onclick="ecSelSinal('falta')">▼ Falta</button>
+        <button id="ecb-sobra" class="ec-sinal-btn${sinal==='sobra'?' sel sobra':''}" onclick="ecSelSinal('sobra')">▲ Sobra</button>
+        <input id="ec-valor" class="finput" type="number" step="0.01" value="${ec?.valor||''}" placeholder="0,00" style="flex:1;"/>
+        <input type="hidden" id="ec-sinal" value="${sinal}">
       </div>
     </div>
+    <div class="form-row"><label>Status</label>
+      <select id="ec-status" class="finput">
+        <option value="pendente"${(ec?.status||'pendente')==='pendente'?' selected':''}>Pendente</option>
+        <option value="resolvido"${ec?.status==='resolvido'?' selected':''}>Resolvido</option>
+        <option value="sem-erro"${ec?.status==='sem-erro'?' selected':''}>Não achou o erro</option>
+      </select>
+    </div>
     <div class="form-row"><label>Observação</label>
-      <textarea id="ec-obs" class="finput" rows="2" placeholder="O que foi identificado, onde estava, o que tentou..."></textarea></div>
+      <textarea id="ec-obs" class="finput" rows="3" placeholder="O que foi identificado, onde estava, o que tentou...">${esc(ec?.obs||'')}</textarea></div>
     <div style="display:flex;gap:10px;margin-top:16px;">
-      <button class="btn-gold" onclick="saveEC()">Salvar</button>
+      <button class="btn-gold" onclick="saveEC('${editId||''}')">Salvar</button>
       <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
     </div>
   `;
   openModal();
 }
+function ecSelSinal(sinal){
+  document.getElementById('ec-sinal').value=sinal;
+  document.getElementById('ecb-falta').className='ec-sinal-btn'+(sinal==='falta'?' sel falta':'');
+  document.getElementById('ecb-sobra').className='ec-sinal-btn'+(sinal==='sobra'?' sel sobra':'');
+}
 
-function saveEC(){
+function saveEC(editId){
   const titulo=document.getElementById('ec-titulo').value.trim();
   if(!titulo){toast('Informe uma descrição.');return;}
   const loja=document.getElementById('ec-loja').value;
   if(!loja){toast('Selecione a loja.');return;}
   if(!S.errosCaixa)S.errosCaixa=[];
-  S.errosCaixa.push({
-    id:uid(),member:me,date:todayKey(),
-    titulo,
-    loja,
+  const data={
+    titulo,loja,
     tipo:document.getElementById('ec-tipo').value,
     valor:document.getElementById('ec-valor').value,
+    sinal:document.getElementById('ec-sinal').value||'falta',
     status:document.getElementById('ec-status').value,
     obs:document.getElementById('ec-obs').value.trim()
-  });
-  const ecEntry=S.errosCaixa[S.errosCaixa.length-1];
-  saveLocal();closeModal();renderErrosCaixa();toast('Erro registrado.');
-  // Notifica Marlon via WhatsApp se pendente
-  if(ecEntry.status==='pendente'){
+  };
+  let ecEntry;
+  if(editId){
+    const idx=S.errosCaixa.findIndex(x=>x.id===editId);
+    if(idx>=0){S.errosCaixa[idx]={...S.errosCaixa[idx],...data};ecEntry=S.errosCaixa[idx];}
+  } else {
+    ecEntry={id:uid(),member:me,date:todayKey(),...data};
+    S.errosCaixa.push(ecEntry);
+  }
+  saveLocal();closeModal();renderErrosCaixa();toast(editId?'Erro atualizado.':'Erro registrado.');
+  if(!editId&&ecEntry?.status==='pendente'){
     waNotify('erro-caixa',{loja:ecEntry.loja,tipo:ecEntry.tipo,valor:ecEntry.valor,member:ecEntry.member});
   }
 }
