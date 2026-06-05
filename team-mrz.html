@@ -1079,6 +1079,9 @@ function reRenderAll(){
 
 function defState(){return{v:22,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},op:{gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[]},lastUp:null};}
 function migrateState(d){
+  // Segurança permanente: líderes nunca têm customPerms (roda a cada sync)
+  const _LIDERES_FIXOS=['marlon','bruna','lucas','raquel','iza','dario','carlos','marco','nelci','carol'];
+  if(d.userPerms){_LIDERES_FIXOS.forEach(u=>{if(d.userPerms[u])delete d.userPerms[u];});}
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
   d.occ=Array.isArray(d.occ)?d.occ:[];
@@ -1287,6 +1290,8 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
       if(newer){
         S=migrateState(fb);
         localStorage.setItem(SK,JSON.stringify(S));
+        // Se a migration mudou algo (ex: limpou userPerms), salvar de volta no Firebase
+        if(JSON.stringify(S)!==JSON.stringify(fb))setTimeout(()=>{if(_fbReady)_fbSave();},1500);
       }
       syncCustomUsers();
       _fbReady=true;
