@@ -892,7 +892,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
             <span class="theme-toggle-icon theme-toggle-moon">🌙</span>
           </button>
           <div class="sdot" id="sdot" title="Status Firebase"></div>
-          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v19</span>
+          <span style="font-size:.52rem;color:var(--muted2);letter-spacing:.04em;opacity:.5;" title="Versão do app">v20</span>
         </div>
       </div>
       <div id="p-home" class="panel"></div>
@@ -919,6 +919,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div id="p-contas" class="panel"></div>
       <div id="p-usuarios" class="panel"></div>
       <div id="p-manutencao" class="panel"></div>
+      <div id="p-operacional" class="panel"></div>
     </div>
   </div>
 </div>
@@ -1023,7 +1024,9 @@ const M={
       qui:[],sex:['Revisar aprovações','Planejamento estratégico']}},
   bredi:{name:'Bredi',role:'Manutenção',color:'#f97316',icon:'BD',isLeader:false,email:'bredi@grupomrz.com',
     daily:['Verificar demandas do dia','Registrar materiais utilizados','Atualizar status das demandas'],
-    weekly:{seg:['Planejar rotas da semana'],ter:[],qua:['Verificar estoque de materiais'],qui:[],sex:['Relatório semanal de manutenções']}}
+    weekly:{seg:['Planejar rotas da semana'],ter:[],qua:['Verificar estoque de materiais'],qui:[],sex:['Relatório semanal de manutenções']}},
+  marcio:{name:'Márcio',role:'Gerente Geral',color:'#0ea5e9',icon:'MC',isLeader:false,email:'marcio@grupomrz.com',
+    daily:['Verificar execução das tarefas','Acompanhar manutenções pendentes'],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1069,7 +1072,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:19,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},lastUp:null};}
+function defState(){return{v:20,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},op:{gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[]},lastUp:null};}
 function migrateState(d){
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1118,7 +1121,15 @@ function migrateState(d){
     const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
     d.rotinas={...(d.rotinas||{}),defs:deduped};
   }
-  d.v=19;return d;
+  // v20: operational layer
+  if(!d.v||d.v<20){if(!d.op||typeof d.op!=='object')d.op={gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[]};}
+  if(!d.op.gerentes)d.op.gerentes={};
+  if(!Array.isArray(d.op.funcionarios))d.op.funcionarios=[];
+  if(!Array.isArray(d.op.tarefas))d.op.tarefas=[];
+  if(!Array.isArray(d.op.marketing))d.op.marketing=[];
+  if(!Array.isArray(d.op.errosProcesso))d.op.errosProcesso=[];
+  if(!Array.isArray(d.op.manutencao))d.op.manutencao=[];
+  d.v=20;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -1359,6 +1370,7 @@ function closeSB(){document.getElementById('sidebar').classList.remove('open');d
 
 const NAV_ITEMS=[
   {id:'gestao', label:'Painel CEO',           grp:'Visão Geral', leader:true},
+  {id:'operacional',label:'Operacional',      grp:'Visão Geral', leader:true, extra:['marcio']},
   {id:'home',   label:'Início',              grp:'Pessoal'},
   {id:'calendar',label:'Calendário',          grp:'Pessoal'},
   {id:'tasks',  label:'Tarefas',              grp:'Pessoal'},
@@ -1442,6 +1454,7 @@ function renderPanel(id){
     case 'gestao':renderGestao();break;
     case 'contas':renderContasPagar();break;
     case 'manutencao':renderManutencao();break;
+    case 'operacional':renderOperacional();break;
     case 'usuarios':renderUsuarios();break;
     case 'rh':renderRH();break;
   }
@@ -8479,6 +8492,450 @@ function deleteCustomUser(uid){
   saveLocal();
   toast('Usuário removido.');
   renderUsuarios();
+}
+
+// ══════════════════════════════════════════════════════════
+// PAINEL OPERACIONAL — Fase 1
+// ══════════════════════════════════════════════════════════
+const OP_LOJAS=[
+  {id:'lago',     label:'Zanoni Lago',       cor:'#6366f1',icon:'🏪'},
+  {id:'alphaville',label:'Zanoni Alphaville',cor:'#f472b6',icon:'🏬'},
+  {id:'maringa',  label:'Zanoni Maringá',    cor:'#22d3ee',icon:'🍽️'},
+  {id:'alameda',  label:'Raz Alameda',       cor:'#f59e0b',icon:'🥩'},
+  {id:'mercadao', label:'Raz Mercadão',      cor:'#22c55e',icon:'🛒'},
+];
+const OP_SETORES=['Cozinha','Churrasqueiro','Bar','Salão','Caixa','Limpeza','Produção','Vigia','Lavanderia'];
+
+function opIsGerente(userId){return Object.values(S.op?.gerentes||{}).includes(userId);}
+function opLojaDoGerente(userId){return Object.entries(S.op?.gerentes||{}).find(([,v])=>v===userId)?.[0];}
+function opGetLoja(id){return OP_LOJAS.find(l=>l.id===id);}
+function opCanSeeAll(){return M[me]?.isLeader||me==='marcio';}
+
+function renderOperacional(){
+  if(!S.op)S.op={gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[]};
+  const el=document.getElementById('p-operacional');if(!el)return;
+  const isMarcio=me==='marcio';
+  const isLdr=M[me]?.isLeader;
+  const myLojaId=opLojaDoGerente(me);
+  if(!isLdr&&!isMarcio&&!myLojaId){
+    el.innerHTML='<div class="card" style="padding:24px;color:var(--muted);">Acesso restrito.</div>';return;
+  }
+  if(opCanSeeAll()&&!window._opLojaView){
+    renderOpOverview(el);
+  } else {
+    const lojaId=window._opLojaView||myLojaId;
+    renderOpStore(el,lojaId);
+  }
+}
+
+// ── VISÃO GERAL (líderes + Márcio) ─────────────────────────
+function renderOpOverview(el){
+  const stats=lojaId=>{
+    const tarefas=(S.op.tarefas||[]).filter(t=>t.loja===lojaId);
+    const manu=(S.op.manutencao||[]).filter(m=>m.loja===lojaId&&m.status!=='concluido');
+    const erros=(S.op.errosProcesso||[]).filter(e=>e.loja===lojaId&&e.status==='pendente');
+    const func=(S.op.funcionarios||[]).filter(f=>f.loja===lojaId&&f.status==='ativo');
+    return{tarefas:tarefas.filter(t=>t.status!=='feito').length,manu:manu.length,erros:erros.length,func:func.length};
+  };
+  let html=`<div class="page-head"><h2>Operacional</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:4px;">`;
+  OP_LOJAS.forEach(lj=>{
+    const s=stats(lj.id);
+    const gerId=S.op.gerentes?.[lj.id];
+    const gerNome=gerId?M[gerId]?.name||gerId:'Sem gerente';
+    html+=`<div class="card" style="padding:20px;cursor:pointer;border-left:4px solid ${lj.cor};" onclick="window._opLojaView='${lj.id}';window._opTab='tarefas';renderOperacional()">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="font-size:1.5rem;">${lj.icon}</div>
+        <div>
+          <div style="font-weight:700;font-size:.92rem;">${lj.label}</div>
+          <div style="font-size:.68rem;color:var(--muted);">Gerente: ${gerNome}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:var(--panel2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:1.2rem;font-weight:800;color:${s.tarefas>0?'var(--gold)':'var(--muted)'};">${s.tarefas}</div>
+          <div style="font-size:.62rem;color:var(--muted);">Tarefas abertas</div>
+        </div>
+        <div style="background:var(--panel2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:1.2rem;font-weight:800;color:${s.manu>0?'#fb923c':'var(--muted)'};">${s.manu}</div>
+          <div style="font-size:.62rem;color:var(--muted);">Manutenções</div>
+        </div>
+        <div style="background:var(--panel2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:1.2rem;font-weight:800;color:${s.erros>0?'#f87171':'var(--muted)'};">${s.erros}</div>
+          <div style="font-size:.62rem;color:var(--muted);">Erros pendentes</div>
+        </div>
+        <div style="background:var(--panel2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:1.2rem;font-weight:800;color:var(--text);">${s.func}</div>
+          <div style="font-size:.62rem;color:var(--muted);">Funcionários</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>
+    ${M[me]?.isLeader?`<div style="margin-top:24px;"><div class="sec">Atribuição de Gerentes</div>
+      <div style="display:grid;gap:8px;margin-top:8px;">
+        ${OP_LOJAS.map(lj=>{
+          const gerId=S.op.gerentes?.[lj.id]||'';
+          const userOpts=Object.entries(M).map(([k,m2])=>`<option value="${k}"${k===gerId?' selected':''}>${m2.name} — ${m2.role}</option>`).join('');
+          return`<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;">
+            <div style="font-size:1.1rem;">${lj.icon}</div>
+            <div style="flex:1;font-size:.84rem;font-weight:600;">${lj.label}</div>
+            <select class="finput" style="width:220px;font-size:.78rem;padding:5px 8px;" onchange="opSetGerente('${lj.id}',this.value)">
+              <option value="">Sem gerente</option>
+              ${userOpts}
+            </select>
+          </div>`;
+        }).join('')}
+      </div></div>`:''}`;
+  el.innerHTML=html;
+}
+
+function opSetGerente(lojaId,userId){
+  if(!S.op.gerentes)S.op.gerentes={};
+  if(userId)S.op.gerentes[lojaId]=userId;
+  else delete S.op.gerentes[lojaId];
+  saveLocal();toast('Gerente atualizado!');renderOperacional();
+}
+
+// ── PAINEL DA LOJA (gerente / líderes ao clicar) ─────────────
+function renderOpStore(el,lojaId){
+  const loja=opGetLoja(lojaId);if(!loja){el.innerHTML='Loja não encontrada.';return;}
+  const tab=window._opTab||'tarefas';
+  const voltar=opCanSeeAll()?`<button class="btn-ghost btn-sm" onclick="window._opLojaView=null;renderOperacional()">← Visão Geral</button>`:'';
+  const tabs=[
+    {id:'tarefas',label:'📋 Tarefas'},
+    {id:'manutencao',label:'🔧 Manutenção'},
+    {id:'funcionarios',label:'👥 Funcionários'},
+    {id:'marketing',label:'📢 Marketing'},
+    {id:'erros',label:'⚠️ Erros'},
+  ];
+  const tabBar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;">
+    ${tabs.map(t=>`<button class="ev-type-btn${tab===t.id?' sel':''}" onclick="window._opTab='${t.id}';renderOperacional()">${t.label}</button>`).join('')}
+  </div>`;
+  let content='';
+  if(tab==='tarefas')content=opTabTarefas(lojaId);
+  else if(tab==='manutencao')content=opTabManutencao(lojaId);
+  else if(tab==='funcionarios')content=opTabFuncionarios(lojaId);
+  else if(tab==='marketing')content=opTabMarketing(lojaId);
+  else if(tab==='erros')content=opTabErros(lojaId);
+  el.innerHTML=`
+    <div class="page-head">
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${voltar}
+        <div style="font-size:1.4rem;">${loja.icon}</div>
+        <div>
+          <h2 style="margin:0;">${loja.label}</h2>
+          <div style="font-size:.7rem;color:var(--muted);">Painel Operacional</div>
+        </div>
+      </div>
+    </div>
+    ${tabBar}
+    <div id="op-content">${content}</div>`;
+}
+
+// ── TAB: TAREFAS ──────────────────────────────────────────────
+function opTabTarefas(lojaId){
+  const tarefas=(S.op.tarefas||[]).filter(t=>t.loja===lojaId);
+  const statusCols=[
+    {id:'todo',label:'A Fazer',cor:'#6b7280'},
+    {id:'fazendo',label:'Fazendo',cor:'#3b82f6'},
+    {id:'feito',label:'Feito',cor:'#22c55e'},
+  ];
+  const cards=statusCols.map(col=>{
+    const items=tarefas.filter(t=>t.status===col.id).sort((a,b)=>b.date.localeCompare(a.date));
+    return`<div style="flex:1;min-width:200px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${col.cor}33;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${col.cor};"></div>
+        <span style="font-size:.78rem;font-weight:700;">${col.label}</span>
+        <span style="font-size:.7rem;color:var(--muted);">${items.length}</span>
+      </div>
+      ${items.map(t=>`<div class="card" style="padding:12px;margin-bottom:8px;">
+        <div style="font-size:.86rem;font-weight:600;margin-bottom:4px;">${esc(t.titulo)}</div>
+        ${t.desc?`<div style="font-size:.74rem;color:var(--muted);margin-bottom:6px;">${esc(t.desc.slice(0,80))}${t.desc.length>80?'...':''}</div>`:''}
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <select class="finput" style="font-size:.7rem;padding:3px 6px;width:auto;" onchange="opUpdateTarefaStatus('${t.id}',this.value)">
+            ${statusCols.map(s=>`<option value="${s.id}"${t.status===s.id?' selected':''}>${s.label}</option>`).join('')}
+          </select>
+          <span style="font-size:.66rem;color:var(--muted);">📅 ${fmtDate(t.date)}</span>
+          <button onclick="opDelTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-left:auto;font-size:.85rem;">✕</button>
+        </div>
+      </div>`).join('')||`<div style="font-size:.76rem;color:var(--muted);padding:10px 0;">Nenhuma tarefa.</div>`}
+    </div>`;
+  }).join('');
+  return`<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+    <button class="btn-gold btn-sm" onclick="opOpenNovaTarefa('${lojaId}')">+ Nova Tarefa</button>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;">${cards}</div>`;
+}
+function opUpdateTarefaStatus(id,status){const t=(S.op.tarefas||[]).find(x=>x.id===id);if(t){t.status=status;saveLocal();renderOperacional();}}
+function opDelTarefa(id){if(!confirm('Remover tarefa?'))return;S.op.tarefas=(S.op.tarefas||[]).filter(x=>x.id!==id);saveLocal();renderOperacional();}
+function opOpenNovaTarefa(lojaId){
+  openModal(`<h3 style="margin-bottom:16px;">Nova Tarefa Operacional</h3>
+    <div class="f-grp"><label class="f-lb">Título *</label><input class="f-in" id="opt-titulo" placeholder="Ex: Limpar câmara fria"></div>
+    <div class="f-grp"><label class="f-lb">Descrição</label><textarea class="f-in" id="opt-desc" rows="2" placeholder="Detalhes..."></textarea></div>
+    <div class="f-grp"><label class="f-lb">Setor</label>
+      <select class="f-in" id="opt-setor"><option value="">Geral</option>${OP_SETORES.map(s=>`<option>${s}</option>`).join('')}</select>
+    </div>
+    <div id="opt-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveTarefa('${lojaId}')">Salvar</button>`);
+}
+function opSaveTarefa(lojaId){
+  const titulo=document.getElementById('opt-titulo').value.trim();
+  if(!titulo){document.getElementById('opt-err').textContent='Título obrigatório.';return;}
+  if(!S.op.tarefas)S.op.tarefas=[];
+  S.op.tarefas.push({id:uid(),loja:lojaId,titulo,desc:document.getElementById('opt-desc').value.trim(),setor:document.getElementById('opt-setor').value,status:'todo',date:todayKey(),createdBy:me});
+  saveLocal();closeModal();renderOperacional();toast('Tarefa criada!');
+}
+
+// ── TAB: MANUTENÇÃO ──────────────────────────────────────────
+function opTabManutencao(lojaId){
+  const loja=opGetLoja(lojaId);
+  const itens=(S.op.manutencao||[]).filter(m=>m.loja===lojaId).sort((a,b)=>b.date.localeCompare(a.date));
+  const STATUS={pendente:{label:'Pendente',cor:'#fbbf24'},andamento:{label:'Em andamento',cor:'#60a5fa'},concluido:{label:'Concluído',cor:'#4ade80'}};
+  const PRIO={alta:{label:'Alta',cor:'#f87171'},media:{label:'Média',cor:'#fbbf24'},baixa:{label:'Baixa',cor:'var(--muted)'}};
+  const cards=itens.map(m=>{
+    const st=STATUS[m.status]||STATUS.pendente;
+    const pr=PRIO[m.prio]||PRIO.media;
+    return`<div class="card" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ${st.cor};">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;">
+        <div>
+          <span style="font-size:.65rem;padding:2px 7px;border-radius:999px;background:${pr.cor}22;color:${pr.cor};font-weight:700;margin-right:6px;">${pr.label}</span>
+          <span style="font-size:.88rem;font-weight:700;">${esc(m.titulo)}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <select class="finput" style="font-size:.7rem;padding:3px 6px;width:auto;" onchange="opUpdateManuStatus('${m.id}',this.value)">
+            ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}"${m.status===k?' selected':''}>${v.label}</option>`).join('')}
+          </select>
+          <button onclick="opDelManu('${m.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;">✕</button>
+        </div>
+      </div>
+      ${m.desc?`<div style="font-size:.78rem;color:var(--muted);margin-bottom:4px;">${esc(m.desc)}</div>`:''}
+      <div style="font-size:.68rem;color:var(--muted);">📅 ${fmtDate(m.date)}${m.setor?` · ${esc(m.setor)}`:''}</div>
+    </div>`;
+  }).join('')||'<div class="empty-state">Nenhuma manutenção registrada.</div>';
+  return`<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+    <button class="btn-gold btn-sm" onclick="opOpenNovaManu('${lojaId}')">+ Nova Manutenção</button>
+  </div>${cards}`;
+}
+function opUpdateManuStatus(id,status){const m=(S.op.manutencao||[]).find(x=>x.id===id);if(m){m.status=status;saveLocal();renderOperacional();}}
+function opDelManu(id){if(!confirm('Remover?'))return;S.op.manutencao=(S.op.manutencao||[]).filter(x=>x.id!==id);saveLocal();renderOperacional();}
+function opOpenNovaManu(lojaId){
+  openModal(`<h3 style="margin-bottom:16px;">Nova Manutenção</h3>
+    <div class="f-grp"><label class="f-lb">Título *</label><input class="f-in" id="opm-titulo" placeholder="Ex: Trocar lâmpada da câmara"></div>
+    <div class="f-grp"><label class="f-lb">Descrição</label><textarea class="f-in" id="opm-desc" rows="2" placeholder="Descreva o problema..."></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Setor / Local</label>
+        <select class="f-in" id="opm-setor"><option value="">Geral</option>${OP_SETORES.map(s=>`<option>${s}</option>`).join('')}</select>
+      </div>
+      <div class="f-grp"><label class="f-lb">Prioridade</label>
+        <select class="f-in" id="opm-prio"><option value="alta">Alta</option><option value="media" selected>Média</option><option value="baixa">Baixa</option></select>
+      </div>
+    </div>
+    <div id="opm-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveManu('${lojaId}')">Salvar</button>`);
+}
+function opSaveManu(lojaId){
+  const titulo=document.getElementById('opm-titulo').value.trim();
+  if(!titulo){document.getElementById('opm-err').textContent='Título obrigatório.';return;}
+  if(!S.op.manutencao)S.op.manutencao=[];
+  S.op.manutencao.push({id:uid(),loja:lojaId,titulo,desc:document.getElementById('opm-desc').value.trim(),setor:document.getElementById('opm-setor').value,prio:document.getElementById('opm-prio').value,status:'pendente',date:todayKey(),createdBy:me});
+  saveLocal();closeModal();renderOperacional();toast('Manutenção registrada!');
+}
+
+// ── TAB: FUNCIONÁRIOS ─────────────────────────────────────────
+function opTabFuncionarios(lojaId){
+  const funcs=(S.op.funcionarios||[]).filter(f=>f.loja===lojaId).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const ativos=funcs.filter(f=>f.status!=='inativo');
+  const inativos=funcs.filter(f=>f.status==='inativo');
+  const renderFunc=f=>`<div class="card" style="padding:14px 16px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:38px;height:38px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;font-size:1rem;flex-shrink:0;">👤</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:.9rem;display:flex;align-items:center;gap:8px;">
+          ${esc(f.nome)}
+          ${f.status==='inativo'?'<span style="font-size:.62rem;padding:2px 7px;border-radius:999px;background:rgba(100,116,139,.12);color:var(--muted);">Inativo</span>':''}
+          ${(f.advertencias||[]).filter(a=>!a.resolvida).length>0?`<span style="font-size:.62rem;padding:2px 7px;border-radius:999px;background:rgba(248,113,113,.12);color:#f87171;">⚠️ ${(f.advertencias||[]).filter(a=>!a.resolvida).length} advertência${(f.advertencias||[]).filter(a=>!a.resolvida).length>1?'s':''}</span>`:''}
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);">${esc(f.cargo||'—')}${f.setor?` · ${esc(f.setor)}`:''}</div>
+        ${f.dataAdmissao?`<div style="font-size:.68rem;color:var(--muted);">Admissão: ${fmtDate(f.dataAdmissao)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn-ghost btn-sm" style="font-size:.72rem;" onclick="opOpenFunc('${f.id}')">✏️ Ver / Editar</button>
+      </div>
+    </div>
+  </div>`;
+  return`<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+    <button class="btn-gold btn-sm" onclick="opOpenNovoFunc('${lojaId}')">+ Funcionário</button>
+  </div>
+  ${ativos.length?ativos.map(renderFunc).join(''):'<div class="empty-state">Nenhum funcionário ativo.</div>'}
+  ${inativos.length?`<details style="margin-top:16px;"><summary style="cursor:pointer;font-size:.78rem;color:var(--muted);">Inativos (${inativos.length})</summary><div style="margin-top:8px;">${inativos.map(renderFunc).join('')}</div></details>`:''}`;
+}
+function opOpenNovoFunc(lojaId){
+  openModal(`<h3 style="margin-bottom:16px;">Novo Funcionário</h3>
+    <div class="f-grp"><label class="f-lb">Nome completo *</label><input class="f-in" id="opf-nome" placeholder="Nome do colaborador"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Cargo</label><input class="f-in" id="opf-cargo" placeholder="Ex: Garçom, Cozinheiro"></div>
+      <div class="f-grp"><label class="f-lb">Setor</label>
+        <select class="f-in" id="opf-setor"><option value="">Selecione...</option>${OP_SETORES.map(s=>`<option>${s}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Data de Admissão</label><input class="f-in" type="date" id="opf-admissao"></div>
+    <div class="f-grp"><label class="f-lb">CPF (opcional)</label><input class="f-in" id="opf-cpf" placeholder="000.000.000-00"></div>
+    <div id="opf-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveNovoFunc('${lojaId}')">Cadastrar</button>`);
+}
+function opSaveNovoFunc(lojaId){
+  const nome=document.getElementById('opf-nome').value.trim();
+  if(!nome){document.getElementById('opf-err').textContent='Nome obrigatório.';return;}
+  if(!S.op.funcionarios)S.op.funcionarios=[];
+  S.op.funcionarios.push({id:uid(),loja:lojaId,nome,cargo:document.getElementById('opf-cargo').value.trim(),setor:document.getElementById('opf-setor').value,dataAdmissao:document.getElementById('opf-admissao').value,cpf:document.getElementById('opf-cpf').value.trim(),status:'ativo',advertencias:[],docs:[],obs:''});
+  saveLocal();closeModal();renderOperacional();toast('Funcionário cadastrado!');
+}
+function opOpenFunc(funcId){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
+  const advHtml=(f.advertencias||[]).map((a,i)=>`<div style="padding:8px 10px;background:${a.resolvida?'var(--panel2)':'rgba(248,113,113,.07)'};border:1px solid ${a.resolvida?'var(--line)':'rgba(248,113,113,.2)'};border-radius:8px;margin-bottom:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div style="font-size:.78rem;">${esc(a.desc)}</div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        ${!a.resolvida?`<button onclick="opResolveAdv('${funcId}',${i})" style="background:none;border:none;color:var(--green);cursor:pointer;font-size:.75rem;">✅</button>`:'<span style="font-size:.7rem;color:var(--green);">Resolvida</span>'}
+        <button onclick="opDelAdv('${funcId}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <div style="font-size:.65rem;color:var(--muted);margin-top:3px;">📅 ${fmtDate(a.data)}</div>
+  </div>`).join('')||'<div style="font-size:.76rem;color:var(--muted);padding:4px 0;">Nenhuma advertência.</div>';
+  openModal(`
+    <h3 style="margin-bottom:4px;">${esc(f.nome)}</h3>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px;">${esc(f.cargo||'—')}${f.setor?` · ${esc(f.setor)}`:''}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div class="f-grp"><label class="f-lb">Cargo</label><input class="f-in" id="opfe-cargo" value="${esc(f.cargo||'')}"></div>
+      <div class="f-grp"><label class="f-lb">Setor</label>
+        <select class="f-in" id="opfe-setor">${OP_SETORES.map(s=>`<option${s===f.setor?' selected':''}>${s}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Observações</label><textarea class="f-in" id="opfe-obs" rows="2">${esc(f.obs||'')}</textarea></div>
+    <div class="f-grp"><label class="f-lb">Status</label>
+      <select class="f-in" id="opfe-status"><option value="ativo"${f.status==='ativo'?' selected':''}>Ativo</option><option value="inativo"${f.status==='inativo'?' selected':''}>Inativo</option></select>
+    </div>
+    <button class="btn-ghost btn-sm" style="margin-bottom:14px;" onclick="opSaveFunc('${funcId}')">💾 Salvar alterações</button>
+    <div class="sec" style="margin-bottom:8px;">Advertências</div>
+    <div id="opf-advlist">${advHtml}</div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <input class="f-in" id="opf-newadv" placeholder="Descreva a advertência..." style="flex:1;">
+      <button class="btn-ghost btn-sm" onclick="opAddAdv('${funcId}')">+ Adicionar</button>
+    </div>`);
+}
+function opSaveFunc(funcId){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
+  f.cargo=document.getElementById('opfe-cargo').value.trim();
+  f.setor=document.getElementById('opfe-setor').value;
+  f.obs=document.getElementById('opfe-obs').value.trim();
+  f.status=document.getElementById('opfe-status').value;
+  saveLocal();toast('Funcionário atualizado!');renderOperacional();
+}
+function opAddAdv(funcId){
+  const desc=document.getElementById('opf-newadv').value.trim();if(!desc)return;
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
+  if(!f.advertencias)f.advertencias=[];
+  f.advertencias.push({id:uid(),desc,data:todayKey(),resolvida:false});
+  saveLocal();toast('Advertência registrada.');closeModal();renderOperacional();
+}
+function opResolveAdv(funcId,idx){const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(f?.advertencias?.[idx])f.advertencias[idx].resolvida=true;saveLocal();closeModal();renderOperacional();}
+function opDelAdv(funcId,idx){const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(f?.advertencias)f.advertencias.splice(idx,1);saveLocal();closeModal();renderOperacional();}
+
+// ── TAB: MARKETING ────────────────────────────────────────────
+function opTabMarketing(lojaId){
+  const itens=(S.op.marketing||[]).filter(m=>m.loja===lojaId).sort((a,b)=>b.date.localeCompare(a.date));
+  const TIPOS={campanha:'Campanha',sugestao:'Sugestão',observacao:'Observação'};
+  const TIPO_COR={campanha:'var(--gold)',sugestao:'#60a5fa',observacao:'var(--muted)'};
+  const STATUS_MKT={pendente:'Pendente',aprovado:'Aprovado',recusado:'Recusado',andamento:'Em andamento'};
+  const cards=itens.map(m=>`<div class="card" style="padding:14px 16px;margin-bottom:8px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+      <div style="flex:1;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:${TIPO_COR[m.tipo]||'var(--muted)'}22;color:${TIPO_COR[m.tipo]||'var(--muted)'};font-weight:700;">${TIPOS[m.tipo]||m.tipo}</span>
+          <span style="font-size:.65rem;color:var(--muted);">📅 ${fmtDate(m.date)}</span>
+        </div>
+        <div style="font-size:.9rem;font-weight:700;margin-bottom:4px;">${esc(m.titulo)}</div>
+        ${m.desc?`<div style="font-size:.78rem;color:var(--muted);">${esc(m.desc)}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end;">
+        <select class="finput" style="font-size:.7rem;padding:3px 6px;width:auto;" onchange="opUpdateMktStatus('${m.id}',this.value)">
+          ${Object.entries(STATUS_MKT).map(([k,v])=>`<option value="${k}"${m.status===k?' selected':''}>${v}</option>`).join('')}
+        </select>
+        <button onclick="opDelMarketing('${m.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;">✕</button>
+      </div>
+    </div>
+  </div>`).join('')||'<div class="empty-state">Nenhum item de marketing.</div>';
+  return`<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+    <button class="btn-ghost btn-sm" onclick="opOpenNovoMkt('${lojaId}','sugestao')">+ Sugestão</button>
+    <button class="btn-ghost btn-sm" onclick="opOpenNovoMkt('${lojaId}','observacao')">+ Observação</button>
+    <button class="btn-gold btn-sm" onclick="opOpenNovoMkt('${lojaId}','campanha')">+ Campanha</button>
+  </div>${cards}`;
+}
+function opUpdateMktStatus(id,status){const m=(S.op.marketing||[]).find(x=>x.id===id);if(m){m.status=status;saveLocal();renderOperacional();}}
+function opDelMarketing(id){if(!confirm('Remover?'))return;S.op.marketing=(S.op.marketing||[]).filter(x=>x.id!==id);saveLocal();renderOperacional();}
+function opOpenNovoMkt(lojaId,tipo){
+  openModal(`<h3 style="margin-bottom:16px;">Nova ${tipo==='campanha'?'Campanha':tipo==='sugestao'?'Sugestão':'Observação'}</h3>
+    <div class="f-grp"><label class="f-lb">Título *</label><input class="f-in" id="opmk-titulo" placeholder="Descreva em uma linha..."></div>
+    <div class="f-grp"><label class="f-lb">Detalhes</label><textarea class="f-in" id="opmk-desc" rows="3" placeholder="Explique melhor a ideia, contexto, referências..."></textarea></div>
+    <div id="opmk-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveMkt('${lojaId}','${tipo}')">Salvar</button>`);
+}
+function opSaveMkt(lojaId,tipo){
+  const titulo=document.getElementById('opmk-titulo').value.trim();
+  if(!titulo){document.getElementById('opmk-err').textContent='Título obrigatório.';return;}
+  if(!S.op.marketing)S.op.marketing=[];
+  S.op.marketing.push({id:uid(),loja:lojaId,tipo,titulo,desc:document.getElementById('opmk-desc').value.trim(),status:'pendente',date:todayKey(),member:me});
+  saveLocal();closeModal();renderOperacional();toast('Registrado!');
+}
+
+// ── TAB: ERROS DE PROCESSO ────────────────────────────────────
+function opTabErros(lojaId){
+  const erros=(S.op.errosProcesso||[]).filter(e=>e.loja===lojaId).sort((a,b)=>b.date.localeCompare(a.date));
+  const STATUS_EP={pendente:{label:'Pendente',cor:'#fbbf24'},andamento:{label:'Em andamento',cor:'#60a5fa'},resolvido:{label:'Resolvido',cor:'#4ade80'}};
+  const cards=erros.map(e=>{
+    const st=STATUS_EP[e.status]||STATUS_EP.pendente;
+    return`<div class="card" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ${st.cor};">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+        <div style="flex:1;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px;">
+            <span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:${st.cor}22;color:${st.cor};font-weight:700;">${st.label}</span>
+            ${e.setor?`<span style="font-size:.65rem;color:var(--muted);">${esc(e.setor)}</span>`:''}
+            <span style="font-size:.65rem;color:var(--muted);">📅 ${fmtDate(e.date)}</span>
+          </div>
+          <div style="font-size:.9rem;font-weight:700;margin-bottom:4px;">${esc(e.titulo)}</div>
+          ${e.desc?`<div style="font-size:.78rem;color:var(--muted);">${esc(e.desc)}</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end;">
+          <select class="finput" style="font-size:.7rem;padding:3px 6px;width:auto;" onchange="opUpdateErroStatus('${e.id}',this.value)">
+            ${Object.entries(STATUS_EP).map(([k,v])=>`<option value="${k}"${e.status===k?' selected':''}>${v.label}</option>`).join('')}
+          </select>
+          <button onclick="opDelErro('${e.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;">✕</button>
+        </div>
+      </div>
+    </div>`;}).join('')||'<div class="empty-state">Nenhum erro de processo registrado.</div>';
+  return`<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+    <button class="btn-gold btn-sm" onclick="opOpenNovoErro('${lojaId}')">+ Registrar Erro</button>
+  </div>${cards}`;
+}
+function opUpdateErroStatus(id,status){const e=(S.op.errosProcesso||[]).find(x=>x.id===id);if(e){e.status=status;saveLocal();renderOperacional();}}
+function opDelErro(id){if(!confirm('Remover?'))return;S.op.errosProcesso=(S.op.errosProcesso||[]).filter(x=>x.id!==id);saveLocal();renderOperacional();}
+function opOpenNovoErro(lojaId){
+  openModal(`<h3 style="margin-bottom:16px;">Registrar Erro de Processo</h3>
+    <div class="f-grp"><label class="f-lb">Título *</label><input class="f-in" id="ope-titulo" placeholder="Ex: Caixa abriu sem conferência"></div>
+    <div class="f-grp"><label class="f-lb">Setor</label>
+      <select class="f-in" id="ope-setor"><option value="">Geral</option>${OP_SETORES.map(s=>`<option>${s}</option>`).join('')}</select>
+    </div>
+    <div class="f-grp"><label class="f-lb">Descrição do problema</label><textarea class="f-in" id="ope-desc" rows="3" placeholder="O que aconteceu, quando, como foi identificado..."></textarea></div>
+    <div id="ope-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveErro('${lojaId}')">Registrar</button>`);
+}
+function opSaveErro(lojaId){
+  const titulo=document.getElementById('ope-titulo').value.trim();
+  if(!titulo){document.getElementById('ope-err').textContent='Título obrigatório.';return;}
+  if(!S.op.errosProcesso)S.op.errosProcesso=[];
+  S.op.errosProcesso.push({id:uid(),loja:lojaId,titulo,setor:document.getElementById('ope-setor').value,desc:document.getElementById('ope-desc').value.trim(),status:'pendente',date:todayKey(),member:me});
+  saveLocal();closeModal();renderOperacional();toast('Erro registrado!');
 }
 
 </script>
