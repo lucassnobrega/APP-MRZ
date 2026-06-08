@@ -1288,10 +1288,13 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
     if(fb&&fb.v){
       const newer=!S||!S.lastUp||fb.lastUp>S.lastUp;
       if(newer){
+        // Deep copy ANTES de passar para migrateState — evita que o fb seja mutado in-place
+        // (sem isso, S e fb ficam sendo o mesmo objeto e o diff nunca detecta mudanças)
+        const fbSnap=JSON.parse(JSON.stringify(fb));
         S=migrateState(fb);
         localStorage.setItem(SK,JSON.stringify(S));
         // Se a migration mudou algo (ex: limpou userPerms), salvar de volta no Firebase
-        if(JSON.stringify(S)!==JSON.stringify(fb))setTimeout(()=>{if(_fbReady)_fbSave();},1500);
+        if(JSON.stringify(S)!==JSON.stringify(fbSnap))setTimeout(()=>{if(_fbReady)_fbSave();},1500);
       }
       syncCustomUsers();
       _fbReady=true;
@@ -1386,6 +1389,8 @@ function enterApp(k){
   const av=document.getElementById('sb-av');av.textContent=m.icon;av.style.background=m.color+'33';
   document.getElementById('sb-nm').textContent=m.name;
   document.getElementById('sb-rl').textContent=m.role;
+  // Construir sidebar imediatamente ao logar (não esperar próximo sync do Firebase)
+  try{buildSidebar();}catch(e){console.error('enterApp buildSidebar:',e);}
   const _gerentes=['marcio','elias','douglas','saulo','amanda','carla'];
   if(me==='marlon')goPanel('gestao');
   else if(_gerentes.includes(me)){window._opLojaView=null;window._opTab='tarefas';goPanel('operacional');}
