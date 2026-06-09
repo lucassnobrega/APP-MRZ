@@ -433,6 +433,31 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
 /* Modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,4,14,.78);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
 .modal-bg.show{display:flex;}
+/* Checklist Editor */
+.cl-editor{display:grid;grid-template-columns:320px 1fr;gap:0;}
+.cl-editor-l{border-right:1px solid var(--line);padding:20px;overflow-y:auto;max-height:82vh;}
+.cl-editor-r{padding:20px;overflow-y:auto;max-height:82vh;display:flex;flex-direction:column;}
+.cl-item-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--panel2);border-radius:10px 10px 0 0;margin-bottom:0;border:1px solid var(--line);}
+.cl-item-row.no-cfg{border-radius:10px;margin-bottom:6px;}
+.cl-item-cfg{display:none;padding:12px 14px;background:var(--panel2);border-radius:0 0 10px 10px;margin-bottom:6px;border:1px solid var(--line);border-top:1px dashed var(--line);}
+.cl-item-cfg.open{display:block;}
+@media(max-width:700px){.cl-editor{grid-template-columns:1fr;}.cl-editor-l{max-height:none;border-right:none;border-bottom:1px solid var(--line);}}
+/* Execution Overlay */
+.exec-ov{position:fixed;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;overflow:hidden;}
+.exec-ov.show{display:flex;}
+.exec-hd{padding:16px 20px;background:var(--panel);border-bottom:1px solid var(--line);flex-shrink:0;}
+.exec-bd{flex:1;overflow-y:auto;padding:16px 20px;}
+.exec-ft{padding:14px 20px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:10px;flex-shrink:0;align-items:center;flex-wrap:wrap;}
+.exec-card{background:var(--panel2);border-radius:14px;margin-bottom:10px;border:2px solid var(--line);overflow:hidden;transition:border-color .2s;}
+.exec-card.ok{border-color:#22c55e;}
+.exec-card.nok{border-color:#ef4444;}
+.exec-card-hd{display:flex;align-items:center;gap:10px;padding:14px 16px;}
+.exec-card-body{padding:0 16px 14px;display:none;}
+.exec-card-body.open{display:block;}
+.xok{padding:6px 18px;border-radius:8px;font-weight:700;font-size:.82rem;border:2px solid #22c55e;background:transparent;color:#22c55e;cursor:pointer;transition:all .15s;}
+.xok.on{background:#22c55e;color:#fff;}
+.xnok{padding:6px 18px;border-radius:8px;font-weight:700;font-size:.82rem;border:2px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer;transition:all .15s;}
+.xnok.on{background:#ef4444;color:#fff;}
 .modal{background:var(--panel);border:1px solid var(--line2);border-radius:20px;width:100%;max-width:680px;margin:auto;box-shadow:var(--shadow);}
 [data-theme="dark"] .modal{background:linear-gradient(180deg,#0f1624,#090d18);border-color:rgba(255,255,255,.09);}
 .modal-hd{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
@@ -930,6 +955,12 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
   <div class="modal" style="padding:0;overflow:auto;max-height:90vh;">
     <div id="modal-body" style="padding:24px;"></div>
   </div>
+</div>
+<!-- CHECKLIST EXECUTION OVERLAY -->
+<div class="exec-ov" id="exec-ov">
+  <div class="exec-hd" id="exec-hd"></div>
+  <div class="exec-bd" id="exec-bd"></div>
+  <div class="exec-ft" id="exec-ft"></div>
 </div>
 
 <div class="modal-bg" id="task-modal" onclick="if(event.target===this)closeTaskModal()">
@@ -1462,6 +1493,11 @@ const NAV_ITEMS=[
 // MODO ADM / OPERACIONAL — troca global do menu lateral
 // ══════════════════════════════════════════════════════════════
 function setAppMode(mode){
+  // ADM só para usuários autorizados
+  if(mode==='adm'){
+    const _admUsers=['marcio','bruna','marlon','lucas'];
+    if(!M[me]?.isLeader&&!_admUsers.includes(me))return;
+  }
   window._appMode=mode;
   buildSidebar();
   if(mode==='operacional'){
@@ -1557,10 +1593,12 @@ function buildSidebar(){
   const isL=M[me]?.isLeader||false;
   const isSetorLider=M[me]?.tipo==='setorLider';
   const mode=isSetorLider?'operacional':(window._appMode||'adm');
-  // Troca de modo — só para quem tem acesso operacional e não é líder de setor
+  // Troca de modo — só para Márcio, Bruna, Marlon, Lucas e líderes
   const _opGerentes=['marcio','elias','douglas','saulo','amanda','carla'];
   const podeOp=!isSetorLider&&(isL||opCanSeeAll()||opLojaDoGerente(me)||_opGerentes.includes(me));
-  const switcher=podeOp?`<div style="display:flex;gap:3px;margin:2px 4px 12px;">
+  const _admUsers=['marcio','bruna','marlon','lucas'];
+  const podeAdm=isL||_admUsers.includes(me);
+  const switcher=(podeOp&&podeAdm)?`<div style="display:flex;gap:3px;margin:2px 4px 12px;">
     <button onclick="setAppMode('adm')" style="flex:1;padding:7px 6px;border:none;border-radius:8px;cursor:pointer;font-size:.76rem;font-weight:700;
       background:${mode==='adm'?'var(--acc)':'var(--panel2)'};color:${mode==='adm'?'#fff':'var(--muted)'};">ADM</button>
     <button onclick="setAppMode('operacional')" style="flex:1;padding:7px 6px;border:none;border-radius:8px;cursor:pointer;font-size:.76rem;font-weight:700;
@@ -2020,7 +2058,8 @@ function openTask(id){
   if(editingTask)renderTaskModal(editingTask);
 }
 function closeTaskModal(){document.getElementById('task-modal').classList.remove('show');}
-function openModal(html){const b=document.getElementById('modal-body');if(b&&html)b.innerHTML=html;document.getElementById('gen-modal').classList.add('show');}
+function openModal(html){const b=document.getElementById('modal-body');if(b&&html)b.innerHTML=html;const m=document.querySelector('#gen-modal .modal');if(m)m.style.maxWidth='';document.getElementById('gen-modal').classList.add('show');}
+function openWideModal(html){openModal(html);const m=document.querySelector('#gen-modal .modal');if(m)m.style.maxWidth='960px';}
 function closeModal(){document.getElementById('gen-modal').classList.remove('show');}
 
 function renderTaskModal(t){
@@ -8732,7 +8771,7 @@ function renderOpSetorLider(el){
   const loja=opGetLoja(lojaId);
   if(!loja||!setor){el.innerHTML='<div class="card" style="padding:24px;">Configuração inválida. Fale com o gestor.</div>';return;}
   const hoje=todayKey();
-  const TIPO_COR={abertura:'#22d3ee',fechamento:'#f59e0b',geral:'#a78bfa'};
+  const TIPO_COR={abertura:'#22d3ee',fechamento:'#f59e0b',geral:'#a78bfa','Manhã':'#22d3ee',Tarde:'#f59e0b',Noite:'#8b5cf6',Geral:'#a78bfa'};
   const modelos=(S.op.checklistModelos?.[lojaId]||[]).filter(m=>m.setor===setor&&m.ativo);
   const completions=S.op.completions?.[lojaId]?.[hoje]||{};
   const agora=new Date();
@@ -8744,13 +8783,13 @@ function renderOpSetorLider(el){
       const horParts=m.horarioLimite?m.horarioLimite.split(':'):null;
       const passou=horParts&&(agora.getHours()>parseInt(horParts[0])||(agora.getHours()===parseInt(horParts[0])&&agora.getMinutes()>=parseInt(horParts[1])));
       const atrasado=!feito&&passou&&m.horarioLimite;
-      const cor=feito?'#22c55e':atrasado?'#ef4444':TIPO_COR[m.tipo]||'#a78bfa';
-      const TIPO_LABEL={abertura:'Abertura',fechamento:'Fechamento',geral:'Geral'};
+      const turnoLabel=m.turno||{abertura:'Manhã',fechamento:'Tarde',geral:'Geral'}[m.tipo]||'Geral';
+      const cor=feito?'#22c55e':atrasado?'#ef4444':TIPO_COR[turnoLabel]||TIPO_COR[m.tipo]||'#a78bfa';
       const statusBadge=feito
-        ?`<span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:#22c55e22;color:#22c55e;font-weight:700;">Feito${comp.finalizadoEm?' às '+comp.finalizadoEm.slice(11,16):''}</span>`
+        ?`<span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:#22c55e22;color:#22c55e;font-weight:700;">Feito${comp?.finalizadoEm?' às '+comp.finalizadoEm.slice(11,16):''}</span>`
         :atrasado
           ?`<span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:#ef444422;color:#ef4444;font-weight:700;">Atrasado</span>`
-          :`<span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:${cor}22;color:${cor};font-weight:700;">${TIPO_LABEL[m.tipo]||'Geral'}</span>`;
+          :`<span style="font-size:.65rem;padding:2px 8px;border-radius:999px;background:${cor}22;color:${cor};font-weight:700;">${turnoLabel}</span>`;
       return`<div class="card" style="padding:16px;margin-bottom:8px;border-left:4px solid ${cor};cursor:${feito?'default':'pointer'};" ${feito?'':`onclick="opOpenExecutarChecklist('${lojaId}','${m.id}')"`}>
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="flex:1;min-width:0;">
@@ -8843,84 +8882,204 @@ function renderOpSetorLider(el){
 function opOpenExecutarChecklist(lojaId,modeloId){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
+  window._xLoja=lojaId;window._xModelo=modeloId;window._xPasso=false;window._xPassoIdx=0;
   const hoje=todayKey();
   if(!S.op.completions)S.op.completions={};
   if(!S.op.completions[lojaId])S.op.completions[lojaId]={};
   if(!S.op.completions[lojaId][hoje])S.op.completions[lojaId][hoje]={};
   if(!S.op.completions[lojaId][hoje][modeloId])S.op.completions[lojaId][hoje][modeloId]={items:{},status:'pendente'};
-  const state=S.op.completions[lojaId][hoje][modeloId];
-  const itemsHtml=(m.items||[]).map((item,i)=>{
-    const ist=state.items?.[item.id]||{};
-    return`<div id="cl-item-${item.id}" style="padding:10px 12px;background:var(--panel2);border-radius:10px;margin-bottom:6px;border:2px solid ${ist.ok?'#22c55e':ist.nok?'#ef4444':'var(--line)'};">
-      <div style="display:flex;align-items:flex-start;gap:10px;">
-        <span style="font-size:.78rem;color:var(--muted);flex-shrink:0;margin-top:2px;">${i+1}.</span>
-        <div style="flex:1;">
-          <div style="font-size:.84rem;margin-bottom:6px;">${esc(item.texto)}</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button onclick="opSetItem('${lojaId}','${modeloId}','${item.id}','ok')" style="padding:4px 14px;border-radius:8px;border:2px solid #22c55e;background:${ist.ok?'#22c55e':'transparent'};color:${ist.ok?'#fff':'#22c55e'};font-size:.78rem;font-weight:700;cursor:pointer;">OK</button>
-            <button onclick="opSetItem('${lojaId}','${modeloId}','${item.id}','nok')" style="padding:4px 14px;border-radius:8px;border:2px solid #ef4444;background:${ist.nok?'#ef4444':'transparent'};color:${ist.nok?'#fff':'#ef4444'};font-size:.78rem;font-weight:700;cursor:pointer;">NOK</button>
-            ${item.exigeObs||ist.nok?`<input placeholder="Observação${item.exigeObs?' (obrigatório)':''}..." id="obs-${item.id}" value="${esc(ist.obs||'')}" class="finput" style="flex:1;min-width:100px;font-size:.74rem;padding:4px 8px;" oninput="opSetItemObs('${lojaId}','${modeloId}','${item.id}',this.value)">`:''}
-          </div>
-        </div>
+  opRenderExec();
+  document.getElementById('exec-ov').classList.add('show');
+}
+function opRenderExec(){
+  const lojaId=window._xLoja,modeloId=window._xModelo;
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  if(!m)return;
+  const hoje=todayKey();
+  const comp=S.op.completions[lojaId][hoje][modeloId]||{items:{}};
+  const funcs=S.op.funcionarios||[];
+  const respNomes=(m.responsaveis||[]).map(id=>funcs.find(f=>f.id===id)?.nome).filter(Boolean);
+  const turno=m.turno||{abertura:'Manhã',fechamento:'Tarde',geral:'Geral'}[m.tipo]||'Geral';
+  const total=(m.items||[]).length;
+  const isPasso=window._xPasso;
+  const passoIdx=window._xPassoIdx||0;
+  const feitos=(m.items||[]).filter(it=>{const s=comp.items?.[it.id];
+    return s?.ok||s?.nok||(s?.valor!==undefined&&s?.valor!=='')||(s?.estrelas>0)||s?.data;}).length;
+  const pct=total?Math.round(feitos/total*100):0;
+  document.getElementById('exec-hd').innerHTML=`
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-size:1.05rem;font-weight:800;">${esc(m.nome)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${respNomes.length?`Resp: ${respNomes.join(', ')} · `:''}Turno: ${turno} · ${esc(m.setor)}</div>
+      </div>
+      <button onclick="window._xPasso=!window._xPasso;window._xPassoIdx=0;opRenderExec()"
+        style="padding:6px 14px;border-radius:8px;border:1px solid var(--acc);background:${isPasso?'var(--acc)':'transparent'};color:${isPasso?'#fff':'var(--acc)'};font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+        Passo a Passo
+      </button>
+    </div>`;
+  const progressHtml=`
+    <div class="card" style="padding:12px 16px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:.62rem;font-weight:700;letter-spacing:.09em;color:var(--muted);">PROGRESSO</span>
+        <span class="xprog-txt" style="font-size:.78rem;font-weight:700;color:var(--acc);">${feitos} DE ${total} (${pct}%)</span>
+      </div>
+      <div style="background:var(--panel2);border-radius:999px;height:6px;overflow:hidden;">
+        <div class="xprog-bar" style="height:100%;border-radius:999px;background:var(--acc);width:${pct}%;transition:width .3s;"></div>
       </div>
     </div>`;
-  }).join('')||'<div style="color:var(--muted);font-size:.8rem;padding:8px;">Este checklist não tem itens ainda.</div>';
-  openModal(`<h3 style="margin-bottom:4px;">${esc(m.nome)}</h3>
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">${esc(m.setor)} · ${new Date().toLocaleDateString('pt-BR')}</div>
-    <div id="cl-exec-list" style="max-height:420px;overflow-y:auto;padding-right:4px;">${itemsHtml}</div>
-    <div id="cl-exec-err" style="font-size:.74rem;color:var(--red);min-height:16px;margin-top:8px;"></div>
-    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opFinalizarChecklist('${lojaId}','${modeloId}')">Finalizar Checklist</button>`);
-}
-
-function opSetItem(lojaId,modeloId,itemId,tipo){
-  const hoje=todayKey();
-  if(!S.op.completions)S.op.completions={};
-  if(!S.op.completions[lojaId])S.op.completions[lojaId]={};
-  if(!S.op.completions[lojaId][hoje])S.op.completions[lojaId][hoje]={};
-  if(!S.op.completions[lojaId][hoje][modeloId])S.op.completions[lojaId][hoje][modeloId]={items:{},status:'pendente'};
-  const items=S.op.completions[lojaId][hoje][modeloId].items;
-  if(!items[itemId])items[itemId]={};
-  items[itemId].ok=(tipo==='ok');
-  items[itemId].nok=(tipo==='nok');
-  saveLocal();
-  const el=document.getElementById(`cl-item-${itemId}`);
-  if(el){
-    el.style.borderColor=tipo==='ok'?'#22c55e':'#ef4444';
-    const btns=el.querySelectorAll('button');
-    if(btns[0]){btns[0].style.background=tipo==='ok'?'#22c55e':'transparent';btns[0].style.color=tipo==='ok'?'#fff':'#22c55e';}
-    if(btns[1]){btns[1].style.background=tipo==='nok'?'#ef4444':'transparent';btns[1].style.color=tipo==='nok'?'#fff':'#ef4444';}
-    // Show obs input for NOK if not already visible
-    if(tipo==='nok'&&!document.getElementById(`obs-${itemId}`)){
-      const obsDiv=document.createElement('input');
-      obsDiv.id=`obs-${itemId}`;obsDiv.placeholder='Observação...';
-      obsDiv.className='finput';obsDiv.style.cssText='flex:1;min-width:100px;font-size:.74rem;padding:4px 8px;margin-top:4px;';
-      obsDiv.oninput=()=>opSetItemObs(lojaId,modeloId,itemId,obsDiv.value);
-      const btnRow=el.querySelector('[style*="display:flex"]');
-      if(btnRow)btnRow.appendChild(obsDiv);
+  const itemsToShow=isPasso?(m.items[passoIdx]?[m.items[passoIdx]]:[]):m.items;
+  const itemsHtml=itemsToShow.map((item,visIdx)=>{
+    const realIdx=isPasso?passoIdx:visIdx;
+    const ist=comp.items?.[item.id]||{};
+    const tipoResp=item.tipoResp||'ok_nok';
+    let ctrlHtml='';
+    if(tipoResp==='ok_nok'){
+      ctrlHtml=`<div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="xok${ist.ok?' on':''}" onclick="opXSetItem('${item.id}','ok')">OK</button>
+        <button class="xnok${ist.nok?' on':''}" onclick="opXSetItem('${item.id}','nok')">N/OK</button>
+      </div>`;
+    }else if(tipoResp==='valor'){
+      ctrlHtml=`<input class="f-in" value="${esc(ist.valor||'')}" placeholder="Valor..." style="max-width:160px;font-size:.82rem;" oninput="opXSetVal('${item.id}','valor',this.value)">`;
+    }else if(tipoResp==='estrelas'){
+      const s=ist.estrelas||0;
+      ctrlHtml=`<div style="display:flex;gap:2px;">${[1,2,3,4,5].map(n=>`<span onclick="opXSetVal('${item.id}','estrelas',${n})" style="font-size:1.3rem;cursor:pointer;color:${n<=s?'#f59e0b':'var(--muted)'};">★</span>`).join('')}</div>`;
+    }else if(tipoResp==='data'){
+      ctrlHtml=`<input class="f-in" type="date" value="${ist.data||''}" style="max-width:160px;" onchange="opXSetVal('${item.id}','data',this.value)">`;
     }
-  }
+    const hasExtra=(item.exigeObs||item.exigeFoto||ist.nok);
+    const bodyOpen=ist.nok||(item.exigeObs&&!(ist.obs||'').trim());
+    return`<div class="exec-card${ist.ok?' ok':ist.nok?' nok':''}" id="xcard-${item.id}">
+      <div class="exec-card-hd" onclick="opXToggle('${item.id}')">
+        <span style="width:24px;height:24px;border-radius:8px;background:var(--acc)18;color:var(--acc);font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${realIdx+1}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.86rem;font-weight:600;line-height:1.3;">${esc(item.texto)}</div>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${item.instrucoes?esc(item.instrucoes):'Sem descrição para esse item'}</div>
+        </div>
+        ${ctrlHtml}
+        ${hasExtra?`<span id="xarrow-${item.id}" style="font-size:.7rem;color:var(--muted);padding:0 4px;cursor:pointer;flex-shrink:0;">${bodyOpen?'▴':'▾'}</span>`:''}
+      </div>
+      ${hasExtra?`<div class="exec-card-body${bodyOpen?' open':''}" id="xbody-${item.id}">
+        ${item.exigeObs||ist.nok?`<div style="margin-bottom:10px;">
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">OBSERVAÇÃO</div>
+          <textarea class="f-in" placeholder="Digite detalhes aqui..." rows="3" style="width:100%;resize:vertical;box-sizing:border-box;" oninput="opXSetObs('${item.id}',this.value)">${esc(ist.obs||'')}</textarea>
+        </div>`:''}
+        ${item.exigeFoto||ist.nok?`<div>
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTOS (${(ist.fotos||[]).length}/1)</div>
+          <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:700;">
+            CAM ANEXAR FOTO
+            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="opXAttachFoto('${item.id}',this)">
+          </label>
+          ${(ist.fotos||[]).length?`<div style="margin-top:6px;font-size:.72rem;color:var(--acc);">${(ist.fotos||[]).length} foto(s) anexada(s)</div>`:''}
+        </div>`:''}
+      </div>`:''}
+    </div>`;
+  }).join('')||'<div style="color:var(--muted);font-size:.8rem;padding:16px;text-align:center;">Nenhum item neste checklist.</div>';
+  document.getElementById('exec-bd').innerHTML=progressHtml+itemsHtml;
+  const passoNav=isPasso?`<div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:center;">
+    ${passoIdx>0?`<button onclick="window._xPassoIdx--;opRenderExec()" class="btn-ghost btn-sm">← Anterior</button>`:''}
+    <span style="font-size:.76rem;color:var(--muted);">${passoIdx+1} / ${total}</span>
+    ${passoIdx<total-1?`<button onclick="window._xPassoIdx++;opRenderExec()" class="btn-gold btn-sm">Próximo →</button>`:''}
+  </div>`:''  ;
+  document.getElementById('exec-ft').innerHTML=`
+    <button onclick="document.getElementById('exec-ov').classList.remove('show')" style="padding:13px 20px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:.88rem;font-weight:700;color:var(--fg);">Cancelar</button>
+    ${passoNav}
+    <button onclick="opFinalizarChecklist('${lojaId}','${modeloId}')" style="flex:1;padding:13px;border-radius:12px;border:none;background:#22c55e;color:#fff;cursor:pointer;font-size:.88rem;font-weight:800;letter-spacing:.02em;">FINALIZAR E ENVIAR</button>
+    <div id="xexec-err" style="display:none;font-size:.74rem;color:var(--red);width:100%;text-align:center;margin-top:2px;"></div>`;
 }
-function opSetItemObs(lojaId,modeloId,itemId,obs){
-  const hoje=todayKey();
-  if(!S.op.completions?.[lojaId]?.[hoje]?.[modeloId])return;
-  if(!S.op.completions[lojaId][hoje][modeloId].items[itemId])S.op.completions[lojaId][hoje][modeloId].items[itemId]={};
-  S.op.completions[lojaId][hoje][modeloId].items[itemId].obs=obs;
+function opXToggle(itemId){
+  const b=document.getElementById(`xbody-${itemId}`);
+  const a=document.getElementById(`xarrow-${itemId}`);
+  if(b){b.classList.toggle('open');if(a)a.textContent=b.classList.contains('open')?'▴':'▾';}
+}
+function opXSetItem(itemId,tipo){
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const comp=S.op.completions[lojaId][hoje][modeloId];
+  if(!comp.items)comp.items={};
+  if(!comp.items[itemId])comp.items[itemId]={};
+  comp.items[itemId].ok=(tipo==='ok');
+  comp.items[itemId].nok=(tipo==='nok');
+  saveLocal();
+  const card=document.getElementById(`xcard-${itemId}`);
+  if(card){
+    card.className=`exec-card ${tipo}`;
+    card.querySelectorAll('.xok,.xnok').forEach(b=>{
+      b.classList.toggle('on',b.classList.contains(tipo==='ok'?'xok':'xnok'));
+      if(b.classList.contains(tipo==='ok'?'xnok':'xok'))b.classList.remove('on');
+    });
+    if(tipo==='nok'){const b=document.getElementById(`xbody-${itemId}`);if(b){b.classList.add('open');const a=document.getElementById(`xarrow-${itemId}`);if(a)a.textContent='▴';}}
+  }
+  opXUpdateProg();
+}
+function opXSetVal(itemId,field,val){
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const comp=S.op.completions[lojaId][hoje][modeloId];
+  if(!comp.items)comp.items={};
+  if(!comp.items[itemId])comp.items[itemId]={};
+  comp.items[itemId][field]=field==='estrelas'?Number(val):val;
+  saveLocal();
+  if(field==='estrelas'){
+    document.querySelectorAll(`#xcard-${itemId} .exec-card-hd span[onclick*="estrelas"]`).forEach((s,i)=>s.style.color=i<Number(val)?'#f59e0b':'var(--muted)');
+  }
+  opXUpdateProg();
+}
+function opXSetObs(itemId,obs){
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
+  if(!comp)return;
+  if(!comp.items)comp.items={};
+  if(!comp.items[itemId])comp.items[itemId]={};
+  comp.items[itemId].obs=obs;
+}
+function opXAttachFoto(itemId,input){
+  if(!input.files||!input.files[0])return;
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const comp=S.op.completions[lojaId][hoje][modeloId];
+  if(!comp.items)comp.items={};
+  if(!comp.items[itemId])comp.items[itemId]={};
+  if(!comp.items[itemId].fotos)comp.items[itemId].fotos=[];
+  const reader=new FileReader();
+  reader.onload=e=>{comp.items[itemId].fotos=[e.target.result];saveLocal();toast('Foto anexada!');};
+  reader.readAsDataURL(input.files[0]);
+}
+function opXUpdateProg(){
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
+  if(!m||!comp)return;
+  const total=(m.items||[]).length;
+  const feitos=(m.items||[]).filter(it=>{const s=comp.items?.[it.id];
+    return s?.ok||s?.nok||(s?.valor!==undefined&&s?.valor!=='')||(s?.estrelas>0)||s?.data;}).length;
+  const pct=total?Math.round(feitos/total*100):0;
+  const pb=document.querySelector('.xprog-bar'),pt=document.querySelector('.xprog-txt');
+  if(pb)pb.style.width=pct+'%';if(pt)pt.textContent=`${feitos} DE ${total} (${pct}%)`;
 }
 function opFinalizarChecklist(lojaId,modeloId){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   const hoje=todayKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
-  if(!comp){document.getElementById('cl-exec-err').textContent='Erro interno.';return;}
+  const errEl=document.getElementById('xexec-err')||document.getElementById('cl-exec-err');
+  const showErr=msg=>{if(errEl){errEl.textContent=msg;errEl.style.display='block';}};
+  if(!comp){showErr('Erro interno.');return;}
   if(m&&(m.items||[]).length>0){
-    const unchecked=(m.items||[]).filter(item=>{const st=comp.items?.[item.id];return !st?.ok&&!st?.nok;});
-    if(unchecked.length>0){document.getElementById('cl-exec-err').textContent=`Marque todos os itens antes de finalizar. (${unchecked.length} pendente${unchecked.length>1?'s':''})`;return;}
-    for(const item of m.items||[]){
-      const st=comp.items?.[item.id];
-      if(item.exigeObs&&st?.nok&&!(st?.obs||'').trim()){document.getElementById('cl-exec-err').textContent=`Item "${item.texto.slice(0,30)}..." requer observação quando NOK.`;return;}
+    const unchecked=(m.items||[]).filter(it=>{
+      const st=comp.items?.[it.id];const tr=it.tipoResp||'ok_nok';
+      if(tr==='ok_nok')return !st?.ok&&!st?.nok;
+      if(tr==='valor')return !(st?.valor!==undefined&&st?.valor!=='');
+      if(tr==='estrelas')return !(st?.estrelas>0);
+      if(tr==='data')return !st?.data;
+      return false;
+    });
+    if(unchecked.length>0){showErr(`Marque todos os itens antes de finalizar. (${unchecked.length} pendente${unchecked.length>1?'s':''})`);return;}
+    for(const it of m.items||[]){
+      const st=comp.items?.[it.id];
+      if(it.exigeObs&&st?.nok&&!(st?.obs||'').trim()){showErr(`"${it.texto.slice(0,30)}..." requer observação quando NOK.`);return;}
+      if(it.exigeFoto&&!(st?.fotos?.length)){showErr(`"${it.texto.slice(0,30)}..." requer foto.`);return;}
     }
   }
   comp.status='feito';comp.finalizadoEm=new Date().toISOString();comp.finalizadoPor=me;
-  saveLocal();closeModal();renderOperacional();toast('Checklist finalizado!');
+  saveLocal();
+  document.getElementById('exec-ov').classList.remove('show');
+  renderOperacional();toast('Checklist finalizado!');
 }
 function opOpenRegistroSetor(lojaId,setor,tipo){
   const label=tipo==='sugestao'?'Sugestão de Melhoria':'Erro de Processo';
@@ -9697,18 +9856,20 @@ function opTabChecklists(lojaId){
   return html;
 }
 function opRenderModeloCard(m,lojaId,canEdit){
-  const TIPO={abertura:{label:'Abertura',cor:'#22d3ee'},fechamento:{label:'Fechamento',cor:'#f59e0b'},geral:{label:'Geral',cor:'#a78bfa'}};
-  const t=TIPO[m.tipo]||TIPO.geral;
-  return`<div class="card" style="padding:13px 16px;margin-bottom:6px;border-left:3px solid ${t.cor};${!m.ativo?'opacity:.55;':''}">
+  const TURNO={'Manhã':{cor:'#22d3ee'},'Tarde':{cor:'#f59e0b'},'Noite':{cor:'#8b5cf6'},'Geral':{cor:'#a78bfa'},abertura:{cor:'#22d3ee'},fechamento:{cor:'#f59e0b'},geral:{cor:'#a78bfa'}};
+  const turnoLabel=m.turno||{abertura:'Manhã',fechamento:'Tarde',geral:'Geral'}[m.tipo]||'Geral';
+  const cor=(TURNO[turnoLabel]||TURNO.geral).cor;
+  return`<div class="card" style="padding:13px 16px;margin-bottom:6px;border-left:3px solid ${cor};${!m.ativo?'opacity:.55;':''}">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-          <span style="font-size:.64rem;padding:2px 8px;border-radius:999px;background:${t.cor}22;color:${t.cor};font-weight:700;">${t.label}</span>
+          <span style="font-size:.64rem;padding:2px 8px;border-radius:999px;background:${cor}22;color:${cor};font-weight:700;">${turnoLabel}</span>
           <span style="font-size:.88rem;font-weight:700;">${esc(m.nome)}</span>
+          ${m.doubleCheck?'<span style="font-size:.6rem;padding:2px 7px;border-radius:999px;background:var(--acc)18;color:var(--acc);font-weight:700;">Double Check</span>':''}
           ${!m.ativo?'<span style="font-size:.62rem;color:var(--muted);background:var(--panel2);padding:1px 6px;border-radius:4px;">Inativo</span>':''}
         </div>
         <div style="font-size:.7rem;color:var(--muted);">
-          ${m.horarioLimite?`⏰ Limite: ${m.horarioLimite} &nbsp;·&nbsp; `:''}
+          ${m.horarioLimite?`Limite: ${m.horarioLimite} &nbsp;·&nbsp; `:''}
           ${(m.items||[]).length} item${(m.items||[]).length!==1?'s':''}
         </div>
       </div>
@@ -9732,108 +9893,246 @@ function opDelModelo(lojaId,modeloId){
 }
 function opOpenNovoChecklist(lojaId,setorPre){
   const setores=opSetores(lojaId);
-  openModal(`<h3 style="margin-bottom:16px;">Novo Checklist</h3>
+  openModal(`<h3 style="margin-bottom:20px;">Novo Checklist</h3>
     <div class="f-grp"><label class="f-lb">Nome do Checklist *</label>
       <input class="f-in" id="opcl-nome" placeholder="Ex: Cozinha — Abertura"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="f-grp"><label class="f-lb">Setor</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="f-grp"><label class="f-lb">Área (Setor)</label>
         <select class="f-in" id="opcl-setor">
           ${setores.map(s=>`<option value="${s}"${s===(setorPre||'')?'selected':''}>${s}</option>`).join('')}
           <option value="Geral">Geral</option>
         </select>
       </div>
-      <div class="f-grp"><label class="f-lb">Tipo</label>
-        <select class="f-in" id="opcl-tipo">
-          <option value="abertura">Abertura</option>
-          <option value="fechamento">Fechamento</option>
-          <option value="geral">Geral</option>
+      <div class="f-grp"><label class="f-lb">Turno</label>
+        <select class="f-in" id="opcl-turno">
+          <option value="Manhã">Manhã</option>
+          <option value="Tarde">Tarde</option>
+          <option value="Noite">Noite</option>
+          <option value="Geral">Geral</option>
         </select>
       </div>
     </div>
-    <div class="f-grp"><label class="f-lb">Horário Limite (opcional)</label>
-      <input class="f-in" type="time" id="opcl-horario"></div>
     <div id="opcl-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
-    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveNovoChecklist('${lojaId}')">Criar Checklist</button>`);
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveNovoChecklist('${lojaId}')">Criar e Configurar Itens →</button>`);
 }
 function opSaveNovoChecklist(lojaId){
   const nome=document.getElementById('opcl-nome').value.trim();
   if(!nome){document.getElementById('opcl-err').textContent='Nome obrigatório.';return;}
   if(!S.op.checklistModelos)S.op.checklistModelos={};
   if(!S.op.checklistModelos[lojaId])S.op.checklistModelos[lojaId]=[];
+  const turno=document.getElementById('opcl-turno').value||'Geral';
+  const tipoMap={'Manhã':'abertura','Tarde':'fechamento','Noite':'fechamento','Geral':'geral'};
   const novoId=uid();
   S.op.checklistModelos[lojaId].push({
     id:novoId,nome,
     setor:document.getElementById('opcl-setor').value,
-    tipo:document.getElementById('opcl-tipo').value,
-    horarioLimite:document.getElementById('opcl-horario').value||'',
+    turno,tipo:tipoMap[turno]||'geral',
+    horarioInicio:'',horarioLimite:'',
+    responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,
     items:[],ativo:true,criadoEm:new Date().toISOString(),criadoPor:me
   });
   saveLocal();closeModal();
   setTimeout(()=>opOpenEditarChecklist(lojaId,novoId),250);
-  toast('Checklist criado! Adicione os itens abaixo.');
+  toast('Checklist criado!');
 }
 function opOpenEditarChecklist(lojaId,modeloId){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
-  const listaHtml=()=>(m.items||[]).map((item,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel2);border-radius:8px;margin-bottom:4px;">
-      <span style="color:var(--muted);font-size:.78rem;flex-shrink:0;min-width:18px;">${i+1}.</span>
-      <span style="flex:1;font-size:.83rem;line-height:1.4;">${esc(item.texto)}</span>
-      <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
-        ${item.exigeFoto?'<span title="Exige foto" style="font-size:.75rem;opacity:.8;"></span>':''}
-        ${item.exigeObs?'<span title="Exige observação" style="font-size:.75rem;opacity:.8;"></span>':''}
-        <button onclick="opDelItem('${lojaId}','${modeloId}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:0 2px;"></button>
-      </div>
-    </div>`).join('')||'<div style="font-size:.76rem;color:var(--muted);padding:8px 2px;">Nenhum item ainda. Adicione abaixo.</div>';
-  openModal(`<h3 style="margin-bottom:2px;">${esc(m.nome)}</h3>
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;">${m.setor} &nbsp;·&nbsp; ${m.tipo==='abertura'?'Abertura':m.tipo==='fechamento'?'Fechamento':'Geral'}${m.horarioLimite?' &nbsp;·&nbsp; ⏰ '+m.horarioLimite:''}</div>
-    <div id="opcl-items-list" style="max-height:280px;overflow-y:auto;margin-bottom:12px;">${listaHtml()}</div>
-    <div style="border-top:1px solid var(--line);padding-top:12px;">
-      <input class="f-in" id="opcl-novo-item" placeholder="Digite o próximo item..." style="margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <label style="font-size:.76rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
-          <input type="checkbox" id="opcl-exige-foto">Exigir foto
-        </label>
-        <label style="font-size:.76rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
-          <input type="checkbox" id="opcl-exige-obs">Exigir observação
-        </label>
-        <button class="btn-gold btn-sm" style="margin-left:auto;" onclick="opAddItem('${lojaId}','${modeloId}')">+ Adicionar</button>
-      </div>
+  window._clLoja=lojaId;window._clModelo=modeloId;
+  const setores=opSetores(lojaId);
+  const funcs=(S.op.funcionarios||[]).filter(f=>f.loja===lojaId&&f.status==='ativo');
+  const resp=m.responsaveis||[];
+  const diasBloq=m.diasBloq||[];
+  const DIAS=[{k:'dom',l:'Dom'},{k:'seg',l:'Seg'},{k:'ter',l:'Ter'},{k:'qua',l:'Qua'},{k:'qui',l:'Qui'},{k:'sex',l:'Sex'},{k:'sab',l:'Sáb'}];
+  const turno=m.turno||{abertura:'Manhã',fechamento:'Tarde',geral:'Geral'}[m.tipo]||'Geral';
+  openWideModal(`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid var(--line);">
+      <h3 style="margin:0;font-size:1.05rem;">Editar Checklist</h3>
+      <button onclick="closeModal();renderOperacional()" style="background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--muted);border-radius:8px;width:30px;height:30px;display:grid;place-items:center;cursor:pointer;font-size:1rem;">✕</button>
     </div>
-    <button class="btn-ghost" style="width:100%;margin-top:14px;" onclick="closeModal();renderOperacional()">Concluir</button>`);
+    <div class="cl-editor">
+      <div class="cl-editor-l">
+        <div class="f-grp"><label class="f-lb">Nome do Checklist</label>
+          <input class="f-in" id="cle-nome" value="${esc(m.nome)}" oninput="opCLAutoSave()"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="f-grp"><label class="f-lb">Área</label>
+            <select class="f-in" id="cle-setor" onchange="opCLAutoSave()">
+              ${setores.map(s=>`<option value="${s}"${s===m.setor?'selected':''}>${s}</option>`).join('')}
+              <option value="Geral"${m.setor==='Geral'?'selected':''}>Geral</option>
+            </select>
+          </div>
+          <div class="f-grp"><label class="f-lb">Turno</label>
+            <select class="f-in" id="cle-turno" onchange="opCLAutoSave()">
+              <option value="Manhã"${turno==='Manhã'?'selected':''}>Manhã</option>
+              <option value="Tarde"${turno==='Tarde'?'selected':''}>Tarde</option>
+              <option value="Noite"${turno==='Noite'?'selected':''}>Noite</option>
+              <option value="Geral"${turno==='Geral'?'selected':''}>Geral</option>
+            </select>
+          </div>
+        </div>
+        <div class="f-grp"><label class="f-lb">Responsáveis <span style="font-weight:400;color:var(--muted);font-size:.68rem;">(pode selecionar mais de um)</span></label>
+          <select class="f-in" id="cle-resp" multiple size="${Math.min(5,Math.max(2,funcs.length))}" onchange="opCLAutoSave()" style="height:auto;">
+            ${funcs.length?funcs.map(f=>`<option value="${f.id}"${resp.includes(f.id)?'selected':''}>${esc(f.nome)}</option>`).join(''):'<option disabled>Nenhum funcionário cadastrado</option>'}
+          </select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:.66rem;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Restrições de Horário (Opcional)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><label class="f-lb">Início (Bloqueio)</label>
+              <input class="f-in" type="time" id="cle-inicio" value="${m.horarioInicio||''}" onchange="opCLAutoSave()"></div>
+            <div><label class="f-lb">Limite (Atraso)</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input class="f-in" type="time" id="cle-limite" value="${m.horarioLimite||''}" onchange="opCLAutoSave()" style="flex:1;">
+                ${m.horarioLimite?`<button onclick="document.getElementById('cle-limite').value='';opCLAutoSave()" style="background:none;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--muted);padding:4px 8px;font-size:.8rem;">✕</button>`:''}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:.66rem;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Configuração de Frequência</div>
+          <select class="f-in" id="cle-freq" onchange="opCLAutoSave()">
+            <option value="diario"${(m.freq||'diario')==='diario'?'selected':''}>Diário</option>
+            <option value="semanal"${m.freq==='semanal'?'selected':''}>Semanal</option>
+          </select>
+          <div style="margin-top:10px;font-size:.74rem;color:var(--muted);margin-bottom:6px;">Não executar nos dias (Folgou/Fechou):</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${DIAS.map(d=>`<label style="font-size:.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;">
+              <input type="checkbox" id="cle-dia-${d.k}" ${diasBloq.includes(d.k)?'checked':''} onchange="opCLAutoSave()">${d.l}</label>`).join('')}
+          </div>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);">
+          <input type="checkbox" id="cle-double" ${m.doubleCheck?'checked':''} onchange="opCLAutoSave()" style="margin-top:3px;">
+          <div>
+            <div style="font-weight:700;font-size:.82rem;color:var(--acc);">Double Check (Antifraude)</div>
+            <div style="font-size:.7rem;color:var(--muted);">Exigir 2 gerentes para concluir a tarefa.</div>
+          </div>
+        </label>
+      </div>
+      <div class="cl-editor-r" id="cle-right">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0;">
+          <div>
+            <div style="font-weight:700;font-size:.95rem;">Itens do Checklist</div>
+            <div style="font-size:.7rem;color:var(--muted);">Clique na engrenagem (⚙) para personalizar.</div>
+          </div>
+          <span id="cle-count" style="font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:7px;background:var(--panel2);">${(m.items||[]).length} Itens</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-shrink:0;">
+          <input class="f-in" id="cle-novo-item" placeholder="Digite um Item..." style="flex:1;" onkeydown="if(event.key==='Enter')opCLAddItem()">
+          <button class="btn-gold btn-sm" onclick="opCLAddItem()">Adicionar</button>
+        </div>
+        <div id="cle-items-list" style="flex:1;overflow-y:auto;">${opCLItemsHtml(m)}</div>
+      </div>
+    </div>`);
 }
-function opAddItem(lojaId,modeloId){
+function opCLItemsHtml(m){
+  const lojaId=window._clLoja,modeloId=window._clModelo;
+  return(m.items||[]).map((item,i)=>{
+    const tl={'ok_nok':'OK/NOK','valor':'Valor','estrelas':'Estrelas','data':'Data'}[item.tipoResp||'ok_nok']||'OK/NOK';
+    return`<div id="cliw-${item.id}">
+      <div class="cl-item-row${item._cfgOpen?'':' no-cfg'}">
+        <span style="color:var(--muted);font-size:.9rem;cursor:grab;flex-shrink:0;">≡</span>
+        <span style="flex:1;font-size:.83rem;line-height:1.4;">${esc(item.texto)}</span>
+        <span style="font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:5px;background:var(--panel);border:1px solid var(--line);flex-shrink:0;">${tl}</span>
+        ${item.exigeFoto?`<span style="font-size:.62rem;padding:2px 6px;border-radius:5px;background:var(--acc)18;color:var(--acc);flex-shrink:0;">Foto</span>`:''}
+        <button onclick="opCLToggleCfg('${lojaId}','${modeloId}','${item.id}')" title="Configurar" style="background:none;border:1px solid var(--line);border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--muted);font-size:.78rem;flex-shrink:0;">⚙</button>
+        <button onclick="opDelItem('${lojaId}','${modeloId}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:0 3px;flex-shrink:0;" title="Remover">🗑</button>
+      </div>
+      <div class="cl-item-cfg${item._cfgOpen?' open':''}" id="clicfg-${item.id}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div><label class="f-lb">Tipo de Resposta</label>
+            <select class="f-in" id="clit-${item.id}" style="font-size:.78rem;">
+              <option value="ok_nok"${(item.tipoResp||'ok_nok')==='ok_nok'?'selected':''}>Botões OK / NÃO OK (Padrão)</option>
+              <option value="valor"${item.tipoResp==='valor'?'selected':''}>Digitar Valor (Ex: Temperaturas)</option>
+              <option value="estrelas"${item.tipoResp==='estrelas'?'selected':''}>Avaliação (5 Estrelas)</option>
+              <option value="data"${item.tipoResp==='data'?'selected':''}>Selecionar Data / Validade</option>
+            </select>
+          </div>
+          <div><label class="f-lb">Instruções para o Colaborador</label>
+            <input class="f-in" id="clii-${item.id}" value="${esc(item.instrucoes||'')}" placeholder="Ex: Verifique se as luzes estão apagadas..." style="font-size:.78rem;"></div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <label style="font-size:.76rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" id="clif-${item.id}" ${item.exigeFoto?'checked':''}>Exigir Foto</label>
+          <label style="font-size:.76rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" id="clio-${item.id}" ${item.exigeObs?'checked':''}>Exigir Observação</label>
+          ${(item.tipoResp||'ok_nok')==='ok_nok'?`<span style="font-size:.67rem;color:#f59e0b;padding:4px 8px;border-radius:6px;background:#f59e0b14;">Gera alerta de Não Conformidade se marcado como "NÃO OK".</span>`:''}
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn-gold btn-sm" onclick="opCLSaveItemCfg('${lojaId}','${modeloId}','${item.id}')">Salvar Item</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<div style="font-size:.76rem;color:var(--muted);padding:16px 2px;text-align:center;">Nenhum item ainda. Adicione acima.</div>';
+}
+function opCLToggleCfg(lojaId,modeloId,itemId){
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  const item=m?.items?.find(i=>i.id===itemId);
+  if(!item)return;
+  item._cfgOpen=!item._cfgOpen;
+  const cfg=document.getElementById(`clicfg-${itemId}`);
+  const row=cfg?.previousElementSibling;
+  if(cfg){cfg.classList.toggle('open',item._cfgOpen);}
+  if(row){row.classList.toggle('no-cfg',!item._cfgOpen);}
+}
+function opCLAddItem(){
+  const lojaId=window._clLoja,modeloId=window._clModelo;
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
-  const inp=document.getElementById('opcl-novo-item');
-  const texto=inp.value.trim();
-  if(!texto){inp.focus();return;}
+  const inp=document.getElementById('cle-novo-item');
+  const texto=inp?.value.trim();
+  if(!texto){inp?.focus();return;}
   if(!m.items)m.items=[];
-  m.items.push({id:uid(),texto,exigeFoto:document.getElementById('opcl-exige-foto').checked,exigeObs:document.getElementById('opcl-exige-obs').checked});
+  m.items.push({id:uid(),texto,tipoResp:'ok_nok',instrucoes:'',exigeFoto:false,exigeObs:false});
   saveLocal();
-  // Atualizar lista sem fechar modal
-  const listaHtml=(m.items||[]).map((item,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel2);border-radius:8px;margin-bottom:4px;">
-      <span style="color:var(--muted);font-size:.78rem;flex-shrink:0;min-width:18px;">${i+1}.</span>
-      <span style="flex:1;font-size:.83rem;line-height:1.4;">${esc(item.texto)}</span>
-      <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
-        ${item.exigeFoto?'<span title="Exige foto" style="font-size:.75rem;opacity:.8;"></span>':''}
-        ${item.exigeObs?'<span title="Exige observação" style="font-size:.75rem;opacity:.8;"></span>':''}
-        <button onclick="opDelItem('${lojaId}','${modeloId}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:0 2px;"></button>
-      </div>
-    </div>`).join('');
-  document.getElementById('opcl-items-list').innerHTML=listaHtml;
-  inp.value='';
-  document.getElementById('opcl-exige-foto').checked=false;
-  document.getElementById('opcl-exige-obs').checked=false;
-  inp.focus();
+  const list=document.getElementById('cle-items-list');
+  if(list)list.innerHTML=opCLItemsHtml(m);
+  const ct=document.getElementById('cle-count');
+  if(ct)ct.textContent=`${m.items.length} Itens`;
+  if(inp){inp.value='';inp.focus();}
 }
+function opCLSaveItemCfg(lojaId,modeloId,itemId){
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  if(!m)return;
+  const item=m.items.find(i=>i.id===itemId);
+  if(!item)return;
+  item.tipoResp=document.getElementById(`clit-${itemId}`)?.value||'ok_nok';
+  item.instrucoes=document.getElementById(`clii-${itemId}`)?.value||'';
+  item.exigeFoto=document.getElementById(`clif-${itemId}`)?.checked||false;
+  item.exigeObs=document.getElementById(`clio-${itemId}`)?.checked||false;
+  item._cfgOpen=false;
+  saveLocal();
+  const list=document.getElementById('cle-items-list');
+  if(list)list.innerHTML=opCLItemsHtml(m);
+  toast('Item salvo!');
+}
+function opCLAutoSave(){
+  const lojaId=window._clLoja,modeloId=window._clModelo;
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  if(!m)return;
+  m.nome=document.getElementById('cle-nome')?.value.trim()||m.nome;
+  m.setor=document.getElementById('cle-setor')?.value||m.setor;
+  const turno=document.getElementById('cle-turno')?.value||'Geral';
+  m.turno=turno;
+  const tipoMap={'Manhã':'abertura','Tarde':'fechamento','Noite':'fechamento','Geral':'geral'};
+  m.tipo=tipoMap[turno]||'geral';
+  m.horarioInicio=document.getElementById('cle-inicio')?.value||'';
+  m.horarioLimite=document.getElementById('cle-limite')?.value||'';
+  m.freq=document.getElementById('cle-freq')?.value||'diario';
+  m.diasBloq=['dom','seg','ter','qua','qui','sex','sab'].filter(d=>document.getElementById(`cle-dia-${d}`)?.checked);
+  m.doubleCheck=document.getElementById('cle-double')?.checked||false;
+  const sel=document.getElementById('cle-resp');
+  if(sel)m.responsaveis=Array.from(sel.selectedOptions).map(o=>o.value);
+  saveLocal();
+}
+function opAddItem(lojaId,modeloId){opCLAddItem();}
 function opDelItem(lojaId,modeloId,idx){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m||!m.items)return;
   m.items.splice(idx,1);
   saveLocal();
-  opOpenEditarChecklist(lojaId,modeloId);
+  const list=document.getElementById('cle-items-list');
+  if(list){list.innerHTML=opCLItemsHtml(m);const ct=document.getElementById('cle-count');if(ct)ct.textContent=`${m.items.length} Itens`;}
+  else opOpenEditarChecklist(lojaId,modeloId);
 }
 
 // ══════════════════════════════════════════════════════════════
