@@ -1595,8 +1595,8 @@ function buildSidebar(){
   const mode=isSetorLider?'operacional':(window._appMode||'adm');
   // Troca de modo — só para Márcio, Bruna, Marlon, Lucas e líderes
   const _opGerentes=['marcio','elias','douglas','saulo','amanda','carla'];
-  const podeOp=!isSetorLider&&(isL||opCanSeeAll()||opLojaDoGerente(me)||_opGerentes.includes(me));
   const _admUsers=['marcio','bruna','marlon','lucas'];
+  const podeOp=!isSetorLider&&(isL||opCanSeeAll()||opLojaDoGerente(me)||_opGerentes.includes(me)||_admUsers.includes(me));
   const podeAdm=isL||_admUsers.includes(me);
   const switcher=(podeOp&&podeAdm)?`<div style="display:flex;gap:3px;margin:2px 4px 12px;">
     <button onclick="setAppMode('adm')" style="flex:1;padding:7px 6px;border:none;border-radius:8px;cursor:pointer;font-size:.76rem;font-weight:700;
