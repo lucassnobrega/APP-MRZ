@@ -8934,7 +8934,7 @@ function opRenderExec(){
     const tipoResp=item.tipoResp||'ok_nok';
     let ctrlHtml='';
     if(tipoResp==='ok_nok'){
-      ctrlHtml=`<div style="display:flex;gap:6px;flex-shrink:0;">
+      ctrlHtml=`<div style="display:flex;gap:6px;flex-shrink:0;" onclick="event.stopPropagation()">
         <button class="xok${ist.ok?' on':''}" onclick="opXSetItem('${item.id}','ok')">OK</button>
         <button class="xnok${ist.nok?' on':''}" onclick="opXSetItem('${item.id}','nok')">N/OK</button>
       </div>`;
@@ -8946,7 +8946,6 @@ function opRenderExec(){
     }else if(tipoResp==='data'){
       ctrlHtml=`<input class="f-in" type="date" value="${ist.data||''}" style="max-width:160px;" onchange="opXSetVal('${item.id}','data',this.value)">`;
     }
-    const hasExtra=(item.exigeObs||item.exigeFoto||ist.nok);
     const bodyOpen=ist.nok||(item.exigeObs&&!(ist.obs||'').trim());
     return`<div class="exec-card${ist.ok?' ok':ist.nok?' nok':''}" id="xcard-${item.id}">
       <div class="exec-card-hd" onclick="opXToggle('${item.id}')">
@@ -8956,22 +8955,22 @@ function opRenderExec(){
           <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${item.instrucoes?esc(item.instrucoes):'Sem descrição para esse item'}</div>
         </div>
         ${ctrlHtml}
-        ${hasExtra?`<span id="xarrow-${item.id}" style="font-size:.7rem;color:var(--muted);padding:0 4px;cursor:pointer;flex-shrink:0;">${bodyOpen?'▴':'▾'}</span>`:''}
+        <span id="xarrow-${item.id}" style="font-size:.7rem;color:var(--muted);padding:0 4px;cursor:pointer;flex-shrink:0;">${bodyOpen?'▴':'▾'}</span>
       </div>
-      ${hasExtra?`<div class="exec-card-body${bodyOpen?' open':''}" id="xbody-${item.id}">
-        ${item.exigeObs||ist.nok?`<div style="margin-bottom:10px;">
-          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">OBSERVAÇÃO</div>
-          <textarea class="f-in" placeholder="Digite detalhes aqui..." rows="3" style="width:100%;resize:vertical;box-sizing:border-box;" oninput="opXSetObs('${item.id}',this.value)">${esc(ist.obs||'')}</textarea>
-        </div>`:''}
-        ${item.exigeFoto||ist.nok?`<div>
-          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTOS (${(ist.fotos||[]).length}/1)</div>
+      <div class="exec-card-body${bodyOpen?' open':''}" id="xbody-${item.id}">
+        <div style="margin-bottom:10px;">
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">OBSERVAÇÃO${item.exigeObs?` <span style="color:var(--red);">*</span>`:''}</div>
+          <textarea class="f-in" placeholder="Digite observações aqui..." rows="3" style="width:100%;resize:vertical;box-sizing:border-box;" oninput="opXSetObs('${item.id}',this.value)">${esc(ist.obs||'')}</textarea>
+        </div>
+        <div>
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTO${item.exigeFoto?` <span style="color:var(--red);">*</span>`:''} (${(ist.fotos||[]).length}/1)</div>
           <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:700;">
-            CAM ANEXAR FOTO
+            ANEXAR FOTO
             <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="opXAttachFoto('${item.id}',this)">
           </label>
           ${(ist.fotos||[]).length?`<div style="margin-top:6px;font-size:.72rem;color:var(--acc);">${(ist.fotos||[]).length} foto(s) anexada(s)</div>`:''}
-        </div>`:''}
-      </div>`:''}
+        </div>
+      </div>
     </div>`;
   }).join('')||'<div style="color:var(--muted);font-size:.8rem;padding:16px;text-align:center;">Nenhum item neste checklist.</div>';
   document.getElementById('exec-bd').innerHTML=progressHtml+itemsHtml;
@@ -9002,10 +9001,10 @@ function opXSetItem(itemId,tipo){
   const card=document.getElementById(`xcard-${itemId}`);
   if(card){
     card.className=`exec-card ${tipo}`;
-    card.querySelectorAll('.xok,.xnok').forEach(b=>{
-      b.classList.toggle('on',b.classList.contains(tipo==='ok'?'xok':'xnok'));
-      if(b.classList.contains(tipo==='ok'?'xnok':'xok'))b.classList.remove('on');
-    });
+    const okBtn=card.querySelector('.xok');
+    const nokBtn=card.querySelector('.xnok');
+    if(okBtn)okBtn.classList.toggle('on',tipo==='ok');
+    if(nokBtn)nokBtn.classList.toggle('on',tipo==='nok');
     if(tipo==='nok'){const b=document.getElementById(`xbody-${itemId}`);if(b){b.classList.add('open');const a=document.getElementById(`xarrow-${itemId}`);if(a)a.textContent='▴';}}
   }
   opXUpdateProg();
@@ -9072,8 +9071,8 @@ function opFinalizarChecklist(lojaId,modeloId){
     if(unchecked.length>0){showErr(`Marque todos os itens antes de finalizar. (${unchecked.length} pendente${unchecked.length>1?'s':''})`);return;}
     for(const it of m.items||[]){
       const st=comp.items?.[it.id];
-      if(it.exigeObs&&st?.nok&&!(st?.obs||'').trim()){showErr(`"${it.texto.slice(0,30)}..." requer observação quando NOK.`);return;}
-      if(it.exigeFoto&&!(st?.fotos?.length)){showErr(`"${it.texto.slice(0,30)}..." requer foto.`);return;}
+      if(it.exigeObs&&!(st?.obs||'').trim()){showErr(`"${it.texto.slice(0,30)}..." requer observação obrigatória.`);return;}
+      if(it.exigeFoto&&!(st?.fotos?.length)){showErr(`"${it.texto.slice(0,30)}..." requer foto obrigatória.`);return;}
     }
   }
   comp.status='feito';comp.finalizadoEm=new Date().toISOString();comp.finalizadoPor=me;
