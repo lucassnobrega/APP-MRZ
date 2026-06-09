@@ -8948,14 +8948,14 @@ function opRenderExec(){
     }
     const bodyOpen=ist.nok||(item.exigeObs&&!(ist.obs||'').trim());
     return`<div class="exec-card${ist.ok?' ok':ist.nok?' nok':''}" id="xcard-${item.id}">
-      <div class="exec-card-hd" onclick="opXToggle('${item.id}')">
+      <div class="exec-card-hd">
         <span style="width:24px;height:24px;border-radius:8px;background:var(--acc)18;color:var(--acc);font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${realIdx+1}</span>
-        <div style="flex:1;min-width:0;">
+        <div style="flex:1;min-width:0;cursor:pointer;" onclick="opXToggle('${item.id}')">
           <div style="font-size:.86rem;font-weight:600;line-height:1.3;">${esc(item.texto)}</div>
           <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${item.instrucoes?esc(item.instrucoes):'Sem descrição para esse item'}</div>
         </div>
         ${ctrlHtml}
-        <span id="xarrow-${item.id}" style="font-size:.7rem;color:var(--muted);padding:0 4px;cursor:pointer;flex-shrink:0;">${bodyOpen?'▴':'▾'}</span>
+        <span id="xarrow-${item.id}" onclick="opXToggle('${item.id}')" style="font-size:.9rem;color:var(--muted);padding:6px 4px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;">${bodyOpen?'▴':'▾'}</span>
       </div>
       <div class="exec-card-body${bodyOpen?' open':''}" id="xbody-${item.id}">
         <div style="margin-bottom:10px;">
@@ -8963,12 +8963,14 @@ function opRenderExec(){
           <textarea class="f-in" placeholder="Digite observações aqui..." rows="3" style="width:100%;resize:vertical;box-sizing:border-box;" oninput="opXSetObs('${item.id}',this.value)">${esc(ist.obs||'')}</textarea>
         </div>
         <div>
-          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTO${item.exigeFoto?` <span style="color:var(--red);">*</span>`:''} (${(ist.fotos||[]).length}/1)</div>
-          <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:700;">
-            ANEXAR FOTO
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTO${item.exigeFoto?` <span style="color:var(--red);">*</span>`:''}</div>
+          <label id="xfoto-label-${item.id}" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1px dashed ${(ist.fotos||[]).length?'var(--acc)':'var(--line)'};border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:700;color:${(ist.fotos||[]).length?'var(--acc)':'inherit'};">
+            ${(ist.fotos||[]).length?'TROCAR FOTO':'ANEXAR FOTO'}
             <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="opXAttachFoto('${item.id}',this)">
           </label>
-          ${(ist.fotos||[]).length?`<div style="margin-top:6px;font-size:.72rem;color:var(--acc);">${(ist.fotos||[]).length} foto(s) anexada(s)</div>`:''}
+          <div id="xfoto-status-${item.id}" style="margin-top:8px;">
+            ${(ist.fotos||[]).length?`<img src="${ist.fotos[0]}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--acc);">`:''}
+          </div>
         </div>
       </div>
     </div>`;
@@ -9036,9 +9038,32 @@ function opXAttachFoto(itemId,input){
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
   if(!comp.items[itemId].fotos)comp.items[itemId].fotos=[];
+  const file=input.files[0];
   const reader=new FileReader();
-  reader.onload=e=>{comp.items[itemId].fotos=[e.target.result];saveLocal();toast('Foto anexada!');};
-  reader.readAsDataURL(input.files[0]);
+  reader.onload=ev=>{
+    // Compress image via canvas (max 800px, jpeg 0.72) to prevent localStorage overflow
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=800;
+      const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const compressed=canvas.toDataURL('image/jpeg',0.72);
+      comp.items[itemId].fotos=[compressed];
+      try{saveLocal();}catch(e){toast('Foto grande demais, tente tirar outra.');return;}
+      // Update DOM immediately — no re-render needed
+      const statusEl=document.getElementById(`xfoto-status-${itemId}`);
+      const labelEl=document.getElementById(`xfoto-label-${itemId}`);
+      if(statusEl)statusEl.innerHTML=`<img src="${compressed}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--acc);">`;
+      if(labelEl){labelEl.style.borderColor='var(--acc)';labelEl.style.color='var(--acc)';
+        const txt=labelEl.childNodes[0];if(txt&&txt.nodeType===3)txt.textContent='TROCAR FOTO ';}
+      toast('Foto anexada!');
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 function opXUpdateProg(){
   const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
