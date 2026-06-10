@@ -1575,6 +1575,7 @@ function buildOpSidebarHtml(){
       {id:'faq',         label:'FAQ / POPs',    grp:'Esta Loja'},
       {id:'funcionarios',label:'Funcionários',  grp:'Esta Loja'},
       {id:'marketing',   label:'Marketing',     grp:'Esta Loja'},
+      {id:'campanhas',   label:'Campanhas',     grp:'Esta Loja'},
       {id:'setores',     label:'Líderes',       grp:'Esta Loja'},
     ]:[]),
   ];
@@ -1964,10 +1965,13 @@ function renderTasks(){
         <div class="tc-top"><div class="tc-title">${esc(t.title)}</div><span class="prio ${t.priority}">${t.priority==='h'?'Alta':t.priority==='m'?'Média':'Baixa'}</span></div>
         ${t.desc?`<div class="tc-meta">${esc(t.desc.slice(0,60))}${t.desc.length>60?'...':''}</div>`:''}
         <div class="tc-assignees">${assigneesHtml}</div>
-        <div class="tc-footer">
-          ${attCount?`<span class="tc-att">${attCount} doc${attCount!==1?'s':''}</span>`:''}
-          ${t.deadline?`<span class="tc-att">${fmtDate(t.deadline)}</span>`:''}
-          ${ajusteBadge}${cotBadge}${devBadge}${reviewBadge}
+        <div class="tc-footer" style="position:relative;padding-right:30px;">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+            ${attCount?`<span class="tc-att">${attCount} doc${attCount!==1?'s':''}</span>`:''}
+            ${t.deadline?`<span class="tc-att">${fmtDate(t.deadline)}</span>`:''}
+            ${ajusteBadge}${cotBadge}${devBadge}${reviewBadge}
+          </div>
+          <button onclick="event.stopPropagation();taskToWhatsApp('${t.id}')" title="Compartilhar no WhatsApp" style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;line-height:1;display:flex;align-items:center;opacity:.65;" onmouseover="this.style.opacity='1';this.style.background='#25d36618'" onmouseout="this.style.opacity='.65';this.style.background='none'"><svg viewBox="0 0 24 24" width="15" height="15" fill="#25d366" style="pointer-events:none;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
         </div>
       </div>`;
     });
@@ -2048,6 +2052,30 @@ function kDrop(e,colId,allowed){
 
 // ══════════════════════════════════════
 // TASK MODAL (open/edit)
+function taskToWhatsApp(id){
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  const colLabel={todo:'A Fazer',doing:'Fazendo',review:'Em Aprovacao',done:'Feito',aprovado:'Aprovado',ajuste:'Em Ajuste'};
+  const prioLabel={h:'Alta',m:'Media',l:'Baixa'};
+  const assignees=(t.assignees||[]).map(a=>M[a]?.name||a).join(', ')||'—';
+  let msg=`*${t.title}*\n`;
+  msg+=`─────────────────\n`;
+  msg+=`*Status:* ${colLabel[t.status]||t.status} | *Prioridade:* ${prioLabel[t.priority]||''}\n`;
+  msg+=`*Responsavel:* ${assignees}\n`;
+  if(t.deadline)msg+=`*Prazo:* ${fmtDate(t.deadline)}\n`;
+  if(t.desc)msg+=`\n${t.desc.slice(0,300)}${t.desc.length>300?'...':''}`;
+  const urlAtts=(t.attachments||[]).filter(a=>a.type==='url');
+  if(urlAtts.length)msg+=`\n\nLinks:\n`+urlAtts.map(a=>`- ${a.name}: ${a.url}`).join('\n');
+  const fileAtts=(t.attachments||[]).filter(a=>a.data&&(a.type==='file'||a.type==='img'));
+  if(fileAtts.length)msg+=`\n\nArquivos (${fileAtts.length}): `+fileAtts.map(a=>a.name).join(', ');
+  // Baixa os arquivos antes de abrir o WhatsApp
+  fileAtts.forEach(a=>{
+    const link=document.createElement('a');
+    link.href=a.data;link.download=a.name;
+    document.body.appendChild(link);link.click();document.body.removeChild(link);
+  });
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  if(fileAtts.length)toast(`${fileAtts.length} arquivo(s) baixado(s) — anexe no WhatsApp!`,4000);
+}
 // ══════════════════════════════════════
 function openNewTask(){
   editingTask=null;
@@ -2071,7 +2099,7 @@ function renderTaskModal(t){
 
   const attsHtml=(t.attachments||[]).map(a=>`<div class="att-item">
     <span class="att-icon" style="font-size:.6rem;font-weight:800;letter-spacing:.03em;">${a.type==='url'?'URL':a.type==='img'?'IMG':'DOC'}</span>
-    <span class="att-name">${a.type==='url'?`<a href="${esc(a.url)}" target="_blank" style="color:var(--blue);">${esc(a.name)}</a>`:esc(a.name)}</span>
+    <span class="att-name">${a.type==='url'?`<a href="${esc(a.url)}" target="_blank" style="color:var(--blue);">${esc(a.name)}</a>`:a.data?`<a href="#" onclick="event.preventDefault();downloadAtt('${a.id}','${t.id}')" style="color:var(--blue);text-decoration:none;">${esc(a.name)}</a>`:esc(a.name)}</span>
     <button class="att-del" onclick="removeAtt('${t.id}','${a.id}')"></button>
   </div>`).join('');
 
@@ -2253,6 +2281,25 @@ function addComment(taskId){
   saveLocal();document.getElementById('new-comment').value='';openTask(taskId);
 }
 
+function downloadAtt(attId,taskId){
+  const t=window.tmpTask||(S.tasks||[]).find(x=>x.id===taskId);
+  if(!t)return;
+  const a=(t.attachments||[]).find(x=>x.id===attId);
+  if(!a||!a.data)return;
+  if(a.type==='img'){
+    // Imagem: abre em nova aba para visualizar
+    const w=window.open('','_blank');
+    if(w)w.document.write(`<img src="${a.data}" style="max-width:100%;height:auto;" title="${a.name}">`);
+  } else {
+    // Arquivo: faz download
+    const link=document.createElement('a');
+    link.href=a.data;
+    link.download=a.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
 function addUrlAtt(taskId){
   const url=document.getElementById('att-url').value.trim();if(!url){toast('Cole um link.');return;}
   const name=url.replace(/^https?:\/\//,'').slice(0,40);
@@ -2279,7 +2326,7 @@ function addAttachment(taskId,att){
   const listEl=document.getElementById('att-list');if(!listEl)return;
   listEl.innerHTML=t.attachments.map(a=>`<div class="att-item">
     <span class="att-icon" style="font-size:.6rem;font-weight:800;letter-spacing:.03em;">${a.type==='url'?'URL':a.type==='img'?'IMG':'DOC'}</span>
-    <span class="att-name">${a.type==='url'?`<a href="${esc(a.url)}" target="_blank" style="color:var(--blue);">${esc(a.name)}</a>`:esc(a.name)}</span>
+    <span class="att-name">${a.type==='url'?`<a href="${esc(a.url)}" target="_blank" style="color:var(--blue);">${esc(a.name)}</a>`:a.data?`<a href="#" onclick="event.preventDefault();downloadAtt('${a.id}','${taskId}')" style="color:var(--blue);text-decoration:none;">${esc(a.name)}</a>`:esc(a.name)}</span>
     <button class="att-del" onclick="removeAtt('${taskId}','${a.id}')"></button>
   </div>`).join('');
   toast('Anexo adicionado!');
@@ -3788,6 +3835,24 @@ function renderCampanhas(){
         ${c.resultado?`<div class="camp-kpi"><span>Resultado / KPI</span><b>${esc(c.resultado)}</b></div>`:''}
       </div>
       ${c.obs?`<div class="small" style="margin-top:8px;color:var(--muted)">${esc(c.obs)}</div>`:''}
+      ${(c.lojas||[]).length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">Lojas participantes</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${(c.lojas||[]).map(lid=>{const lj=OP_LOJAS.find(l=>l.id===lid);return lj?`<span style="font-size:.68rem;padding:2px 9px;border-radius:999px;background:${lj.cor}22;color:${lj.cor};font-weight:700;border:1px solid ${lj.cor}44;">${lj.abbr} ${lj.label}</span>`:''}).join('')}
+        </div>
+      </div>`:''}
+      ${(c.sugestoes||[]).length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;">Sugestões da Equipe (${(c.sugestoes||[]).length})</div>
+        ${(c.sugestoes||[]).map(s=>{const lj=OP_LOJAS.find(l=>l.id===s.loja);return`<div style="padding:8px 10px;background:var(--panel2);border-radius:8px;margin-bottom:6px;border-left:3px solid ${lj?.cor||'var(--acc)'};">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            ${lj?`<span style="font-size:.62rem;padding:1px 7px;border-radius:999px;background:${lj.cor}22;color:${lj.cor};font-weight:700;">${lj.abbr}</span>`:''}
+            <span style="font-size:.68rem;font-weight:600;">${esc(s.autor||'—')}</span>
+            <span style="font-size:.62rem;color:var(--muted);">${fmtDate(s.data)}</span>
+            <button onclick="campDelSugestao('${c.id}','${s.id}')" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.78rem;padding:0;"></button>
+          </div>
+          <div style="font-size:.78rem;line-height:1.5;">${esc(s.texto)}</div>
+        </div>`;}).join('')}
+      </div>`:''}
     </div>`;
   };
   el.innerHTML=`
@@ -3842,6 +3907,16 @@ function openNovaCampanha(editId){
     <div class="form-row"><label>Público-alvo</label><input id="cn-pub" class="finput" placeholder="Ex: Mulheres 25-40, Londrina" value="${esc(c.publico||'')}"></div>
     <div class="form-row"><label>Resultado / KPI esperado</label><input id="cn-res" class="finput" placeholder="Ex: 40 cliques, 3 reservas" value="${esc(c.resultado||'')}"></div>
     <div class="form-row"><label>Observações</label><textarea id="cn-obs" class="finput" rows="2">${esc(c.obs||'')}</textarea></div>
+    <div class="form-row">
+      <label>Lojas participantes</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
+        ${OP_LOJAS.map(lj=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:.8rem;user-select:none;">
+          <input type="checkbox" id="cnlj-${lj.id}" ${(c.lojas||[]).includes(lj.id)?'checked':''}>
+          <span style="width:10px;height:10px;border-radius:3px;background:${lj.cor};display:inline-block;flex-shrink:0;"></span>
+          ${lj.label}
+        </label>`).join('')}
+      </div>
+    </div>
     <div style="display:flex;gap:10px;margin-top:16px"><button class="btn-gold" onclick="saveCampanha('${editId||''}')">Salvar</button><button class="btn-sm" onclick="closeModal()">Cancelar</button></div>
   `;
   openModal();
@@ -3860,6 +3935,7 @@ function saveCampanha(editId){
     publico:document.getElementById('cn-pub').value.trim(),
     resultado:document.getElementById('cn-res').value.trim(),
     obs:document.getElementById('cn-obs').value.trim(),
+    lojas:OP_LOJAS.filter(lj=>document.getElementById(`cnlj-${lj.id}`)?.checked).map(lj=>lj.id),
   };
   if(editId){
     const idx=S.campanhas.findIndex(c=>c.id===editId);
@@ -4261,10 +4337,11 @@ function renderRH(){
   if(!S.rh)S.rh={pontos:[],contratacoes:[],agendamentos:[]};
   const tab=window._rhTab||'pontos';
   const LOJAS=[
-    {id:'raz-alameda',   nome:'Raz Alameda',    cor:'#3b82f6'},
-    {id:'zanoni-lago',   nome:'Zanoni Lago',     cor:'#8b5cf6'},
-    {id:'raz-mercadao',  nome:'Raz Mercadão',    cor:'#f59e0b'},
-    {id:'zanoni-maringa',nome:'Zanoni Maringá',  cor:'#14b8a6'},
+    {id:'raz-alameda',      nome:'Raz Alameda',         cor:'#3b82f6'},
+    {id:'zanoni-lago',      nome:'Zanoni Lago',          cor:'#8b5cf6'},
+    {id:'zanoni-alphaville',nome:'Zanoni Alphaville',    cor:'#f472b6'},
+    {id:'raz-mercadao',     nome:'Raz Mercadão',         cor:'#f59e0b'},
+    {id:'zanoni-maringa',   nome:'Zanoni Maringá',       cor:'#14b8a6'},
   ];
   const FASES=[
     {id:'triagem',    label:'Triagem',        cor:'#6b7280'},
@@ -4587,7 +4664,7 @@ function renderRH(){
             </div>
             <div style="display:flex;gap:5px;">
               ${a.status==='ativa'?`<button class="btn-ghost btn-sm" style="font-size:.65rem;" onclick="rhAdvStatus('${a.id}','arquivada')">Arquivar</button>`:''}
-              <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="rhAdvDelete('${a.id}')"></button>
+              <button class="btn-ghost btn-sm" style="font-size:.65rem;color:#ef4444;" onclick="if(confirm('Excluir esta advertência?'))rhAdvDelete('${a.id}')">Excluir</button>
             </div>
           </div>
         </div>`;
@@ -4700,19 +4777,29 @@ function rhDocDelete(id){
 function rhAdvStatus(id,status){
   if(!S.rh.advertencias)S.rh.advertencias=[];
   const a=S.rh.advertencias.find(x=>x.id===id);
-  if(a){a.status=status;saveLocal();renderRH();}
+  if(a){
+    a.status=status;
+    // Se arquivado, marca como resolvida no perfil do funcionário Operacional
+    if(status==='arquivada'){
+      (S.op?.funcionarios||[]).forEach(f=>{const opAdv=(f.advertencias||[]).find(adv=>adv.id===id);if(opAdv)opAdv.resolvida=true;});
+    }
+    saveLocal();renderRH();
+  }
 }
 function rhAdvDelete(id){
   S.rh.advertencias=(S.rh.advertencias||[]).filter(x=>x.id!==id);
+  // Remove do perfil do funcionário Operacional também
+  (S.op?.funcionarios||[]).forEach(f=>{if(f.advertencias)f.advertencias=f.advertencias.filter(a=>a.id!==id);});
   saveLocal();renderRH();
 }
 
 // ── Modais RH ───────────────────────────────────────────
 const LOJAS_RH=[
-  {id:'raz-alameda',   nome:'Raz Alameda'},
-  {id:'zanoni-lago',   nome:'Zanoni Lago'},
-  {id:'raz-mercadao',  nome:'Raz Mercadão'},
-  {id:'zanoni-maringa',nome:'Zanoni Maringá'},
+  {id:'raz-alameda',      nome:'Raz Alameda'},
+  {id:'zanoni-lago',      nome:'Zanoni Lago'},
+  {id:'zanoni-alphaville',nome:'Zanoni Alphaville'},
+  {id:'raz-mercadao',     nome:'Raz Mercadão'},
+  {id:'zanoni-maringa',   nome:'Zanoni Maringá'},
 ];
 function openRhPontoModal(id){
   if(!S.rh.pontos)S.rh.pontos=[];
@@ -4756,7 +4843,7 @@ function saveRhPonto(id){
 }
 
 function rhPontoWhatsApp(lojaFiltro){
-  const LOJAS_NOMES={'raz-alameda':'ALAMEDA','zanoni-lago':'ZANONI LAGO','raz-mercadao':'MERCADÃO','zanoni-maringa':'MARINGÁ'};
+  const LOJAS_NOMES={'raz-alameda':'ALAMEDA','zanoni-lago':'ZANONI LAGO','zanoni-alphaville':'ZANONI ALPHAVILLE','raz-mercadao':'MERCADÃO','zanoni-maringa':'MARINGÁ'};
   const pendentes=(S.rh.pontos||[]).filter(p=>p.status==='pendente'&&(lojaFiltro==='todas'||p.loja===lojaFiltro));
   if(!pendentes.length){toast('Nenhum pendente para esta loja.','#f59e0b');return;}
   // Agrupar por loja
@@ -4899,17 +4986,17 @@ function saveRhDoc(){
   saveLocal();closeModal();renderRH();toast('Documento registrado.');
 }
 
-function openRhAdvModal(){
+function openRhAdvModal(preNome,preLojaId){
   if(!S.rh.advertencias)S.rh.advertencias=[];
   const TIPOS_ADV=['Verbal','Escrita','Suspensão','Desligamento','Elogio','Observação'];
   openModal(`<h3 style="font-family:var(--serif);margin:0 0 16px">Registrar Advertência / Ocorrência</h3>
-    <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-adv-func" placeholder="Nome do funcionário"></div>
+    <div class="f-grp"><label class="f-lb">Funcionário *</label><input class="f-in" id="rh-adv-func" placeholder="Nome do funcionário" value="${esc(preNome||'')}"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="f-grp"><label class="f-lb">Tipo *</label><select class="f-in" id="rh-adv-tipo">
         ${TIPOS_ADV.map(t=>`<option value="${t}">${t}</option>`).join('')}
       </select></div>
       <div class="f-grp"><label class="f-lb">Loja</label><select class="f-in" id="rh-adv-loja">
-        ${LOJAS_RH.map(l=>`<option value="${l.id}">${l.nome}</option>`).join('')}
+        ${LOJAS_RH.map(l=>`<option value="${l.id}"${l.id===(preLojaId||'')?'  selected':''}>${l.nome}</option>`).join('')}
       </select></div>
     </div>
     <div class="f-grp"><label class="f-lb">Data</label><input class="f-in" type="date" id="rh-adv-data" value="${todayKey()}"></div>
@@ -4924,17 +5011,27 @@ function saveRhAdv(){
   const func=document.getElementById('rh-adv-func')?.value.trim();
   const motivo=document.getElementById('rh-adv-motivo')?.value.trim();
   if(!func||!motivo){toast('Preencha funcionário e motivo.','#ef4444');return;}
+  const advId=uid();
+  const lojaRhId=document.getElementById('rh-adv-loja')?.value||'raz-alameda';
+  const dataAdv=document.getElementById('rh-adv-data')?.value||todayKey();
   S.rh.advertencias.push({
-    id:uid(),
+    id:advId,
     funcionario:func,
     tipo:document.getElementById('rh-adv-tipo')?.value||'Verbal',
-    loja:document.getElementById('rh-adv-loja')?.value||'raz-alameda',
-    data:document.getElementById('rh-adv-data')?.value||todayKey(),
+    loja:lojaRhId,
+    data:dataAdv,
     motivo,
     status:'ativa',
     criadoEm:todayKey(),
   });
-  saveLocal();closeModal();renderRH();toast('Registro salvo.');
+  // Espelha no perfil do funcionário no Operacional (busca por nome + loja)
+  const opLojaId=_rhToOpLoja[lojaRhId];
+  const funcNomeLower=func.toLowerCase().trim();
+  const matchFunc=(S.op?.funcionarios||[]).find(f=>f.nome.toLowerCase().trim()===funcNomeLower&&(!opLojaId||f.loja===opLojaId));
+  if(matchFunc){if(!matchFunc.advertencias)matchFunc.advertencias=[];matchFunc.advertencias.push({id:advId,desc:motivo,data:dataAdv,resolvida:false});}
+  saveLocal();closeModal();
+  if(window._appMode==='operacional')renderOperacional();else renderRH();
+  toast('Registro salvo.');
 }
 
 function renderErrosCaixa(){
@@ -9456,6 +9553,7 @@ function renderOpStore(el,lojaId){
       {id:'faq',         label:'FAQ / POPs',    icon:''},
       {id:'funcionarios',label:'Funcionários',  icon:''},
       {id:'marketing',   label:'Marketing',     icon:''},
+      {id:'campanhas',   label:'Campanhas',     icon:''},
       {id:'setores',     label:'Líderes',       icon:'️'},
     ]:[]),
   ];
@@ -9468,6 +9566,7 @@ function renderOpStore(el,lojaId){
   else if(tab==='manutencao')content=opTabManutencao(lojaId);
   else if(tab==='funcionarios')content=lojaId?opTabFuncionarios(lojaId):'';
   else if(tab==='marketing') content=lojaId?opTabMarketing(lojaId):'';
+  else if(tab==='campanhas') content=lojaId?opTabCampanhasLoja(lojaId):'';
   else if(tab==='erros')     content=opTabErros(lojaId);
   else if(tab==='setores')   content=lojaId?opTabGestaoSetores(lojaId):'';
   const activeTab=tabs.find(t=>t.id===tab);
@@ -9655,11 +9754,27 @@ function opTabFuncionarios(lojaId){
       </div>
     </div>
   </div>`;
+  // Mapeamento de IDs OP_LOJAS → LOJAS_RH para cruzar advertências
+  const _lojaAdvIds={lago:['zanoni-lago','lago'],alphaville:['zanoni-alphaville','alphaville'],maringa:['zanoni-maringa','maringa'],alameda:['raz-alameda','alameda'],mercadao:['raz-mercadao','mercadao']};
+  const advRH=(S.rh?.advertencias||[]).filter(a=>a.status==='ativa'&&(_lojaAdvIds[lojaId]||[lojaId]).includes(a.loja||'')).sort((a,b)=>b.data.localeCompare(a.data));
+  const TIPOS_ADV_COR={Verbal:'#f59e0b',Escrita:'#ef4444',Suspensão:'#dc2626',Desligamento:'#991b1b',Elogio:'#22c55e',Observação:'#3b82f6'};
+  const advHtml=advRH.length?advRH.map(a=>{
+    const cor=TIPOS_ADV_COR[a.tipo]||'#888';
+    return`<div style="padding:10px 14px;background:var(--panel);border:1px solid var(--line2);border-left:3px solid ${cor};border-radius:10px;margin-bottom:7px;">
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px;">
+        <span style="font-weight:700;font-size:.86rem;">${esc(a.funcionario)}</span>
+        <span style="font-size:.62rem;font-weight:700;padding:1px 8px;border-radius:999px;background:${cor}18;color:${cor};border:1px solid ${cor}44;">${a.tipo}</span>
+        <span style="font-size:.65rem;color:var(--muted);margin-left:auto;">${a.data||'—'}</span>
+      </div>
+      ${a.motivo?`<div style="font-size:.76rem;color:var(--muted);">${esc(a.motivo)}</div>`:''}
+    </div>`;
+  }).join(''):`<div style="font-size:.78rem;color:var(--muted);padding:8px 0;">Nenhuma advertência ativa no momento.</div>`;
   return`<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
     <button class="btn-gold btn-sm" onclick="opOpenNovoFunc('${lojaId}')">+ Funcionário</button>
   </div>
   ${ativos.length?ativos.map(renderFunc).join(''):'<div class="empty-state">Nenhum funcionário ativo.</div>'}
-  ${inativos.length?`<details style="margin-top:16px;"><summary style="cursor:pointer;font-size:.78rem;color:var(--muted);">Inativos (${inativos.length})</summary><div style="margin-top:8px;">${inativos.map(renderFunc).join('')}</div></details>`:''}`;
+  ${inativos.length?`<details style="margin-top:16px;"><summary style="cursor:pointer;font-size:.78rem;color:var(--muted);">Inativos (${inativos.length})</summary><div style="margin-top:8px;">${inativos.map(renderFunc).join('')}</div></details>`:''}
+  `;
 }
 function opOpenNovoFunc(lojaId){
   openModal(`<h3 style="margin-bottom:16px;">Novo Funcionário</h3>
@@ -9682,22 +9797,68 @@ function opSaveNovoFunc(lojaId){
   S.op.funcionarios.push({id:uid(),loja:lojaId,nome,cargo:document.getElementById('opf-cargo').value.trim(),setor:document.getElementById('opf-setor').value,dataAdmissao:document.getElementById('opf-admissao').value,cpf:document.getElementById('opf-cpf').value.trim(),status:'ativo',advertencias:[],docs:[],obs:''});
   saveLocal();closeModal();renderOperacional();toast('Funcionário cadastrado!');
 }
+function opRenderAdvList(funcId){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
+  const TIPOS_COR={Verbal:'#f59e0b',Escrita:'#ef4444',Suspensão:'#dc2626',Desligamento:'#991b1b',Elogio:'#22c55e',Observação:'#3b82f6'};
+  // Combina f.advertencias (op) com registros do RH pelo id compartilhado
+  const advItems=(f.advertencias||[]).map(a=>{
+    const rhEntry=(S.rh?.advertencias||[]).find(r=>r.id===a.id);
+    return{...a,tipo:rhEntry?.tipo||'Verbal'};
+  });
+  const html=advItems.length?advItems.map((a,i)=>{
+    const cor=TIPOS_COR[a.tipo]||'#888';
+    return`<div style="padding:10px 12px;background:${a.resolvida?'var(--panel2)':'rgba(248,113,113,.06)'};border:1px solid ${a.resolvida?'var(--line)':'rgba(248,113,113,.22)'};border-left:3px solid ${a.resolvida?'var(--line)':cor};border-radius:9px;margin-bottom:7px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            <span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:999px;background:${cor}18;color:${cor};border:1px solid ${cor}33;">${a.tipo}</span>
+            ${a.resolvida?'<span style="font-size:.62rem;color:var(--green);font-weight:600;">✓ Resolvida</span>':''}
+          </div>
+          <div style="font-size:.8rem;line-height:1.4;">${esc(a.desc)}</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:3px;">${fmtDate(a.data)}</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+          ${!a.resolvida?`<button onclick="opResolveAdv('${funcId}',${i})" title="Marcar resolvida" style="background:var(--panel2);border:1px solid var(--line);color:var(--green);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.72rem;font-weight:700;">✓</button>`:''}
+          <button onclick="opDelAdv('${funcId}',${i})" title="Excluir" style="background:var(--panel2);border:1px solid var(--line);color:var(--red);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.72rem;font-weight:700;">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join(''):'<div style="font-size:.76rem;color:var(--muted);padding:4px 0;">Nenhuma advertência registrada.</div>';
+  const el=document.getElementById('opf-advlist');
+  if(el)el.innerHTML=html;
+}
 function opOpenFunc(funcId){
   const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
-  const advHtml=(f.advertencias||[]).map((a,i)=>`<div style="padding:8px 10px;background:${a.resolvida?'var(--panel2)':'rgba(248,113,113,.07)'};border:1px solid ${a.resolvida?'var(--line)':'rgba(248,113,113,.2)'};border-radius:8px;margin-bottom:6px;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-      <div style="font-size:.78rem;">${esc(a.desc)}</div>
-      <div style="display:flex;gap:4px;flex-shrink:0;">
-        ${!a.resolvida?`<button onclick="opResolveAdv('${funcId}',${i})" style="background:none;border:none;color:var(--green);cursor:pointer;font-size:.75rem;"></button>`:'<span style="font-size:.7rem;color:var(--green);">Resolvida</span>'}
-        <button onclick="opDelAdv('${funcId}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;"></button>
+  const TIPOS_COR={Verbal:'#f59e0b',Escrita:'#ef4444',Suspensão:'#dc2626',Desligamento:'#991b1b',Elogio:'#22c55e',Observação:'#3b82f6'};
+  const advItems=(f.advertencias||[]).map(a=>{
+    const rhEntry=(S.rh?.advertencias||[]).find(r=>r.id===a.id);
+    return{...a,tipo:rhEntry?.tipo||'Verbal'};
+  });
+  const advHtml=advItems.length?advItems.map((a,i)=>{
+    const cor=TIPOS_COR[a.tipo]||'#888';
+    return`<div style="padding:10px 12px;background:${a.resolvida?'var(--panel2)':'rgba(248,113,113,.06)'};border:1px solid ${a.resolvida?'var(--line)':'rgba(248,113,113,.22)'};border-left:3px solid ${a.resolvida?'var(--line)':cor};border-radius:9px;margin-bottom:7px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            <span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:999px;background:${cor}18;color:${cor};border:1px solid ${cor}33;">${a.tipo}</span>
+            ${a.resolvida?'<span style="font-size:.62rem;color:var(--green);font-weight:600;">✓ Resolvida</span>':''}
+          </div>
+          <div style="font-size:.8rem;line-height:1.4;">${esc(a.desc)}</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:3px;">${fmtDate(a.data)}</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+          ${!a.resolvida?`<button onclick="opResolveAdv('${funcId}',${i})" title="Marcar resolvida" style="background:var(--panel2);border:1px solid var(--line);color:var(--green);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.72rem;font-weight:700;">✓</button>`:''}
+          <button onclick="opDelAdv('${funcId}',${i})" title="Excluir" style="background:var(--panel2);border:1px solid var(--line);color:var(--red);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.72rem;font-weight:700;">✕</button>
+        </div>
       </div>
-    </div>
-    <div style="font-size:.65rem;color:var(--muted);margin-top:3px;">${fmtDate(a.data)}</div>
-  </div>`).join('')||'<div style="font-size:.76rem;color:var(--muted);padding:4px 0;">Nenhuma advertência.</div>';
+    </div>`;
+  }).join(''):'<div style="font-size:.76rem;color:var(--muted);padding:4px 0;">Nenhuma advertência registrada.</div>';
   openModal(`
-    <h3 style="margin-bottom:4px;">${esc(f.nome)}</h3>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
+      <h3 style="margin:0;">${esc(f.nome)}</h3>
+    </div>
     <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px;">${esc(f.cargo||'—')}${f.setor?` · ${esc(f.setor)}`:''}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div class="f-grp"><label class="f-lb">Cargo</label><input class="f-in" id="opfe-cargo" value="${esc(f.cargo||'')}"></div>
       <div class="f-grp"><label class="f-lb">Setor</label>
         <select class="f-in" id="opfe-setor">${opSetores(f.loja).map(s=>`<option${s===f.setor?' selected':''}>${s}</option>`).join('')}</select>
@@ -9707,12 +9868,18 @@ function opOpenFunc(funcId){
     <div class="f-grp"><label class="f-lb">Status</label>
       <select class="f-in" id="opfe-status"><option value="ativo"${f.status==='ativo'?' selected':''}>Ativo</option><option value="inativo"${f.status==='inativo'?' selected':''}>Inativo</option></select>
     </div>
-    <button class="btn-ghost btn-sm" style="margin-bottom:14px;" onclick="opSaveFunc('${funcId}')">Salvar alterações</button>
-    <div class="sec" style="margin-bottom:8px;">Advertências</div>
+    <div style="display:flex;gap:8px;margin-bottom:18px;">
+      <button class="btn-ghost btn-sm" style="flex:1;" onclick="opSaveFunc('${funcId}')">💾 Salvar alterações</button>
+      <button onclick="if(confirm('Excluir ${esc(f.nome).replace(/'/g,"\\'")}? Esta ação não pode ser desfeita.')){opDelFunc('${funcId}')}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:6px 14px;font-size:.76rem;cursor:pointer;">🗑 Excluir</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="sec" style="margin:0;">Advertências</div>
+      <button class="btn-ghost btn-sm" style="font-size:.7rem;" onclick="openRhAdvModal('${esc(f.nome)}','${_opToRhLoja[f.loja]||f.loja}')">+ Registrar via RH</button>
+    </div>
     <div id="opf-advlist">${advHtml}</div>
     <div style="display:flex;gap:8px;margin-top:8px;">
-      <input class="f-in" id="opf-newadv" placeholder="Descreva a advertência..." style="flex:1;">
-      <button class="btn-ghost btn-sm" onclick="opAddAdv('${funcId}')">+ Adicionar</button>
+      <input class="f-in" id="opf-newadv" placeholder="Descrição rápida (Verbal)..." style="flex:1;">
+      <button class="btn-ghost btn-sm" onclick="opAddAdv('${funcId}')">+ Rápida</button>
     </div>`);
 }
 function opSaveFunc(funcId){
@@ -9721,17 +9888,68 @@ function opSaveFunc(funcId){
   f.setor=document.getElementById('opfe-setor').value;
   f.obs=document.getElementById('opfe-obs').value.trim();
   f.status=document.getElementById('opfe-status').value;
-  saveLocal();toast('Funcionário atualizado!');renderOperacional();
+  saveLocal();toast('Funcionário atualizado!');closeModal();renderOperacional();
 }
+function opConfirmDelFunc(funcId){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
+  openModal(`<div style="text-align:center;padding:8px 0;">
+    <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+    <h3 style="margin-bottom:8px;">Excluir funcionário?</h3>
+    <div style="font-size:.84rem;color:var(--muted);margin-bottom:20px;">
+      <b>${esc(f.nome)}</b> será removido permanentemente, incluindo todas as advertências.
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button onclick="opDelFunc('${funcId}')" style="padding:10px 22px;background:var(--red);color:#fff;border:none;border-radius:9px;font-weight:700;cursor:pointer;font-size:.86rem;">Excluir</button>
+    </div>
+  </div>`);
+}
+function opDelFunc(funcId){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);
+  if(f){
+    // Remove todas as advertências do RH vinculadas a este funcionário
+    const advIds=(f.advertencias||[]).map(a=>a.id).filter(Boolean);
+    if(advIds.length&&S.rh?.advertencias)
+      S.rh.advertencias=S.rh.advertencias.filter(a=>!advIds.includes(a.id));
+    // Remove o funcionário
+    S.op.funcionarios=S.op.funcionarios.filter(x=>x.id!==funcId);
+  }
+  saveLocal();closeModal();renderOperacional();toast('Funcionário excluído.');
+}
+// Mapeamento loja Operacional → LOJAS_RH
+const _opToRhLoja={lago:'zanoni-lago',alphaville:'zanoni-alphaville',maringa:'zanoni-maringa',alameda:'raz-alameda',mercadao:'raz-mercadao'};
+const _rhToOpLoja={'zanoni-lago':'lago','zanoni-alphaville':'alphaville','zanoni-maringa':'maringa','raz-alameda':'alameda','raz-mercadao':'mercadao'};
 function opAddAdv(funcId){
   const desc=document.getElementById('opf-newadv').value.trim();if(!desc)return;
   const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(!f)return;
   if(!f.advertencias)f.advertencias=[];
-  f.advertencias.push({id:uid(),desc,data:todayKey(),resolvida:false});
-  saveLocal();toast('Advertência registrada.');closeModal();renderOperacional();
+  const advId=uid();
+  f.advertencias.push({id:advId,desc,data:todayKey(),resolvida:false});
+  if(!S.rh)S.rh={};if(!S.rh.advertencias)S.rh.advertencias=[];
+  S.rh.advertencias.push({id:advId,funcionario:f.nome,tipo:'Verbal',loja:_opToRhLoja[f.loja]||f.loja,data:todayKey(),motivo:desc,status:'ativa',criadoEm:todayKey(),opFuncId:funcId});
+  saveLocal();toast('Advertência registrada.');
+  document.getElementById('opf-newadv').value='';
+  opRenderAdvList(funcId);
 }
-function opResolveAdv(funcId,idx){const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(f?.advertencias?.[idx])f.advertencias[idx].resolvida=true;saveLocal();closeModal();renderOperacional();}
-function opDelAdv(funcId,idx){const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);if(f?.advertencias)f.advertencias.splice(idx,1);saveLocal();closeModal();renderOperacional();}
+function opResolveAdv(funcId,idx){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);
+  if(f?.advertencias?.[idx]){
+    const advId=f.advertencias[idx].id;
+    f.advertencias[idx].resolvida=true;
+    const rhAdv=(S.rh?.advertencias||[]).find(a=>a.id===advId);
+    if(rhAdv)rhAdv.status='arquivada';
+  }
+  saveLocal();opRenderAdvList(funcId);
+}
+function opDelAdv(funcId,idx){
+  const f=(S.op.funcionarios||[]).find(x=>x.id===funcId);
+  if(f?.advertencias){
+    const advId=f.advertencias[idx]?.id;
+    f.advertencias.splice(idx,1);
+    if(advId&&S.rh?.advertencias)S.rh.advertencias=S.rh.advertencias.filter(a=>a.id!==advId);
+  }
+  saveLocal();opRenderAdvList(funcId);
+}
 
 // ── TAB: MARKETING ────────────────────────────────────────────
 function opTabMarketing(lojaId){
@@ -9778,6 +9996,76 @@ function opSaveMkt(lojaId,tipo){
   if(!S.op.marketing)S.op.marketing=[];
   S.op.marketing.push({id:uid(),loja:lojaId,tipo,titulo,desc:document.getElementById('opmk-desc').value.trim(),status:'pendente',date:todayKey(),member:me});
   saveLocal();closeModal();renderOperacional();toast('Registrado!');
+}
+
+// ── TAB: CAMPANHAS (visão loja — Operacional) ─────────────────
+function opTabCampanhasLoja(lojaId){
+  const STATUS_LABEL={estruturacao:'Em Estruturação',ativa:'Ativa',pausada:'Pausada',encerrada:'Encerrada'};
+  const STATUS_COLOR={estruturacao:'#a78bfa',ativa:'var(--green)',pausada:'var(--gold)',encerrada:'var(--muted)'};
+  // Campanhas que incluem esta loja (ou sem filtro de loja = visíveis para todos)
+  const camps=(S.campanhas||[]).filter(c=>{
+    if(c.status==='encerrada')return false;
+    const ls=c.lojas||[];
+    return ls.length===0||ls.includes(lojaId);
+  }).sort((a,b)=>(b.dataInicio||'').localeCompare(a.dataInicio||''));
+  if(!camps.length)return`<div class="empty-state">Nenhuma campanha ativa para esta loja no momento.</div>`;
+  const loja=opGetLoja(lojaId);
+  return camps.map(c=>{
+    const invs=Array.isArray(c.investimentos)?c.investimentos:(c.investimento?[{tipo:'Investimento',valor:c.investimento}]:[]);
+    const totalInv=invs.reduce((s,i)=>{const n=parseFloat((i.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'))||0;return s+n;},0);
+    const dateRange=(c.dataInicio||c.dataFim)?`<span style="font-size:.68rem;color:var(--muted);">${c.dataInicio?new Date(c.dataInicio+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'?'} → ${c.dataFim?new Date(c.dataFim+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'em aberto'}</span>`:'';
+    const minhasSugestoes=(c.sugestoes||[]).filter(s=>s.loja===lojaId);
+    return`<div class="card" style="padding:16px 18px;margin-bottom:12px;border-left:4px solid ${STATUS_COLOR[c.status]||'var(--acc)'};">
+      <div style="display:flex;align-items:flex-start;gap:8px;justify-content:space-between;margin-bottom:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+            <span style="font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:999px;background:${STATUS_COLOR[c.status]||'var(--muted)'}20;color:${STATUS_COLOR[c.status]||'var(--muted)'};">${STATUS_LABEL[c.status]||c.status}</span>
+            ${dateRange}
+          </div>
+          <div style="font-size:1rem;font-weight:700;margin-bottom:3px;">${esc(c.nome)}</div>
+          ${c.objetivo?`<div style="font-size:.78rem;color:var(--muted);">${esc(c.objetivo)}</div>`:''}
+        </div>
+        <button class="btn-gold btn-sm" onclick="opOpenCampanhaSugestao('${c.id}','${lojaId}')">+ Sugestão</button>
+      </div>
+      ${invs.length&&totalInv>0?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;">Investimento total: <span style="color:var(--gold);font-weight:700;">R$ ${totalInv.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>`:''}
+      ${c.publico?`<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel2);border-radius:8px;font-size:.76rem;margin-bottom:8px;"><span style="color:var(--muted);">Público-alvo:</span> <strong>${esc(c.publico)}</strong></div>`:''}
+      ${c.obs?`<div style="font-size:.78rem;color:var(--muted);line-height:1.5;">${esc(c.obs)}</div>`:''}
+      ${minhasSugestoes.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">Suas sugestões (${minhasSugestoes.length})</div>
+        ${minhasSugestoes.map(s=>`<div style="padding:6px 10px;background:var(--panel2);border-radius:7px;margin-bottom:5px;font-size:.78rem;">
+          <span style="color:var(--muted);font-size:.66rem;">${fmtDate(s.data)} · ${esc(s.autor||'—')}</span>
+          <div style="margin-top:2px;">${esc(s.texto)}</div>
+        </div>`).join('')}
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+function opOpenCampanhaSugestao(campId,lojaId){
+  const c=(S.campanhas||[]).find(x=>x.id===campId);
+  if(!c)return;
+  const loja=opGetLoja(lojaId);
+  openModal(`<h3 style="margin-bottom:4px;">Sugestão / Observação</h3>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;">${esc(c.nome)} · ${loja?.label||lojaId}</div>
+    <div class="f-grp"><label class="f-lb">Sua mensagem *</label>
+      <textarea class="f-in" id="opcs-texto" rows="4" placeholder="Compartilhe uma ideia, observação ou sugestão sobre esta campanha..."></textarea>
+    </div>
+    <div id="opcs-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:10px;" onclick="opSalvarCampanhaSugestao('${campId}','${lojaId}')">Enviar</button>`);
+}
+function opSalvarCampanhaSugestao(campId,lojaId){
+  const texto=document.getElementById('opcs-texto')?.value.trim();
+  if(!texto){document.getElementById('opcs-err').textContent='Escreva sua sugestão.';return;}
+  const c=(S.campanhas||[]).find(x=>x.id===campId);
+  if(!c)return;
+  if(!c.sugestoes)c.sugestoes=[];
+  const funcs=S.op.funcionarios||[];
+  const nomeMembro=M[me]?.name||me;
+  c.sugestoes.push({id:uid(),loja:lojaId,autor:nomeMembro,membro:me,texto,data:todayKey()});
+  saveLocal();closeModal();renderOperacional();toast('Sugestão enviada!');
+}
+function campDelSugestao(campId,sugId){
+  const c=(S.campanhas||[]).find(x=>x.id===campId);
+  if(c){c.sugestoes=(c.sugestoes||[]).filter(s=>s.id!==sugId);saveLocal();renderCampanhas();}
 }
 
 // ── TAB: ERROS DE PROCESSO ────────────────────────────────────
