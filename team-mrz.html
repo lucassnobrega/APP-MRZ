@@ -1211,7 +1211,61 @@ function migrateState(d){
       d.userPerms[_uid]=['operacional'];
     }
   }
-  d.v=24;return d;
+  // v25: checklists BAR — Abertura e Fechamento para Zanoni Alphaville
+  if(!d.v||d.v<25){
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    // Firebase converte arrays para objetos com chaves numéricas — normalizar
+    const _rawAlpha=d.op.checklistModelos.alphaville;
+    d.op.checklistModelos.alphaville=Array.isArray(_rawAlpha)?_rawAlpha:(_rawAlpha?Object.values(_rawAlpha):[]);
+    const jaTemBar=d.op.checklistModelos.alphaville.some(m=>m.setor==='Bar');
+    if(!jaTemBar){
+      d.op.checklistModelos.alphaville.push(
+        {
+          id:'bar_alphaville_abertura',
+          nome:'Abertura do Bar',
+          setor:'Bar',
+          tipo:'abertura',
+          turno:'Abertura',
+          horarioLimite:'11:00',
+          ativo:true,
+          items:[
+            {id:'bla01',texto:'Verifique a temperatura dos freezers e anote o valor em °C',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+            {id:'bla02',texto:'Confira o abastecimento das geladeiras — nada faltando',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'bla03',texto:'Máquina de lavar copos: lave e teste o funcionamento antes de abrir',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'bla04',texto:'Chopeira: verifique o gás e teste o funcionamento',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'bla05',texto:'Montagem do bar: coloque tapetes e posicione as cubas de inox para os garçons',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'bla06',texto:'Limão e laranja: esprema e corte a quantidade suficiente para o plantão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'bla07',texto:'Polpas de frutas: verifique os estoques e abasteça as cubas corretamente',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'bla08',texto:'Garrafas de destilados: confira as que serão usadas no plantão — reponha se necessário',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'bla09',texto:'Sanitização das frutas realizada com produto adequado e tempo correto',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'bla10',texto:'Limpeza geral: lixeira esvaziada, balcão e copos limpos e secos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'bla11',texto:'Plantas aguadas — realizar somente 1x por semana (marque N/OK nos demais dias)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'bar_alphaville_fechamento',
+          nome:'Fechamento do Bar',
+          setor:'Bar',
+          tipo:'fechamento',
+          turno:'Fechamento',
+          horarioLimite:'23:59',
+          ativo:true,
+          items:[
+            {id:'blf01',texto:'Troque a água da máquina de lavar copos ao final do turno',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blf02',texto:'Abasteça as geladeiras com revezamento: bebidas mais velhas na frente, novas atrás',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blf03',texto:'Retire os sacos de gelo do freezer e descarte ou guarde corretamente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blf04',texto:'Limpeza do balcão: remova resíduos, seque completamente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blf05',texto:'Limpeza da chopeira: siga o protocolo correto de limpeza das torneiras e linhas',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blf06',texto:'Jogue água no escorrimento da chopeira para evitar acúmulo e odores',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blf07',texto:'Higienize internamente a máquina de lavar copos com produto adequado',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blf08',texto:'Passe pano úmido nos balcões de inox e varra e passe pano no chão do bar',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+  }
+  d.v=25;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
@@ -1680,6 +1734,158 @@ function renderPanel(id){
 }
 
 // ══════════════════════════════════════
+// VISÃO DO DONO — home do Marlon/Lucas
+// ══════════════════════════════════════
+const DONO_VIEW=['marlon','lucas'];
+const DONO_ADM=['bruna','marco','nelci','carlos','iza','carol','raquel','bredi'];
+function donoRotStats(k,date){
+  const dues=rotasDueOn(date||new Date(),k);
+  const done=dues.filter(d=>(S.rotinas?.completions||{})[rotCompKey(d.rot.id,d.pk,k)]?.status==='feito').length;
+  return{total:dues.length,done,dues};
+}
+function donoOverdue(k){
+  const td=todayKey();
+  return(S.tasks||[]).filter(t=>(t.assignees||[]).includes(k)&&t.status!=='done'&&t.status!=='aprovado'&&t.deadline&&t.deadline<td);
+}
+function donoPctColor(pct){return pct>=100?'var(--green)':pct>=50?'var(--amber)':'var(--red)';}
+function donoLojaStats(lojaId){
+  const hoje=todayKey();
+  const modelos=((S.op?.checklistModelos?.[lojaId])||[]).filter(m=>m.ativo);
+  const comps=(S.op?.completions?.[lojaId]?.[hoje])||{};
+  const done=modelos.filter(m=>comps[m.id]?.status==='feito').length;
+  return{total:modelos.length,done,modelos,comps};
+}
+function donoHomeHtml(){
+  if(!DONO_VIEW.includes(me))return'';
+  const td=todayKey();
+  // ── Designação rápida de tarefa
+  const opts=Object.entries(M).filter(([k])=>k!==me).map(([k,m2])=>`<option value="${k}">${m2.name} — ${m2.role}</option>`).join('');
+  let html=`<div class="sc" style="padding:16px;margin-bottom:18px;border-left:3px solid var(--gold2,#c9a96e);">
+    <div style="font-weight:800;font-size:.95rem;margin-bottom:10px;">Designar Tarefa</div>
+    <div style="display:grid;grid-template-columns:2fr 1.4fr;gap:8px;margin-bottom:8px;">
+      <input class="f-in" id="dq-title" placeholder="O que precisa ser feito?" onkeydown="if(event.key==='Enter')donoQuickAssign()"/>
+      <select class="f-in" id="dq-resp">${opts}</select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;">
+      <input class="f-in" type="date" id="dq-dl" value="${td}"/>
+      <select class="f-in" id="dq-prio"><option value="m">Média</option><option value="h">Alta</option><option value="l">Baixa</option></select>
+      <button class="btn-gold" onclick="donoQuickAssign()">Designar</button>
+    </div>
+  </div>`;
+  // ── Equipe escritório hoje
+  html+=`<div class="gestao-sec" style="margin-bottom:8px;">Equipe Escritório — Hoje</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:18px;">`;
+  DONO_ADM.forEach(k=>{
+    const m2=M[k];if(!m2)return;
+    const st=donoRotStats(k);
+    const od=donoOverdue(k).length;
+    const pct=st.total?Math.round(st.done/st.total*100):null;
+    const cor=st.total?donoPctColor(pct):'var(--muted)';
+    html+=`<div class="sc" style="padding:12px;cursor:pointer;border-left:3px solid ${cor};" onclick="donoDrillMember('${k}')">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="width:26px;height:26px;border-radius:8px;background:${m2.color}22;color:${m2.color};display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">${m2.icon}</span>
+        <div style="font-weight:700;font-size:.8rem;min-width:0;">${m2.name}</div>
+      </div>
+      <div style="font-size:1.15rem;font-weight:800;color:${cor};">${st.total?pct+'%':'—'}</div>
+      <div style="font-size:.62rem;color:var(--muted);">${st.total?st.done+' de '+st.total+' rotinas':'sem rotinas hoje'}</div>
+      ${od?`<div style="font-size:.62rem;color:var(--red);font-weight:700;margin-top:3px;">${od} tarefa${od>1?'s':''} atrasada${od>1?'s':''}</div>`:''}
+    </div>`;
+  });
+  html+=`</div>`;
+  // ── Lojas hoje
+  html+=`<div class="gestao-sec" style="margin-bottom:8px;">Lojas — Checklists de Hoje</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:18px;">`;
+  OP_LOJAS.forEach(l=>{
+    const st=donoLojaStats(l.id);
+    const pct=st.total?Math.round(st.done/st.total*100):null;
+    const cor=st.total?donoPctColor(pct):'var(--muted)';
+    const ger=M[(S.op?.gerentes||{})[l.id]];
+    html+=`<div class="sc" style="padding:12px;cursor:pointer;border-left:3px solid ${cor};" onclick="donoDrillLoja('${l.id}')">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">${opLojaBadge(l,26)}<div style="font-weight:700;font-size:.76rem;min-width:0;">${l.label}</div></div>
+      <div style="font-size:1.15rem;font-weight:800;color:${cor};">${st.total?pct+'%':'—'}</div>
+      <div style="font-size:.62rem;color:var(--muted);">${st.total?st.done+' de '+st.total+' checklists':'sem checklists'}</div>
+      ${ger?`<div style="font-size:.62rem;color:var(--muted);margin-top:3px;">Gerente: ${ger.name}</div>`:''}
+    </div>`;
+  });
+  html+=`</div>`;
+  // ── Grade semanal de rotinas
+  const now=new Date();const dw=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(dw===0?6:dw-1));
+  const days=[0,1,2,3,4].map(i=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+  html+=`<div class="gestao-sec" style="margin-bottom:8px;">Semana — Entrega de Rotinas (%)</div>
+  <div class="sc" style="padding:12px;overflow-x:auto;margin-bottom:18px;"><table style="width:100%;border-collapse:collapse;font-size:.72rem;">
+    <tr><th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600;">Pessoa</th>${['Seg','Ter','Qua','Qui','Sex'].map(d=>`<th style="padding:4px 6px;color:var(--muted);font-weight:600;">${d}</th>`).join('')}</tr>`;
+  DONO_ADM.forEach(k=>{
+    const m2=M[k];if(!m2)return;
+    html+=`<tr><td style="padding:4px 6px;font-weight:700;color:${m2.color};white-space:nowrap;">${m2.name}</td>`;
+    days.forEach(d=>{
+      const fut=d.toISOString().slice(0,10)>td;
+      if(fut){html+=`<td style="text-align:center;padding:4px 6px;color:var(--muted);">·</td>`;return;}
+      const st=donoRotStats(k,d);
+      if(!st.total){html+=`<td style="text-align:center;padding:4px 6px;color:var(--muted);">—</td>`;return;}
+      const pct=Math.round(st.done/st.total*100);
+      html+=`<td style="text-align:center;padding:4px 6px;font-weight:800;color:${donoPctColor(pct)};">${pct}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</table></div>`;
+  return html;
+}
+async function donoQuickAssign(){
+  const title=document.getElementById('dq-title').value.trim();
+  if(!title){toast('Descreva a tarefa.');return;}
+  const resp=document.getElementById('dq-resp').value;
+  const prio=document.getElementById('dq-prio').value;
+  const dl=document.getElementById('dq-dl').value;
+  const t={id:uid(),title,desc:'',status:'todo',priority:prio,assignees:[resp],attachments:[],approvalReq:false,deadline:dl,created:todayKey(),comments:[],createdBy:me};
+  S.tasks.push(t);saveLocal();
+  toast(`Tarefa designada para ${M[resp]?.name||resp}!`);
+  document.getElementById('dq-title').value='';
+  try{await waNotify('demanda',{title,assignee:resp,prio});}catch(e){}
+  renderHome();
+}
+function donoDrillMember(k){
+  const m2=M[k];if(!m2)return;
+  const st=donoRotStats(k);
+  const open=(S.tasks||[]).filter(t=>(t.assignees||[]).includes(k)&&t.status!=='done'&&t.status!=='aprovado');
+  let html=`<h3 style="margin-bottom:2px;">${m2.name}</h3><div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;">${m2.role}</div>`;
+  html+=`<div class="gestao-sec">Rotinas de hoje (${st.done}/${st.total})</div>`;
+  if(!st.dues.length)html+=`<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Sem rotinas previstas para hoje.</div>`;
+  st.dues.forEach(d=>{
+    const c=(S.rotinas?.completions||{})[rotCompKey(d.rot.id,d.pk,k)];
+    const ok=c?.status==='feito';
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">
+      <span style="color:${ok?'var(--green)':'var(--red)'};font-weight:800;font-size:.68rem;width:78px;flex-shrink:0;">${ok?'FEITO'+(c.at?' '+c.at:''):'PENDENTE'}</span>
+      <span style="font-size:.78rem;">${esc(d.rot.titulo)}</span></div>`;
+  });
+  html+=`<div class="gestao-sec" style="margin-top:14px;">Tarefas em aberto (${open.length})</div>`;
+  if(!open.length)html+=`<div style="font-size:.78rem;color:var(--muted);">Nenhuma tarefa em aberto.</div>`;
+  open.slice(0,15).forEach(t=>{
+    const late=t.deadline&&t.deadline<todayKey();
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;" onclick="closeModal();openTask('${t.id}')">
+      <span style="color:${late?'var(--red)':'var(--muted)'};font-size:.66rem;width:78px;flex-shrink:0;font-weight:700;">${late?'ATRASADA':t.deadline?fmtDate(t.deadline):'sem prazo'}</span>
+      <span style="font-size:.78rem;">${esc(t.title)}</span></div>`;
+  });
+  openModal(html);
+}
+function donoDrillLoja(lojaId){
+  const l=OP_LOJAS.find(x=>x.id===lojaId);if(!l)return;
+  const st=donoLojaStats(lojaId);
+  const agora=new Date();
+  let html=`<h3 style="margin-bottom:2px;">${l.label}</h3><div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;">Checklists de hoje (${st.done}/${st.total})</div>`;
+  if(!st.modelos.length)html+=`<div style="font-size:.78rem;color:var(--muted);">Nenhum checklist cadastrado para esta loja.</div>`;
+  st.modelos.forEach(mo=>{
+    const c=st.comps[mo.id];const ok=c?.status==='feito';
+    const hp=mo.horarioLimite?mo.horarioLimite.split(':'):null;
+    const passou=hp&&(agora.getHours()>parseInt(hp[0])||(agora.getHours()===parseInt(hp[0])&&agora.getMinutes()>=parseInt(hp[1])));
+    const lbl=ok?'FEITO'+(c.finalizadoEm?' '+c.finalizadoEm.slice(11,16):''):(passou?'ATRASADO':'PENDENTE');
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">
+      <span style="color:${ok?'var(--green)':passou?'var(--red)':'var(--amber)'};font-weight:800;font-size:.68rem;width:88px;flex-shrink:0;">${lbl}</span>
+      <span style="font-size:.78rem;">${esc(mo.setor||'')} · ${esc(mo.nome||'Checklist')}${mo.horarioLimite?` <span style="color:var(--muted);">(até ${mo.horarioLimite})</span>`:''}</span></div>`;
+  });
+  openModal(html);
+}
+
+// ══════════════════════════════════════
 // HOME
 // ══════════════════════════════════════
 function renderHome(){
@@ -1719,6 +1925,7 @@ function renderHome(){
       <div style="font-size:.78rem;color:var(--muted);margin-top:5px;letter-spacing:.04em;text-transform:uppercase;font-size:.65rem;">${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
     </div>
     ${alertHtml}
+    ${safeHtml(donoHomeHtml)}
     ${safeHtml(homeQuickHtml)}
     ${safeHtml(homeTrilhaHtml)}
     ${safeHtml(homeRotinasHtml)}
@@ -10423,163 +10630,17 @@ function opCLAutoSave(){
   if(!m)return;
   m.nome=document.getElementById('cle-nome')?.value.trim()||m.nome;
   m.setor=document.getElementById('cle-setor')?.value||m.setor;
-  const turno=document.getElementById('cle-turno')?.value||'Geral';
-  m.turno=turno;
-  const tipoMap={'Manhã':'abertura','Tarde':'fechamento','Noite':'fechamento','Geral':'geral'};
-  m.tipo=tipoMap[turno]||'geral';
+  m.turno=document.getElementById('cle-turno')?.value||m.turno;
+  const respEl=document.getElementById('cle-resp');
+  if(respEl)m.responsaveis=Array.from(respEl.selectedOptions).map(o=>o.value);
   m.horarioInicio=document.getElementById('cle-inicio')?.value||'';
   m.horarioLimite=document.getElementById('cle-limite')?.value||'';
   m.freq=document.getElementById('cle-freq')?.value||'diario';
-  m.diasBloq=['dom','seg','ter','qua','qui','sex','sab'].filter(d=>document.getElementById(`cle-dia-${d}`)?.checked);
+  const DIAS=['dom','seg','ter','qua','qui','sex','sab'];
+  m.diasBloq=DIAS.filter(d=>document.getElementById('cle-dia-'+d)?.checked);
   m.doubleCheck=document.getElementById('cle-double')?.checked||false;
-  const sel=document.getElementById('cle-resp');
-  if(sel)m.responsaveis=Array.from(sel.selectedOptions).map(o=>o.value);
   saveLocal();
 }
-function opAddItem(lojaId,modeloId){opCLAddItem();}
-function opDelItem(lojaId,modeloId,idx){
-  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
-  if(!m||!m.items)return;
-  m.items.splice(idx,1);
-  saveLocal();
-  const list=document.getElementById('cle-items-list');
-  if(list){list.innerHTML=opCLItemsHtml(m);const ct=document.getElementById('cle-count');if(ct)ct.textContent=`${m.items.length} Itens`;}
-  else opOpenEditarChecklist(lojaId,modeloId);
-}
-
-// ══════════════════════════════════════════════════════════════
-// OP: FAQ / POPs / FLUXOGRAMAS
-// ══════════════════════════════════════════════════════════════
-function opTabFAQ(lojaId){
-  if(!S.op.faq)S.op.faq={};
-  if(!S.op.faq[lojaId])S.op.faq[lojaId]={};
-  const setores=opSetores(lojaId);
-  const canEdit=opCanSeeAll()||(opLojaDoGerente(me)===lojaId);
-  if(!window._opFaqSetor||!setores.includes(window._opFaqSetor))window._opFaqSetor=setores[0]||'';
-  const selSetor=window._opFaqSetor;
-  const setorTabs=setores.map(s=>`
-    <button class="ev-type-btn${s===selSetor?' sel':''}" style="font-size:.74rem;"
-      onclick="window._opFaqSetor='${s}';renderOperacional()">${s}</button>`).join('');
-  const data=S.op.faq[lojaId]?.[selSetor]||{faq:[],pops:[],fluxograma:''};
-  let html=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line);">${setorTabs}</div>`;
-  // FAQ
-  html+=`<div style="margin-bottom:28px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-weight:700;font-size:.9rem;">Perguntas Frequentes (FAQ)</span>
-      ${canEdit?`<button class="btn-ghost btn-sm" onclick="opOpenNovoFAQ('${lojaId}','${selSetor}')">+ Pergunta</button>`:''}
-    </div>
-    ${(data.faq||[]).length===0
-      ?`<div style="font-size:.76rem;color:var(--muted);padding:10px 12px;background:var(--panel2);border-radius:8px;">Nenhuma pergunta cadastrada para este setor.</div>`
-      :(data.faq||[]).map((f,i)=>`
-        <details style="margin-bottom:6px;background:var(--panel2);border-radius:10px;overflow:hidden;">
-          <summary style="cursor:pointer;font-size:.86rem;font-weight:600;padding:11px 14px;display:flex;align-items:center;gap:8px;list-style:none;">
-            <span style="color:var(--acc);">▸</span> ${esc(f.pergunta)}
-            ${canEdit?`<button onclick="event.stopPropagation();opDelFAQItem('${lojaId}','${selSetor}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-left:auto;font-size:.82rem;"></button>`:''}
-          </summary>
-          <div style="font-size:.81rem;padding:10px 14px 14px;color:var(--text);line-height:1.7;border-top:1px solid var(--line);">${esc(f.resposta).replace(/\n/g,'<br>')}</div>
-        </details>`).join('')}
-  </div>`;
-  // POPs
-  html+=`<div style="margin-bottom:28px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-weight:700;font-size:.9rem;">POPs — Procedimentos Operacionais Padrão</span>
-      ${canEdit?`<button class="btn-ghost btn-sm" onclick="opOpenNovoPOP('${lojaId}','${selSetor}')">+ POP</button>`:''}
-    </div>
-    ${(data.pops||[]).length===0
-      ?`<div style="font-size:.76rem;color:var(--muted);padding:10px 12px;background:var(--panel2);border-radius:8px;">Nenhum POP cadastrado para este setor.</div>`
-      :(data.pops||[]).map((p,i)=>`
-        <details style="margin-bottom:6px;background:var(--panel2);border-radius:10px;overflow:hidden;">
-          <summary style="cursor:pointer;font-size:.86rem;font-weight:600;padding:11px 14px;display:flex;align-items:center;gap:8px;list-style:none;">
-            <span style="color:var(--acc);">▸</span>${esc(p.titulo)}
-            ${canEdit?`<button onclick="event.stopPropagation();opDelPOP('${lojaId}','${selSetor}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-left:auto;font-size:.82rem;"></button>`:''}
-          </summary>
-          <div style="font-size:.81rem;padding:10px 14px 14px;color:var(--text);line-height:1.7;border-top:1px solid var(--line);white-space:pre-line;">${esc(p.conteudo)}</div>
-        </details>`).join('')}
-  </div>`;
-  // Fluxograma
-  html+=`<div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-weight:700;font-size:.9rem;">Fluxograma</span>
-      ${canEdit?`<button class="btn-ghost btn-sm" onclick="opEditFluxograma('${lojaId}','${selSetor}')">${data.fluxograma?'Editar link':'Adicionar link'}</button>`:''}
-    </div>
-    ${data.fluxograma
-      ?`<div style="background:var(--panel2);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.2rem;"></span>
-          <div style="flex:1;min-width:0;">
-            <a href="${esc(data.fluxograma)}" target="_blank" style="color:var(--acc);font-size:.86rem;font-weight:600;">Abrir Fluxograma</a>
-            <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">${esc(data.fluxograma)}</div>
-          </div>
-        </div>`
-      :`<div style="font-size:.76rem;color:var(--muted);padding:10px 12px;background:var(--panel2);border-radius:8px;">Nenhum fluxograma cadastrado.</div>`}
-  </div>`;
-  return html;
-}
-function opGetFaqSetor(lojaId,setor){
-  if(!S.op.faq)S.op.faq={};
-  if(!S.op.faq[lojaId])S.op.faq[lojaId]={};
-  if(!S.op.faq[lojaId][setor])S.op.faq[lojaId][setor]={faq:[],pops:[],fluxograma:''};
-  return S.op.faq[lojaId][setor];
-}
-function opOpenNovoFAQ(lojaId,setor){
-  openModal(`<h3 style="margin-bottom:4px;">Nova Pergunta — FAQ</h3>
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">Setor: ${setor}</div>
-    <div class="f-grp"><label class="f-lb">Pergunta *</label>
-      <input class="f-in" id="opfaq-p" placeholder="Ex: Como fazer o mise en place da cozinha?"></div>
-    <div class="f-grp"><label class="f-lb">Resposta *</label>
-      <textarea class="f-in" id="opfaq-r" rows="6" placeholder="Descreva a resposta de forma clara e detalhada..."></textarea></div>
-    <div id="opfaq-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
-    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveFAQ('${lojaId}','${setor}')">Salvar</button>`);
-}
-function opSaveFAQ(lojaId,setor){
-  const p=document.getElementById('opfaq-p').value.trim();
-  const r=document.getElementById('opfaq-r').value.trim();
-  if(!p||!r){document.getElementById('opfaq-err').textContent='Preencha pergunta e resposta.';return;}
-  const d=opGetFaqSetor(lojaId,setor);
-  if(!d.faq)d.faq=[];
-  d.faq.push({id:uid(),pergunta:p,resposta:r,criadoEm:new Date().toISOString()});
-  saveLocal();closeModal();renderOperacional();toast('FAQ adicionado!');
-}
-function opDelFAQItem(lojaId,setor,idx){
-  const d=S.op.faq?.[lojaId]?.[setor];if(!d)return;
-  d.faq.splice(idx,1);saveLocal();renderOperacional();
-}
-function opOpenNovoPOP(lojaId,setor){
-  openModal(`<h3 style="margin-bottom:4px;">Novo POP</h3>
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">Setor: ${setor}</div>
-    <div class="f-grp"><label class="f-lb">Título *</label>
-      <input class="f-in" id="oppop-t" placeholder="Ex: Procedimento de Abertura da Cozinha"></div>
-    <div class="f-grp"><label class="f-lb">Conteúdo (passo a passo) *</label>
-      <textarea class="f-in" id="oppop-c" rows="9" placeholder="1. Verificar temperatura das geladeiras&#10;2. Conferir estoque&#10;3. ..."></textarea></div>
-    <div id="oppop-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
-    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSavePOP('${lojaId}','${setor}')">Salvar POP</button>`);
-}
-function opSavePOP(lojaId,setor){
-  const t=document.getElementById('oppop-t').value.trim();
-  const c=document.getElementById('oppop-c').value.trim();
-  if(!t||!c){document.getElementById('oppop-err').textContent='Preencha título e conteúdo.';return;}
-  const d=opGetFaqSetor(lojaId,setor);
-  if(!d.pops)d.pops=[];
-  d.pops.push({id:uid(),titulo:t,conteudo:c,criadoEm:new Date().toISOString()});
-  saveLocal();closeModal();renderOperacional();toast('POP adicionado!');
-}
-function opDelPOP(lojaId,setor,idx){
-  const d=S.op.faq?.[lojaId]?.[setor];if(!d)return;
-  d.pops.splice(idx,1);saveLocal();renderOperacional();
-}
-function opEditFluxograma(lojaId,setor){
-  const d=opGetFaqSetor(lojaId,setor);
-  openModal(`<h3 style="margin-bottom:4px;">Fluxograma — ${setor}</h3>
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">Cole o link do Lucidchart, Miro, Google Drive, Canva, etc.</div>
-    <div class="f-grp"><label class="f-lb">Link do Fluxograma</label>
-      <input class="f-in" id="opflux-url" value="${esc(d.fluxograma||'')}" placeholder="https://..."></div>
-    <button class="btn-gold" style="width:100%;margin-top:14px;" onclick="opSaveFluxograma('${lojaId}','${setor}')">Salvar</button>`);
-}
-function opSaveFluxograma(lojaId,setor){
-  const d=opGetFaqSetor(lojaId,setor);
-  d.fluxograma=document.getElementById('opflux-url').value.trim();
-  saveLocal();closeModal();renderOperacional();toast('Fluxograma atualizado!');
-}
-
 </script>
 </body>
 </html>
