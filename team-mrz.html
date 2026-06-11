@@ -941,6 +941,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div id="p-timeline" class="panel"></div>
       <div id="p-trilha" class="panel"></div>
       <div id="p-rotinas" class="panel"></div>
+      <div id="p-metas" class="panel"></div>
       <div id="p-contas" class="panel"></div>
       <div id="p-usuarios" class="panel"></div>
       <div id="p-manutencao" class="panel"></div>
@@ -1530,6 +1531,7 @@ const NAV_ITEMS=[
   {id:'fornecedores',label:'Fornecedores',    grp:'Pessoal',  roles:['carlos']},
   {id:'trilha', label:'Trilha',                grp:'Pessoal'},
   {id:'rotinas',label:'Rotinas',               grp:'Pessoal'},
+  {id:'metas',  label:'Metas',                 grp:'Pessoal'},
   {id:'rh',         label:'RH',                grp:'Pessoal',  roles:['iza']},
   {id:'erros-caixa',label:'Erros de Caixa',   grp:'Pessoal',  roles:['nelci']},
   {id:'occ',    label:'Ocorrências',          grp:'Pessoal'},
@@ -1710,6 +1712,7 @@ function renderPanel(id){
     case 'tasks':renderTasks();break;
     case 'trilha':renderTrilha();break;
     case 'rotinas':renderRotinas();break;
+    case 'metas':renderMetas();break;
     case 'flow':renderFlow();break;
     case 'report':renderReport();break;
     case 'erros-caixa':renderErrosCaixa();break;
@@ -1733,8 +1736,6 @@ function renderPanel(id){
   }
 }
 
-// ══════════════════════════════════════
-// VISÃO DO DONO — home do Marlon/Lucas
 // ══════════════════════════════════════
 const DONO_VIEW=['marlon','lucas'];
 const DONO_ADM=['bruna','marco','nelci','carlos','iza','carol','raquel','bredi'];
@@ -1882,6 +1883,126 @@ function donoDrillLoja(lojaId){
       <span style="color:${ok?'var(--green)':passou?'var(--red)':'var(--amber)'};font-weight:800;font-size:.68rem;width:88px;flex-shrink:0;">${lbl}</span>
       <span style="font-size:.78rem;">${esc(mo.setor||'')} · ${esc(mo.nome||'Checklist')}${mo.horarioLimite?` <span style="color:var(--muted);">(até ${mo.horarioLimite})</span>`:''}</span></div>`;
   });
+  openModal(html);
+}
+
+// ══════════════════════════════════════
+// METAS — % mensal de entrega (rotinas + tarefas)
+// ══════════════════════════════════════
+function metasCalc(k,y,m){
+  const now=new Date();const td=todayKey();
+  const isCurMonth=(y===now.getFullYear()&&m===now.getMonth()+1);
+  const lastDay=isCurMonth?now.getDate():new Date(y,m,0).getDate();
+  let rotDue=0,rotDone=0;
+  for(let d=1;d<=lastDay;d++){
+    const dues=rotasDueOn(new Date(y,m-1,d),k);
+    dues.forEach(x=>{rotDue++;if((S.rotinas?.completions||{})[rotCompKey(x.rot.id,x.pk,k)]?.status==='feito')rotDone++;});
+  }
+  const ym=`${y}-${String(m).padStart(2,'0')}`;
+  const DELIV=['review','aprovado','done'];
+  let tDen=0,tPts=0,tOnTime=0,tLate=0,tMiss=0;const tList=[];
+  (S.tasks||[]).filter(t=>(t.assignees||[]).includes(k)&&t.deadline&&t.deadline.startsWith(ym)).forEach(t=>{
+    if(DELIV.includes(t.status)){
+      const late=t.doneAt&&t.doneAt>t.deadline;
+      tDen++;tPts+=late?0.5:1;if(late)tLate++;else tOnTime++;
+      tList.push({t,st:late?'atrasada':'no prazo'});
+    }else if(t.deadline<td){
+      tDen++;tMiss++;tList.push({t,st:'vencida'});
+    }else{
+      tList.push({t,st:'em andamento'});
+    }
+  });
+  const den=rotDue+tDen;
+  const pct=den?Math.round((rotDone+tPts)/den*100):null;
+  return{pct,rotDue,rotDone,tDen,tPts,tOnTime,tLate,tMiss,tList};
+}
+function metaFaixa(pct){
+  if(pct===null)return{label:'Sem itens no mês',cor:'var(--muted)',bonus:'—'};
+  if(pct>=90)return{label:'META CHEIA',cor:'var(--green)',bonus:'Bônus integral'};
+  if(pct>=75)return{label:'PARCIAL',cor:'var(--amber)',bonus:'Bônus parcial'};
+  return{label:'ABAIXO DA META',cor:'var(--red)',bonus:'Sem bônus'};
+}
+function metaBarHtml(pct,cor,h=10){
+  const w=pct===null?0:Math.min(pct,100);
+  return`<div style="position:relative;height:${h}px;background:var(--panel2);border-radius:99px;overflow:hidden;margin:6px 0;">
+    <div style="position:absolute;left:75%;top:0;bottom:0;width:1px;background:var(--line);"></div>
+    <div style="position:absolute;left:90%;top:0;bottom:0;width:1px;background:var(--line);"></div>
+    <div style="height:100%;width:${w}%;background:${cor};border-radius:99px;transition:width .4s;"></div>
+  </div>`;
+}
+function renderMetas(){
+  const now=new Date();const y=now.getFullYear(),mo=now.getMonth()+1;
+  const mesLabel=now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const isDono=DONO_VIEW.includes(me);
+  let html=`<div style="margin-bottom:16px;">
+    <div style="font-size:1.1rem;font-weight:800;">Metas — ${mesLabel.charAt(0).toUpperCase()+mesLabel.slice(1)}</div>
+    <div style="font-size:.74rem;color:var(--muted);margin-top:3px;">% de entrega = rotinas feitas no dia + tarefas entregues no prazo (atrasada vale meio ponto). Faixas: <b style="color:var(--green)">≥90% meta cheia</b> · <b style="color:var(--amber)">75–89% parcial</b> · <b style="color:var(--red)">&lt;75% sem bônus</b></div>
+  </div>`;
+  if(isDono){
+    html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;">`;
+    DONO_ADM.forEach(k=>{
+      const m2=M[k];if(!m2)return;
+      const r=metasCalc(k,y,mo);const f=metaFaixa(r.pct);
+      html+=`<div class="sc" style="padding:14px;cursor:pointer;border-left:3px solid ${f.cor};" onclick="metasDrill('${k}')">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="width:28px;height:28px;border-radius:8px;background:${m2.color}22;color:${m2.color};display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;flex-shrink:0;">${m2.icon}</span>
+          <div style="min-width:0;"><div style="font-weight:700;font-size:.84rem;">${m2.name}</div><div style="font-size:.62rem;color:var(--muted);">${m2.role}</div></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-size:1.5rem;font-weight:800;color:${f.cor};">${r.pct===null?'—':r.pct+'%'}</span><span style="font-size:.6rem;font-weight:800;letter-spacing:.05em;color:${f.cor};">${f.label}</span></div>
+        ${metaBarHtml(r.pct,f.cor)}
+        <div style="font-size:.64rem;color:var(--muted);">Rotinas ${r.rotDone}/${r.rotDue} · Tarefas no prazo ${r.tOnTime}${r.tLate?` · atrasadas ${r.tLate}`:''}${r.tMiss?` · <b style="color:var(--red)">vencidas ${r.tMiss}</b>`:''}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }else if(DONO_ADM.includes(me)){
+    const r=metasCalc(me,y,mo);const f=metaFaixa(r.pct);
+    const hoje=donoRotStats(me);
+    const falta90=r.pct!==null&&r.pct<90?`Para a meta cheia você precisa chegar a 90%.`:'';
+    html+=`<div class="sc" style="padding:20px;max-width:560px;">
+      <div style="font-size:.72rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Sua meta do mês</div>
+      <div style="display:flex;align-items:baseline;gap:12px;"><span style="font-size:2.6rem;font-weight:800;color:${f.cor};">${r.pct===null?'—':r.pct+'%'}</span>
+        <span style="font-size:.72rem;font-weight:800;letter-spacing:.05em;color:${f.cor};">${f.label}</span></div>
+      ${metaBarHtml(r.pct,f.cor,14)}
+      <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-bottom:14px;"><span>0</span><span>75%</span><span>90%</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div style="background:var(--panel2);border-radius:10px;padding:10px;"><div style="font-size:.62rem;color:var(--muted);">ROTINAS DO MÊS</div><div style="font-size:1.05rem;font-weight:800;">${r.rotDone} <span style="font-size:.72rem;color:var(--muted);font-weight:400;">de ${r.rotDue}</span></div></div>
+        <div style="background:var(--panel2);border-radius:10px;padding:10px;"><div style="font-size:.62rem;color:var(--muted);">TAREFAS</div><div style="font-size:1.05rem;font-weight:800;">${r.tOnTime+r.tLate} <span style="font-size:.72rem;color:var(--muted);font-weight:400;">entregues${r.tMiss?` · ${r.tMiss} vencida${r.tMiss>1?'s':''}`:''}</span></div></div>
+      </div>
+      ${falta90?`<div style="font-size:.76rem;color:var(--muted);margin-bottom:10px;">${falta90}</div>`:''}
+      ${hoje.total&&hoje.done<hoje.total?`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:10px 12px;font-size:.78rem;"><b style="color:var(--amber);">Hoje:</b> ${hoje.total-hoje.done} rotina${hoje.total-hoje.done>1?'s':''} pendente${hoje.total-hoje.done>1?'s':''} — <a href="#" onclick="event.preventDefault();goPanel('rotinas')" style="color:var(--acc);">resolver agora</a></div>`:''}
+    </div>`;
+    if(r.tList.length){
+      html+=`<div class="gestao-sec" style="margin-top:18px;">Tarefas do mês</div>`;
+      r.tList.forEach(({t,st})=>{
+        const cor=st==='no prazo'?'var(--green)':st==='vencida'?'var(--red)':st==='atrasada'?'var(--amber)':'var(--muted)';
+        html+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;max-width:560px;" onclick="openTask('${t.id}')">
+          <span style="color:${cor};font-size:.62rem;font-weight:800;width:92px;flex-shrink:0;text-transform:uppercase;">${st}</span>
+          <span style="font-size:.8rem;flex:1;">${esc(t.title)}</span>
+          <span style="font-size:.64rem;color:var(--muted);">${fmtDate(t.deadline)}</span></div>`;
+      });
+    }
+  }else{
+    html+=`<div style="font-size:.82rem;color:var(--muted);">As metas se aplicam à equipe do escritório.</div>`;
+  }
+  document.getElementById('p-metas').innerHTML=html;
+}
+function metasDrill(k){
+  const m2=M[k];if(!m2)return;
+  const now=new Date();const r=metasCalc(k,now.getFullYear(),now.getMonth()+1);const f=metaFaixa(r.pct);
+  let html=`<h3 style="margin-bottom:2px;">${m2.name}</h3><div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">${m2.role} · ${now.toLocaleDateString('pt-BR',{month:'long'})}</div>
+  <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2rem;font-weight:800;color:${f.cor};">${r.pct===null?'—':r.pct+'%'}</span><span style="font-size:.68rem;font-weight:800;color:${f.cor};">${f.label} · ${f.bonus}</span></div>
+  ${metaBarHtml(r.pct,f.cor,12)}
+  <div style="font-size:.76rem;color:var(--muted);margin:8px 0 14px;">Rotinas: <b>${r.rotDone}/${r.rotDue}</b> · Tarefas no prazo: <b>${r.tOnTime}</b> · entregues atrasadas: <b>${r.tLate}</b> · vencidas sem entrega: <b style="color:var(--red)">${r.tMiss}</b></div>`;
+  if(r.tList.length){
+    html+=`<div class="gestao-sec">Tarefas do mês</div>`;
+    r.tList.forEach(({t,st})=>{
+      const cor=st==='no prazo'?'var(--green)':st==='vencida'?'var(--red)':st==='atrasada'?'var(--amber)':'var(--muted)';
+      html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;" onclick="closeModal();openTask('${t.id}')">
+        <span style="color:${cor};font-size:.6rem;font-weight:800;width:90px;flex-shrink:0;text-transform:uppercase;">${st}</span>
+        <span style="font-size:.78rem;flex:1;">${esc(t.title)}</span>
+        <span style="font-size:.64rem;color:var(--muted);">${fmtDate(t.deadline)}</span></div>`;
+    });
+  }
   openModal(html);
 }
 
@@ -2236,6 +2357,7 @@ function kDrop(e,colId,allowed){
   const fromIdx=S.tasks.findIndex(x=>x.id===_dragId);
   S.tasks.splice(fromIdx,1);
   t.status=colId;
+  if(['review','aprovado','done'].includes(colId)&&!t.doneAt)t.doneAt=todayKey();
   if(_dragOverId&&_dragOverId!==_dragId){
     const toIdx=S.tasks.findIndex(x=>x.id===_dragOverId);
     if(toIdx>=0){
@@ -2448,6 +2570,7 @@ function saveTask(id){
     assignees:t.assignees||[me],attachments:t.attachments||[],
     cotacaoItems:t.cotacaoItems||[]};
   if(newStatus==='doing'&&t.ajusteNote)updated.ajusteNote=''; // clear when back to doing
+  if(['review','aprovado','done'].includes(newStatus)&&!updated.doneAt)updated.doneAt=todayKey();
   const prevSt=t.status;
   const idx=S.tasks.findIndex(x=>x.id===id);
   if(idx>=0)S.tasks[idx]=updated;else S.tasks.push(updated);
@@ -2461,6 +2584,7 @@ function darDevolutiva(id,resultado){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
   const obs=document.getElementById('dev-obs')?.value.trim()||'';
   t.status=resultado;
+  if(resultado==='aprovado'&&!t.doneAt)t.doneAt=todayKey();
   if(resultado==='ajuste'){
     t.ajusteNote=obs||'Revise e reenvie.';
     // add auto comment
@@ -8624,6 +8748,14 @@ async function testWAMsg(){
 // ══════════════════════════════════════
 // PAINEL CEO — GESTÃO (MARLON)
 // ══════════════════════════════════════
+// Voto de aprovação (Painel CEO) — função ausente no app original, corrigida
+function voteTask(id,v){
+  const t=(S.tasks||[]).find(x=>x.id===id);if(!t)return;
+  if(!t.approvals)t.approvals={};
+  t.approvals[me]=v;
+  saveLocal();
+  toast(v?'Voto registrado: aprovar.':'Voto registrado: recusar.');
+}
 function renderGestao(){
   const myVotePending=(S.tasks||[]).filter(t=>t.approvalReq&&t.status==='doing'&&!(t.approvals||{})[me]);
   const errosPendentes=(S.errosCaixa||[]).filter(e=>e.status==='pendente');
@@ -10630,17 +10762,163 @@ function opCLAutoSave(){
   if(!m)return;
   m.nome=document.getElementById('cle-nome')?.value.trim()||m.nome;
   m.setor=document.getElementById('cle-setor')?.value||m.setor;
-  m.turno=document.getElementById('cle-turno')?.value||m.turno;
-  const respEl=document.getElementById('cle-resp');
-  if(respEl)m.responsaveis=Array.from(respEl.selectedOptions).map(o=>o.value);
+  const turno=document.getElementById('cle-turno')?.value||'Geral';
+  m.turno=turno;
+  const tipoMap={'Manhã':'abertura','Tarde':'fechamento','Noite':'fechamento','Geral':'geral'};
+  m.tipo=tipoMap[turno]||'geral';
   m.horarioInicio=document.getElementById('cle-inicio')?.value||'';
   m.horarioLimite=document.getElementById('cle-limite')?.value||'';
   m.freq=document.getElementById('cle-freq')?.value||'diario';
-  const DIAS=['dom','seg','ter','qua','qui','sex','sab'];
-  m.diasBloq=DIAS.filter(d=>document.getElementById('cle-dia-'+d)?.checked);
+  m.diasBloq=['dom','seg','ter','qua','qui','sex','sab'].filter(d=>document.getElementById(`cle-dia-${d}`)?.checked);
   m.doubleCheck=document.getElementById('cle-double')?.checked||false;
+  const sel=document.getElementById('cle-resp');
+  if(sel)m.responsaveis=Array.from(sel.selectedOptions).map(o=>o.value);
   saveLocal();
 }
+function opAddItem(lojaId,modeloId){opCLAddItem();}
+function opDelItem(lojaId,modeloId,idx){
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  if(!m||!m.items)return;
+  m.items.splice(idx,1);
+  saveLocal();
+  const list=document.getElementById('cle-items-list');
+  if(list){list.innerHTML=opCLItemsHtml(m);const ct=document.getElementById('cle-count');if(ct)ct.textContent=`${m.items.length} Itens`;}
+  else opOpenEditarChecklist(lojaId,modeloId);
+}
+
+// ══════════════════════════════════════════════════════════════
+// OP: FAQ / POPs / FLUXOGRAMAS
+// ══════════════════════════════════════════════════════════════
+function opTabFAQ(lojaId){
+  if(!S.op.faq)S.op.faq={};
+  if(!S.op.faq[lojaId])S.op.faq[lojaId]={};
+  const setores=opSetores(lojaId);
+  const canEdit=opCanSeeAll()||(opLojaDoGerente(me)===lojaId);
+  if(!window._opFaqSetor||!setores.includes(window._opFaqSetor))window._opFaqSetor=setores[0]||'';
+  const selSetor=window._opFaqSetor;
+  const setorTabs=setores.map(s=>`
+    <button class="ev-type-btn${s===selSetor?' sel':''}" style="font-size:.74rem;"
+      onclick="window._opFaqSetor='${s}';renderOperacional()">${s}</button>`).join('');
+  const data=S.op.faq[lojaId]?.[selSetor]||{faq:[],pops:[],fluxograma:''};
+  let html=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line);">${setorTabs}</div>`;
+  // FAQ
+  html+=`<div style="margin-bottom:28px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:.9rem;">Perguntas Frequentes (FAQ)</span>
+      ${canEdit?`<button class="btn-ghost btn-sm" onclick="opOpenNovoFAQ('${lojaId}','${selSetor}')">+ Pergunta</button>`:''}
+    </div>
+    ${(data.faq||[]).length===0
+      ?`<div style="font-size:.76rem;color:var(--muted);padding:10px 12px;background:var(--panel2);border-radius:8px;">Nenhuma pergunta cadastrada para este setor.</div>`
+      :(data.faq||[]).map((f,i)=>`
+        <details style="margin-bottom:6px;background:var(--panel2);border-radius:10px;overflow:hidden;">
+          <summary style="cursor:pointer;font-size:.86rem;font-weight:600;padding:11px 14px;display:flex;align-items:center;gap:8px;list-style:none;">
+            <span style="color:var(--acc);">▸</span> ${esc(f.pergunta)}
+            ${canEdit?`<button onclick="event.stopPropagation();opDelFAQItem('${lojaId}','${selSetor}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-left:auto;font-size:.82rem;"></button>`:''}
+          </summary>
+          <div style="font-size:.81rem;padding:10px 14px 14px;color:var(--text);line-height:1.7;border-top:1px solid var(--line);">${esc(f.resposta).replace(/\n/g,'<br>')}</div>
+        </details>`).join('')}
+  </div>`;
+  // POPs
+  html+=`<div style="margin-bottom:28px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:.9rem;">POPs — Procedimentos Operacionais Padrão</span>
+      ${canEdit?`<button class="btn-ghost btn-sm" onclick="opOpenNovoPOP('${lojaId}','${selSetor}')">+ POP</button>`:''}
+    </div>
+    ${(data.pops||[]).length===0
+      ?`<div style="font-size:.76rem;color:var(--muted);padding:10px 12px;background:var(--panel2);border-radius:8px;">Nenhum POP cadastrado para este setor.</div>`
+      :(data.pops||[]).map((p,i)=>`
+        <details style="margin-bottom:6px;background:var(--panel2);border-radius:10px;overflow:hidden;">
+          <summary style="cursor:pointer;font-size:.86rem;font-weight:600;padding:11px 14px;display:flex;align-items:center;gap:8px;list-style:none;">
+            <span style="color:var(--acc);">▸</span>${esc(p.titulo)}
+            ${canEdit?`<button onclick="event.stopPropagation();opDelPOP('${lojaId}','${selSetor}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-left:auto;font-size:.82rem;"></button>`:''}
+          </summary>
+          <div style="font-size:.81rem;padding:10px 14px 14px;color:var(--text);line-height:1.7;border-top:1px solid var(--line);white-space:pre-line;">${esc(p.conteudo)}</div>
+        </details>`).join('')}
+  </div>`;
+  // Fluxograma
+  html+=`<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:.9rem;">Fluxograma</span>
+      ${canEdit?`<button class="btn-ghost btn-sm" onclick="opEditFluxograma('${lojaId}','${selSetor}')">${data.fluxograma?'Editar link':'Adicionar link'}</button>`:''}
+    </div>
+    ${data.fluxograma
+      ?`<div style="background:var(--panel2);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.2rem;"></span>
+          <div style="flex:1;min-width:0;">
+            <a href="${esc(data.fluxograma)}" target="_blank" style="color:var(--acc);font-size:.86rem;font-weight:600;">Abrir Fluxograma</a>
+            <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">${esc(data.fluxograma)}</div>
+          </div>
+        </div>`
+      :`<div style="font-size:.76rem;color:var(--muted);padding:10px 12px;background:var(--panel2);border-radius:8px;">Nenhum fluxograma cadastrado.</div>`}
+  </div>`;
+  return html;
+}
+function opGetFaqSetor(lojaId,setor){
+  if(!S.op.faq)S.op.faq={};
+  if(!S.op.faq[lojaId])S.op.faq[lojaId]={};
+  if(!S.op.faq[lojaId][setor])S.op.faq[lojaId][setor]={faq:[],pops:[],fluxograma:''};
+  return S.op.faq[lojaId][setor];
+}
+function opOpenNovoFAQ(lojaId,setor){
+  openModal(`<h3 style="margin-bottom:4px;">Nova Pergunta — FAQ</h3>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">Setor: ${setor}</div>
+    <div class="f-grp"><label class="f-lb">Pergunta *</label>
+      <input class="f-in" id="opfaq-p" placeholder="Ex: Como fazer o mise en place da cozinha?"></div>
+    <div class="f-grp"><label class="f-lb">Resposta *</label>
+      <textarea class="f-in" id="opfaq-r" rows="6" placeholder="Descreva a resposta de forma clara e detalhada..."></textarea></div>
+    <div id="opfaq-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSaveFAQ('${lojaId}','${setor}')">Salvar</button>`);
+}
+function opSaveFAQ(lojaId,setor){
+  const p=document.getElementById('opfaq-p').value.trim();
+  const r=document.getElementById('opfaq-r').value.trim();
+  if(!p||!r){document.getElementById('opfaq-err').textContent='Preencha pergunta e resposta.';return;}
+  const d=opGetFaqSetor(lojaId,setor);
+  if(!d.faq)d.faq=[];
+  d.faq.push({id:uid(),pergunta:p,resposta:r,criadoEm:new Date().toISOString()});
+  saveLocal();closeModal();renderOperacional();toast('FAQ adicionado!');
+}
+function opDelFAQItem(lojaId,setor,idx){
+  const d=S.op.faq?.[lojaId]?.[setor];if(!d)return;
+  d.faq.splice(idx,1);saveLocal();renderOperacional();
+}
+function opOpenNovoPOP(lojaId,setor){
+  openModal(`<h3 style="margin-bottom:4px;">Novo POP</h3>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">Setor: ${setor}</div>
+    <div class="f-grp"><label class="f-lb">Título *</label>
+      <input class="f-in" id="oppop-t" placeholder="Ex: Procedimento de Abertura da Cozinha"></div>
+    <div class="f-grp"><label class="f-lb">Conteúdo (passo a passo) *</label>
+      <textarea class="f-in" id="oppop-c" rows="9" placeholder="1. Verificar temperatura das geladeiras&#10;2. Conferir estoque&#10;3. ..."></textarea></div>
+    <div id="oppop-err" style="font-size:.74rem;color:var(--red);min-height:14px;"></div>
+    <button class="btn-gold" style="width:100%;margin-top:12px;" onclick="opSavePOP('${lojaId}','${setor}')">Salvar POP</button>`);
+}
+function opSavePOP(lojaId,setor){
+  const t=document.getElementById('oppop-t').value.trim();
+  const c=document.getElementById('oppop-c').value.trim();
+  if(!t||!c){document.getElementById('oppop-err').textContent='Preencha título e conteúdo.';return;}
+  const d=opGetFaqSetor(lojaId,setor);
+  if(!d.pops)d.pops=[];
+  d.pops.push({id:uid(),titulo:t,conteudo:c,criadoEm:new Date().toISOString()});
+  saveLocal();closeModal();renderOperacional();toast('POP adicionado!');
+}
+function opDelPOP(lojaId,setor,idx){
+  const d=S.op.faq?.[lojaId]?.[setor];if(!d)return;
+  d.pops.splice(idx,1);saveLocal();renderOperacional();
+}
+function opEditFluxograma(lojaId,setor){
+  const d=opGetFaqSetor(lojaId,setor);
+  openModal(`<h3 style="margin-bottom:4px;">Fluxograma — ${setor}</h3>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">Cole o link do Lucidchart, Miro, Google Drive, Canva, etc.</div>
+    <div class="f-grp"><label class="f-lb">Link do Fluxograma</label>
+      <input class="f-in" id="opflux-url" value="${esc(d.fluxograma||'')}" placeholder="https://..."></div>
+    <button class="btn-gold" style="width:100%;margin-top:14px;" onclick="opSaveFluxograma('${lojaId}','${setor}')">Salvar</button>`);
+}
+function opSaveFluxograma(lojaId,setor){
+  const d=opGetFaqSetor(lojaId,setor);
+  d.fluxograma=document.getElementById('opflux-url').value.trim();
+  saveLocal();closeModal();renderOperacional();toast('Fluxograma atualizado!');
+}
+
 </script>
 </body>
 </html>
