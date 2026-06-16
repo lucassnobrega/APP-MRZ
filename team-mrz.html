@@ -6209,7 +6209,7 @@ function renderCarros(){
             <div style="font-weight:800;font-size:1rem;letter-spacing:.02em;">${esc(c.placa)}</div>
             <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${esc(c.modelo||'—')}</div>
           </div>
-          <span style="font-size:.63rem;font-weight:700;padding:3px 9px;border-radius:999px;background:${cor}20;color:${cor};border:1px solid ${cor}40;white-space:nowrap;">${lbl}</span>
+          <button onclick="openCarStatusModal('${c.id}')" title="Alterar status" style="font-size:.63rem;font-weight:700;padding:3px 9px;border-radius:999px;background:${cor}20;color:${cor};border:1px solid ${cor}40;white-space:nowrap;cursor:pointer;">${lbl} ▾</button>
         </div>
         <div style="padding:12px 16px;flex:1;display:flex;flex-direction:column;gap:6px;">
           <div style="display:flex;justify-content:space-between;font-size:.79rem;">
@@ -6226,7 +6226,7 @@ function renderCarros(){
           </div>`:''}
         </div>
         <div style="padding:10px 16px 14px;display:flex;gap:8px;">
-          <button class="btn-ghost btn-sm" style="flex:1;" onclick="openCarDetail('${c.id}')">📋 Histórico</button>
+          <button class="btn-ghost btn-sm" style="flex:1;" onclick="openCarDetail('${c.id}')">Histórico</button>
           <button class="btn-gold btn-sm" style="flex:1;" onclick="openAddManutencaoModal('${c.id}')">+ Registro</button>
         </div>
       </div>`;
@@ -6241,6 +6241,36 @@ function renderCarros(){
     </div>
     ${carGrid}
   </div>`;
+}
+
+function openCarStatusModal(carId){
+  if(!S.carros)S.carros=[];
+  const c=S.carros.find(x=>x.id===carId);if(!c)return;
+  const STATUS_COR={ok:'#22c55e',atencao:'#f59e0b',manutencao:'#ef4444'};
+  const STATUS_LABEL={ok:'OK',atencao:'Atenção',manutencao:'Em Manutenção'};
+  const opts=['ok','atencao','manutencao'].map(s=>{
+    const cor=STATUS_COR[s];
+    const sel=c.status===s;
+    return`<button onclick="setCarStatus('${carId}','${s}')" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border-radius:10px;border:2px solid ${sel?cor:'var(--line)'};background:${sel?cor+'18':'var(--panel2)'};cursor:pointer;text-align:left;margin-bottom:8px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
+      <span style="font-weight:${sel?'700':'500'};font-size:.9rem;color:${sel?cor:'var(--text)'};">${STATUS_LABEL[s]}</span>
+      ${sel?'<span style="margin-left:auto;font-size:.75rem;color:'+cor+';">✓ Atual</span>':''}
+    </button>`;
+  }).join('');
+  openModal(`<div style="padding:22px 24px;min-width:280px;">
+    <div style="font-weight:700;font-size:.95rem;margin-bottom:4px;">Status — ${esc(c.placa)}</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:16px;">Selecione o novo status do veículo</div>
+    ${opts}
+    <button class="btn-ghost btn-sm" style="width:100%;margin-top:4px;" onclick="closeModal()">Cancelar</button>
+  </div>`);
+}
+function setCarStatus(carId,status){
+  if(!S.carros)S.carros=[];
+  const c=S.carros.find(x=>x.id===carId);if(!c)return;
+  c.status=status;
+  saveLocal();closeModal();renderCarros();
+  const lbl={ok:'OK',atencao:'Atenção',manutencao:'Em Manutenção'}[status]||status;
+  toast(`Status atualizado: ${lbl}`);
 }
 
 function openAddCarModal(editId){
