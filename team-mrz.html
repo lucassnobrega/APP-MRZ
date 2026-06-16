@@ -945,6 +945,7 @@ select.f-in,select.finput{appearance:none;cursor:pointer;background-image:url("d
       <div id="p-contas" class="panel"></div>
       <div id="p-usuarios" class="panel"></div>
       <div id="p-manutencao" class="panel"></div>
+      <div id="p-carros" class="panel"></div>
       <div id="p-operacional" class="panel"></div>
     </div>
   </div>
@@ -1063,7 +1064,8 @@ const M={
   douglas:{name:'Douglas',role:'Gerente · Zanoni Alphaville',color:'#3b82f6',icon:'DG',isLeader:false,email:'douglas@grupomrz.com',daily:[],weekly:{}},
   saulo:{name:'Saulo',role:'Gerente · Zanoni Maringá',color:'#8b5cf6',icon:'SL',isLeader:false,email:'saulo@grupomrz.com',daily:[],weekly:{}},
   amanda:{name:'Amanda',role:'Gerente · Raz Alameda',color:'#ec4899',icon:'AM',isLeader:false,email:'amanda@grupomrz.com',daily:[],weekly:{}},
-  carla:{name:'Carla',role:'Gerente · Raz Mercadão',color:'#14b8a6',icon:'CL',isLeader:false,email:'carla@grupomrz.com',daily:[],weekly:{}}
+  carla:{name:'Carla',role:'Gerente · Raz Mercadão',color:'#14b8a6',icon:'CL',isLeader:false,email:'carla@grupomrz.com',daily:[],weekly:{}},
+  rogerio:{name:'Rogério',role:'Coordenador de Logística e Manutenção',color:'#84cc16',icon:'RG',isLeader:false,tipo:'frota',email:'rogerio@grupomrz.com',daily:[],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1109,7 +1111,7 @@ function reRenderAll(){
   if(curPanel&&curPanel!=='home'){try{renderPanel(curPanel);}catch(e){console.error('reRenderAll panel:',curPanel,e);}}
 }
 
-function defState(){return{v:23,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},op:{gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[],checklistModelos:{},faq:{},completions:{},lojaConfig:{}},lastUp:null};}
+function defState(){return{v:23,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],carros:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},op:{gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[],checklistModelos:{},faq:{},completions:{},lojaConfig:{}},lastUp:null};}
 function migrateState(d){
   // Segurança permanente: líderes nunca têm customPerms (roda a cada sync)
   const _LIDERES_FIXOS=['marlon','bruna','lucas','raquel','iza','dario','carlos','marco','nelci','carol'];
@@ -1152,6 +1154,7 @@ function migrateState(d){
   if(!d.usernames||typeof d.usernames!=='object')d.usernames={};
   // v17: add manutencao array
   if(!Array.isArray(d.manutencao))d.manutencao=[];
+  if(!Array.isArray(d.carros))d.carros=[];
   // v18: refresh rotinas (corrections + new routines for Marco, Nelci, Carol, Iza, Dário, Bruna)
   if(!d.v||d.v<18){const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));d.rotinas={...(d.rotinas||{}),defs:[...defRotinas(),...custom]};}
   // v19: deduplicar rotinas corrompidas por migrações anteriores com filtro errado
@@ -1510,6 +1513,7 @@ function enterApp(k){
   if(me==='marlon')goPanel('gestao');
   else if(_gerentes.includes(me)){window._opLojaView=null;window._opTab='tarefas';goPanel('operacional');}
   else if(_isSetorLider){window._opLojaView=M[k].loja;window._opTab='meu-setor';goPanel('operacional');}
+  else if(M[k]?.tipo==='frota')goPanel('carros');
   else goPanel('home');
   // Notificação de tarefas atrasadas — roda após carregar dados
   setTimeout(checkAtrasadas, 3000);
@@ -1543,6 +1547,7 @@ const NAV_ITEMS=[
   {id:'timeline',label:'Timeline',            grp:'Gestão',    leader:true},
   {id:'contas', label:'Contas a Pagar',       grp:'Financeiro',leader:true, extra:['marco']},
   {id:'manutencao',label:'Manutenção',        grp:'Pessoal',   roles:['bredi'], leader:true},
+  {id:'carros',    label:'Frota / Carros',   grp:'Pessoal',   roles:['rogerio'],leader:true},
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -1674,6 +1679,8 @@ function buildSidebar(){
     if(customPerms){
       if(!customPerms.includes(item.id))return;
     } else {
+      // Usuário de frota (Rogério) só vê o painel de Carros
+      if(M[me]?.tipo==='frota'){if(item.id!=='carros')return;}
       if(item.exclude&&item.exclude.includes(me))return;
       if(item.roles&&!item.roles.includes(me)&&!isL)return;
       if(item.leader&&!isL&&!(item.extra&&item.extra.includes(me)))return;
@@ -1730,6 +1737,7 @@ function renderPanel(id){
     case 'gestao':renderGestao();break;
     case 'contas':renderContasPagar();break;
     case 'manutencao':renderManutencao();break;
+    case 'carros':renderCarros();break;
     case 'operacional':renderOperacional();break;
     case 'usuarios':renderUsuarios();break;
     case 'rh':renderRH();break;
@@ -1893,10 +1901,18 @@ function metasCalc(k,y,m){
   const now=new Date();const td=todayKey();
   const isCurMonth=(y===now.getFullYear()&&m===now.getMonth()+1);
   const lastDay=isCurMonth?now.getDate():new Date(y,m,0).getDate();
-  let rotDue=0,rotDone=0;
+  let rotDue=0,rotDone=0,rotLate=0,rotPts=0;
   for(let d=1;d<=lastDay;d++){
+    const dk=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dues=rotasDueOn(new Date(y,m-1,d),k);
-    dues.forEach(x=>{rotDue++;if((S.rotinas?.completions||{})[rotCompKey(x.rot.id,x.pk,k)]?.status==='feito')rotDone++;});
+    dues.forEach(x=>{
+      rotDue++;
+      const c=(S.rotinas?.completions||{})[rotCompKey(x.rot.id,x.pk,k)];
+      if(c?.status==='feito'){
+        rotDone++;
+        if(c.em&&c.em>dk){rotLate++;rotPts+=0.5;}else rotPts+=1;
+      }
+    });
   }
   const ym=`${y}-${String(m).padStart(2,'0')}`;
   const DELIV=['review','aprovado','done'];
@@ -1912,9 +1928,21 @@ function metasCalc(k,y,m){
       tList.push({t,st:'em andamento'});
     }
   });
-  const den=rotDue+tDen;
-  const pct=den?Math.round((rotDone+tPts)/den*100):null;
-  return{pct,rotDue,rotDone,tDen,tPts,tOnTime,tLate,tMiss,tList};
+  // Contas fixas (Marco): paga em dia=1, paga atrasada=0.5, vencida sem pagar=0
+  let ctDen=0,ctOk=0,ctLate=0,ctMiss=0,ctPts=0;
+  if(k==='marco'&&S.contasPagar){
+    const maxDia=new Date(y,m,0).getDate();
+    (S.contasPagar.lojas||[]).forEach(l=>{(l.contas||[]).forEach(c=>{
+      if(!c.dia||c.dia>maxDia)return;
+      const dueK=`${ym}-${String(c.dia).padStart(2,'0')}`;
+      const pag=getContaPag(c.id,ym);
+      if(pag){ctDen++;if(pag.date&&pag.date>dueK){ctLate++;ctPts+=0.5;}else{ctOk++;ctPts+=1;}}
+      else if(dueK<td){ctDen++;ctMiss++;}
+    });});
+  }
+  const den=rotDue+tDen+ctDen;
+  const pct=den?Math.round((rotPts+tPts+ctPts)/den*100):null;
+  return{pct,rotDue,rotDone,rotLate,tDen,tPts,tOnTime,tLate,tMiss,tList,ctDen,ctOk,ctLate,ctMiss};
 }
 function metaFaixa(pct){
   if(pct===null)return{label:'Sem itens no mês',cor:'var(--muted)',bonus:'—'};
@@ -1936,7 +1964,7 @@ function renderMetas(){
   const isDono=DONO_VIEW.includes(me);
   let html=`<div style="margin-bottom:16px;">
     <div style="font-size:1.1rem;font-weight:800;">Metas — ${mesLabel.charAt(0).toUpperCase()+mesLabel.slice(1)}</div>
-    <div style="font-size:.74rem;color:var(--muted);margin-top:3px;">% de entrega = rotinas feitas no dia + tarefas entregues no prazo (atrasada vale meio ponto). Faixas: <b style="color:var(--green)">≥90% meta cheia</b> · <b style="color:var(--amber)">75–89% parcial</b> · <b style="color:var(--red)">&lt;75% sem bônus</b></div>
+    <div style="font-size:.74rem;color:var(--muted);margin-top:3px;">% de entrega = rotinas + tarefas + contas fixas (financeiro), tudo no prazo. Item feito com atraso vale meio ponto; vencido sem fazer, zero. Faixas: <b style="color:var(--green)">≥90% meta cheia</b> · <b style="color:var(--amber)">75–89% parcial</b> · <b style="color:var(--red)">&lt;75% sem bônus</b></div>
   </div>`;
   if(isDono){
     html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;">`;
@@ -1950,7 +1978,7 @@ function renderMetas(){
         </div>
         <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-size:1.5rem;font-weight:800;color:${f.cor};">${r.pct===null?'—':r.pct+'%'}</span><span style="font-size:.6rem;font-weight:800;letter-spacing:.05em;color:${f.cor};">${f.label}</span></div>
         ${metaBarHtml(r.pct,f.cor)}
-        <div style="font-size:.64rem;color:var(--muted);">Rotinas ${r.rotDone}/${r.rotDue} · Tarefas no prazo ${r.tOnTime}${r.tLate?` · atrasadas ${r.tLate}`:''}${r.tMiss?` · <b style="color:var(--red)">vencidas ${r.tMiss}</b>`:''}</div>
+        <div style="font-size:.64rem;color:var(--muted);">Rotinas ${r.rotDone}/${r.rotDue}${r.rotLate?` (${r.rotLate} fora do dia)`:''} · Tarefas no prazo ${r.tOnTime}${r.tLate?` · atrasadas ${r.tLate}`:''}${r.tMiss?` · <b style="color:var(--red)">vencidas ${r.tMiss}</b>`:''}${r.ctDen?` · Contas ${r.ctOk}/${r.ctDen}${r.ctMiss?` <b style="color:var(--red)">(${r.ctMiss} sem pagar)</b>`:''}`:''}</div>
       </div>`;
     });
     html+=`</div>`;
@@ -1967,6 +1995,7 @@ function renderMetas(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
         <div style="background:var(--panel2);border-radius:10px;padding:10px;"><div style="font-size:.62rem;color:var(--muted);">ROTINAS DO MÊS</div><div style="font-size:1.05rem;font-weight:800;">${r.rotDone} <span style="font-size:.72rem;color:var(--muted);font-weight:400;">de ${r.rotDue}</span></div></div>
         <div style="background:var(--panel2);border-radius:10px;padding:10px;"><div style="font-size:.62rem;color:var(--muted);">TAREFAS</div><div style="font-size:1.05rem;font-weight:800;">${r.tOnTime+r.tLate} <span style="font-size:.72rem;color:var(--muted);font-weight:400;">entregues${r.tMiss?` · ${r.tMiss} vencida${r.tMiss>1?'s':''}`:''}</span></div></div>
+        ${r.ctDen?`<div style="background:var(--panel2);border-radius:10px;padding:10px;grid-column:1 / -1;"><div style="font-size:.62rem;color:var(--muted);">CONTAS FIXAS DO MÊS</div><div style="font-size:1.05rem;font-weight:800;">${r.ctOk} <span style="font-size:.72rem;color:var(--muted);font-weight:400;">pagas em dia${r.ctLate?` · ${r.ctLate} com atraso`:''}${r.ctMiss?` · <b style="color:var(--red)">${r.ctMiss} vencida${r.ctMiss>1?'s':''} sem pagar</b>`:''}</span></div></div>`:''}
       </div>
       ${falta90?`<div style="font-size:.76rem;color:var(--muted);margin-bottom:10px;">${falta90}</div>`:''}
       ${hoje.total&&hoje.done<hoje.total?`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:10px 12px;font-size:.78rem;"><b style="color:var(--amber);">Hoje:</b> ${hoje.total-hoje.done} rotina${hoje.total-hoje.done>1?'s':''} pendente${hoje.total-hoje.done>1?'s':''} — <a href="#" onclick="event.preventDefault();goPanel('rotinas')" style="color:var(--acc);">resolver agora</a></div>`:''}
@@ -1992,7 +2021,7 @@ function metasDrill(k){
   let html=`<h3 style="margin-bottom:2px;">${m2.name}</h3><div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">${m2.role} · ${now.toLocaleDateString('pt-BR',{month:'long'})}</div>
   <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2rem;font-weight:800;color:${f.cor};">${r.pct===null?'—':r.pct+'%'}</span><span style="font-size:.68rem;font-weight:800;color:${f.cor};">${f.label} · ${f.bonus}</span></div>
   ${metaBarHtml(r.pct,f.cor,12)}
-  <div style="font-size:.76rem;color:var(--muted);margin:8px 0 14px;">Rotinas: <b>${r.rotDone}/${r.rotDue}</b> · Tarefas no prazo: <b>${r.tOnTime}</b> · entregues atrasadas: <b>${r.tLate}</b> · vencidas sem entrega: <b style="color:var(--red)">${r.tMiss}</b></div>`;
+  <div style="font-size:.76rem;color:var(--muted);margin:8px 0 14px;">Rotinas: <b>${r.rotDone}/${r.rotDue}</b>${r.rotLate?` (<b style="color:var(--amber)">${r.rotLate} fora do dia</b>)`:''} · Tarefas no prazo: <b>${r.tOnTime}</b> · entregues atrasadas: <b>${r.tLate}</b> · vencidas sem entrega: <b style="color:var(--red)">${r.tMiss}</b>${r.ctDen?` · Contas fixas em dia: <b>${r.ctOk}/${r.ctDen}</b>${r.ctLate?` · pagas com atraso: <b style="color:var(--amber)">${r.ctLate}</b>`:''}${r.ctMiss?` · vencidas sem pagar: <b style="color:var(--red)">${r.ctMiss}</b>`:''}`:''}</div>`;
   if(r.tList.length){
     html+=`<div class="gestao-sec">Tarefas do mês</div>`;
     r.tList.forEach(({t,st})=>{
@@ -6147,6 +6176,240 @@ function arquivarMesManu(){
   saveLocal();toast(count?`${count} demanda(s) arquivadas.`:"Nenhuma para arquivar.");renderManutencao();
 }
 
+// ══════════════════════════════════════
+// FROTA / CARROS — Rogério
+// ══════════════════════════════════════
+function renderCarros(){
+  if(!S.carros)S.carros=[];
+  const carros=S.carros;
+  const STATUS_COR={ok:'#22c55e',atencao:'#f59e0b',manutencao:'#ef4444'};
+  const STATUS_LABEL={ok:'OK',atencao:'Atenção',manutencao:'Em Manutenção'};
+  const tot=carros.length,ok=carros.filter(c=>c.status==='ok').length,
+        at=carros.filter(c=>c.status==='atencao').length,em=carros.filter(c=>c.status==='manutencao').length;
+  const chip=(v,label,cor)=>`<div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:10px;">
+    ${cor?`<span style="width:9px;height:9px;border-radius:50%;background:${cor};flex-shrink:0;"></span>`:'<span style="font-size:1rem;">🚗</span>'}
+    <div><div style="font-size:1.4rem;font-weight:800;line-height:1;">${v}</div><div style="font-size:.68rem;color:var(--muted);margin-top:2px;">${label}</div></div>
+  </div>`;
+  const carGrid=carros.length===0?`<div class="empty-state" style="margin-top:32px;">
+    <div style="font-size:2.5rem;margin-bottom:10px;">🚗</div>
+    <div style="font-weight:700;margin-bottom:4px;">Nenhum veículo cadastrado</div>
+    <div style="font-size:.82rem;color:var(--muted);">Adicione o primeiro veículo da frota.</div>
+  </div>`:
+  `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;">
+    ${carros.map(c=>{
+      const cor=STATUS_COR[c.status]||'#888';
+      const lbl=STATUS_LABEL[c.status]||c.status;
+      const mans=(c.manutencoes||[]).sort((a,b)=>new Date(b.data)-new Date(a.data));
+      const ult=mans[0];
+      const kmAlert=c.proxima_revisao_km&&c.km&&c.km>=(c.proxima_revisao_km-2000);
+      return`<div style="background:var(--panel2);border-radius:14px;border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div style="font-weight:800;font-size:1rem;letter-spacing:.02em;">${esc(c.placa)}</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${esc(c.modelo||'—')}</div>
+          </div>
+          <span style="font-size:.63rem;font-weight:700;padding:3px 9px;border-radius:999px;background:${cor}20;color:${cor};border:1px solid ${cor}40;white-space:nowrap;">${lbl}</span>
+        </div>
+        <div style="padding:12px 16px;flex:1;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:.79rem;">
+            <span style="color:var(--muted);">KM atual</span>
+            <span style="font-weight:600;">${c.km?c.km.toLocaleString('pt-BR')+' km':'—'}</span>
+          </div>
+          ${c.proxima_revisao_km?`<div style="display:flex;justify-content:space-between;font-size:.79rem;">
+            <span style="color:var(--muted);">Próxima revisão</span>
+            <span style="font-weight:700;color:${kmAlert?'#ef4444':'var(--text)'};">${c.proxima_revisao_km.toLocaleString('pt-BR')} km${kmAlert?' ⚠':''}</span>
+          </div>`:''}
+          ${ult?`<div style="display:flex;justify-content:space-between;font-size:.79rem;">
+            <span style="color:var(--muted);">Última manutenção</span>
+            <span style="font-weight:600;">${fmtDate(ult.data)}</span>
+          </div>`:''}
+        </div>
+        <div style="padding:10px 16px 14px;display:flex;gap:8px;">
+          <button class="btn-ghost btn-sm" style="flex:1;" onclick="openCarDetail('${c.id}')">📋 Histórico</button>
+          <button class="btn-gold btn-sm" style="flex:1;" onclick="openAddManutencaoModal('${c.id}')">+ Registro</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+  document.getElementById('p-carros').innerHTML=`<div style="padding:20px;max-width:960px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        ${chip(tot,'Total',null)}${chip(ok,'OK','#22c55e')}${chip(at,'Atenção','#f59e0b')}${chip(em,'Em Manutenção','#ef4444')}
+      </div>
+      <button class="btn-gold" onclick="openAddCarModal(null)">+ Novo Veículo</button>
+    </div>
+    ${carGrid}
+  </div>`;
+}
+
+function openAddCarModal(editId){
+  if(!S.carros)S.carros=[];
+  const c=editId?S.carros.find(x=>x.id===editId):null;
+  openModal(`<div style="padding:22px 24px;min-width:320px;max-width:420px;">
+    <h3 style="margin:0 0 18px;font-size:1rem;">${c?'Editar Veículo':'Novo Veículo'}</h3>
+    <div class="f-grp"><label class="f-lb">Placa *</label>
+      <input class="f-in" id="car-placa" placeholder="ABC-1234" value="${esc(c?.placa||'')}" style="text-transform:uppercase;"></div>
+    <div class="f-grp"><label class="f-lb">Modelo / Descrição</label>
+      <input class="f-in" id="car-modelo" placeholder="Ex: Toyota Hilux 2020" value="${esc(c?.modelo||'')}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">KM Atual</label>
+        <input class="f-in" type="number" id="car-km" placeholder="45000" value="${c?.km||''}"></div>
+      <div class="f-grp"><label class="f-lb">Próxima Revisão (KM)</label>
+        <input class="f-in" type="number" id="car-rev-km" placeholder="50000" value="${c?.proxima_revisao_km||''}"></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Status</label>
+      <select class="f-in" id="car-status">
+        <option value="ok"${(c?.status||'ok')==='ok'?' selected':''}>OK</option>
+        <option value="atencao"${c?.status==='atencao'?' selected':''}>Atenção</option>
+        <option value="manutencao"${c?.status==='manutencao'?' selected':''}>Em Manutenção</option>
+      </select></div>
+    <div class="f-grp"><label class="f-lb">Observações</label>
+      <textarea class="f-in" id="car-obs" rows="2" placeholder="Obs gerais...">${esc(c?.obs||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      ${c?`<button class="btn-ghost btn-sm" style="color:var(--red);" onclick="if(confirm('Excluir veículo?')){delCar('${c.id}')}">Excluir</button>`:''}
+      <button class="btn-ghost btn-sm" style="flex:1;" onclick="closeModal()">Cancelar</button>
+      <button class="btn-gold btn-sm" style="flex:1;" onclick="saveCar(${editId?`'${editId}'`:'null'})">Salvar</button>
+    </div>
+  </div>`);
+}
+
+function saveCar(editId){
+  const placa=(document.getElementById('car-placa').value||'').trim().toUpperCase();
+  if(!placa){toast('Informe a placa.');return;}
+  if(!S.carros)S.carros=[];
+  if(editId){
+    const c=S.carros.find(x=>x.id===editId);if(!c)return;
+    c.placa=placa;c.modelo=document.getElementById('car-modelo').value.trim();
+    c.km=parseInt(document.getElementById('car-km').value)||c.km||0;
+    c.proxima_revisao_km=parseInt(document.getElementById('car-rev-km').value)||null;
+    c.status=document.getElementById('car-status').value;
+    c.obs=document.getElementById('car-obs').value.trim();
+  } else {
+    S.carros.push({id:uid(),placa,modelo:document.getElementById('car-modelo').value.trim(),
+      km:parseInt(document.getElementById('car-km').value)||0,
+      proxima_revisao_km:parseInt(document.getElementById('car-rev-km').value)||null,
+      status:document.getElementById('car-status').value||'ok',
+      obs:document.getElementById('car-obs').value.trim(),manutencoes:[]});
+  }
+  saveLocal();closeModal();renderCarros();toast('Veículo salvo!');
+}
+
+function delCar(carId){
+  S.carros=(S.carros||[]).filter(c=>c.id!==carId);
+  saveLocal();closeModal();renderCarros();toast('Veículo removido.');
+}
+
+function openCarDetail(carId){
+  if(!S.carros)S.carros=[];
+  const c=S.carros.find(x=>x.id===carId);if(!c)return;
+  const STATUS_COR={ok:'#22c55e',atencao:'#f59e0b',manutencao:'#ef4444'};
+  const STATUS_LABEL={ok:'OK',atencao:'Atenção',manutencao:'Em Manutenção'};
+  const cor=STATUS_COR[c.status]||'#888';
+  const mans=(c.manutencoes||[]).slice().sort((a,b)=>new Date(b.data)-new Date(a.data));
+  const kmAlert=c.proxima_revisao_km&&c.km&&c.km>=(c.proxima_revisao_km-2000);
+  openWideModal(`
+    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-weight:800;font-size:1.1rem;">${esc(c.placa)}</div>
+        <div style="font-size:.8rem;color:var(--muted);">${esc(c.modelo||'—')}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:999px;background:${cor}20;color:${cor};border:1px solid ${cor}40;">${STATUS_LABEL[c.status]||c.status}</span>
+        <button onclick="openAddCarModal('${carId}')" style="font-size:.72rem;padding:5px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;color:var(--text);">✏️ Editar</button>
+        <button onclick="closeModal()" style="background:rgba(128,128,128,.12);border:1px solid var(--line);color:var(--muted);border-radius:8px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;font-size:.9rem;">✕</button>
+      </div>
+    </div>
+    <div style="padding:16px 24px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);">
+      <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;min-width:110px;">
+        <div style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">KM Atual</div>
+        <div style="font-weight:800;font-size:1.05rem;">${c.km?c.km.toLocaleString('pt-BR')+' km':'—'}</div>
+      </div>
+      ${c.proxima_revisao_km?`<div style="background:var(--panel2);border-radius:10px;padding:10px 16px;min-width:110px;">
+        <div style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Próxima Revisão</div>
+        <div style="font-weight:800;font-size:1.05rem;color:${kmAlert?'#ef4444':'var(--acc)'};">${c.proxima_revisao_km.toLocaleString('pt-BR')} km${kmAlert?' ⚠':''}</div>
+      </div>`:''}
+      <div style="background:var(--panel2);border-radius:10px;padding:10px 16px;min-width:110px;">
+        <div style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Registros</div>
+        <div style="font-weight:800;font-size:1.05rem;">${mans.length}</div>
+      </div>
+    </div>
+    ${c.obs?`<div style="padding:12px 24px 0;font-size:.79rem;color:var(--muted);">${esc(c.obs)}</div>`:''}
+    <div style="padding:16px 24px 20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-weight:700;font-size:.9rem;">Histórico de Manutenções</div>
+        <button class="btn-gold btn-sm" onclick="closeModal();openAddManutencaoModal('${carId}')">+ Registrar</button>
+      </div>
+      ${mans.length===0?`<div style="text-align:center;color:var(--muted);font-size:.82rem;padding:24px 0;">Nenhuma manutenção registrada.</div>`
+      :mans.map((m,i)=>`<div style="background:var(--panel2);border-radius:10px;padding:11px 14px;margin-bottom:8px;border:1px solid var(--line);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div style="font-weight:600;font-size:.85rem;">${esc(m.tipo||'Manutenção')}</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+              ${m.custo?`<span style="font-size:.72rem;font-weight:700;color:var(--acc);">R$ ${Number(m.custo).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:''}
+              <button onclick="delCarMan('${carId}',${i})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.8rem;padding:0 2px;">✕</button>
+            </div>
+          </div>
+          <div style="font-size:.71rem;color:var(--muted);margin-top:3px;">${fmtDate(m.data)}${m.km?' · '+Number(m.km).toLocaleString('pt-BR')+' km':''}</div>
+          ${m.obs?`<div style="font-size:.78rem;margin-top:5px;">${esc(m.obs)}</div>`:''}
+        </div>`).join('')}
+    </div>
+  `);
+}
+
+function openAddManutencaoModal(carId){
+  if(!S.carros)S.carros=[];
+  const c=S.carros.find(x=>x.id===carId);if(!c)return;
+  openModal(`<div style="padding:22px 24px;min-width:320px;max-width:420px;">
+    <h3 style="margin:0 0 18px;font-size:1rem;">Registrar Manutenção — ${esc(c.placa)}</h3>
+    <div class="f-grp"><label class="f-lb">Tipo / Serviço *</label>
+      <input class="f-in" id="man-tipo" placeholder="Ex: Troca de óleo, Revisão, Pneu..." list="man-tipos-list" autocomplete="off">
+      <datalist id="man-tipos-list">
+        <option value="Troca de óleo"><option value="Revisão geral"><option value="Troca de pneu">
+        <option value="Alinhamento e balanceamento"><option value="Freios"><option value="Filtro de ar">
+        <option value="Lavagem completa"><option value="IPVA / Documentação"><option value="Sinistro / Seguro">
+        <option value="Vidro / Lataria"><option value="Elétrica"><option value="Ar-condicionado">
+      </datalist>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="f-grp"><label class="f-lb">Data</label>
+        <input class="f-in" type="date" id="man-data" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="f-grp"><label class="f-lb">KM no momento</label>
+        <input class="f-in" type="number" id="man-km" value="${c.km||''}"></div>
+    </div>
+    <div class="f-grp"><label class="f-lb">Custo (R$)</label>
+      <input class="f-in" type="number" step="0.01" id="man-custo" placeholder="0,00"></div>
+    <div class="f-grp"><label class="f-lb">Observações</label>
+      <textarea class="f-in" id="man-obs" rows="2" placeholder="Oficina, detalhes, garantia..."></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button class="btn-ghost btn-sm" style="flex:1;" onclick="closeModal()">Cancelar</button>
+      <button class="btn-gold btn-sm" style="flex:1;" onclick="saveCarMan('${carId}')">Registrar</button>
+    </div>
+  </div>`);
+}
+
+function saveCarMan(carId){
+  const tipo=(document.getElementById('man-tipo').value||'').trim();
+  if(!tipo){toast('Informe o tipo de serviço.');return;}
+  if(!S.carros)S.carros=[];
+  const c=S.carros.find(x=>x.id===carId);if(!c)return;
+  if(!c.manutencoes)c.manutencoes=[];
+  const km=parseInt(document.getElementById('man-km').value)||0;
+  c.manutencoes.push({id:uid(),tipo,
+    data:document.getElementById('man-data').value||new Date().toISOString().slice(0,10),
+    km,custo:parseFloat(document.getElementById('man-custo').value)||0,
+    obs:document.getElementById('man-obs').value.trim(),por:me});
+  if(km&&km>(c.km||0))c.km=km;
+  saveLocal();closeModal();renderCarros();toast('Manutenção registrada!');
+}
+
+function delCarMan(carId,idx){
+  if(!S.carros)return;
+  const c=S.carros.find(x=>x.id===carId);if(!c||!c.manutencoes)return;
+  const mans=c.manutencoes.slice().sort((a,b)=>new Date(b.data)-new Date(a.data));
+  mans.splice(idx,1);
+  c.manutencoes=mans;
+  saveLocal();closeModal();renderCarros();toast('Registro removido.');
+}
+
 function downloadManuHist(mes){
   const rows=(S.manutencao||[]).filter(d=>d._arq&&d._arqMes===mes).map(d=>{
     const custoTotal=(d.materiais||[]).reduce((s,m)=>s+(parseFloat(m.custo)||0),0);
@@ -6841,7 +7104,7 @@ function rotMarkDoneFast(rotId,pk,assignee){
     delete S.rotinas.completions[key];
     toast('Rotina desmarcada.');
   }else{
-    S.rotinas.completions[key]={status:'feito',comoFoi:'',obs:'',links:[],campos:{},by:me,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+    S.rotinas.completions[key]={status:'feito',em:todayKey(),comoFoi:'',obs:'',links:[],campos:{},by:me,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
     toast('Rotina concluída!');
   }
   saveLocal();renderRotinas();
@@ -6858,7 +7121,7 @@ function rotMarkCalDone(evId){
     delete S.rotinas.completions[key];
     toast('Tarefa desmarcada.');
   }else{
-    S.rotinas.completions[key]={status:'feito',by:me,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+    S.rotinas.completions[key]={status:'feito',em:todayKey(),by:me,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
     toast('Tarefa concluída!');
   }
   saveLocal();renderRotinas();
@@ -7637,7 +7900,7 @@ function saveComp(rotId,periodKey,assignee,nCampos){
   const rot=(S.rotinas.defs||[]).find(r=>r.id===rotId);
   if(rot&&rot.campos){rot.campos.forEach(cf=>{const el=document.getElementById('rcf_'+cf.id);if(el)camposVals[cf.id]=el.value;});}
   const key=rotCompKey(rotId,periodKey,assignee);
-  S.rotinas.completions[key]={status,comoFoi,obs,links,campos:camposVals,by:me,at:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})};
+  S.rotinas.completions[key]={status,em:todayKey(),comoFoi,obs,links,campos:camposVals,by:me,at:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})};
   saveLocal();closeModal();renderRotinas();
   if(document.getElementById('p-calendar').classList.contains('on'))renderCalendar();
   toast('Rotina registrada!');
