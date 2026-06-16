@@ -8550,7 +8550,7 @@ let tmpProj=null;
 
 function renderProjetos(){
   if(!S.projetos)S.projetos=[];
-  const isL=M[me]?.isLeader;
+  const isL=M[me]?.isLeader||M[me]?.tipo==='frota';
   const el=document.getElementById('p-projetos');
   const tipos=Object.keys(PROJ_TIPOS);
   // Filter tabs
