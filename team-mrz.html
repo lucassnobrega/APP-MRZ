@@ -1679,8 +1679,8 @@ function buildSidebar(){
     if(customPerms){
       if(!customPerms.includes(item.id))return;
     } else {
-      // Usuário de frota (Rogério) só vê o painel de Carros
-      if(M[me]?.tipo==='frota'){if(item.id!=='carros')return;}
+      // Usuário de frota (Rogério): só vê Carros, Tarefas, Projetos e Timeline
+      if(M[me]?.tipo==='frota'){if(!['carros','tasks','projetos','timeline'].includes(item.id))return;}
       if(item.exclude&&item.exclude.includes(me))return;
       if(item.roles&&!item.roles.includes(me)&&!isL)return;
       if(item.leader&&!isL&&!(item.extra&&item.extra.includes(me)))return;
