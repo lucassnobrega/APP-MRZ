@@ -1620,10 +1620,21 @@ function buildOpSidebarHtml(){
   }
   // Abas de navegação
   const matchLoja=x=>lojaId?x.loja===lojaId:true;
+  const _clBadge=(lid)=>{
+    const hoje=todayKey();const agora=new Date();
+    const mods=(S.op?.checklistModelos?.[lid]||[]).filter(m=>m.ativo!==false);
+    const comps=(S.op?.completions?.[lid]?.[hoje])||{};
+    return mods.filter(m=>{
+      if(comps[m.id]?.status==='feito')return false;
+      const hp=m.horarioLimite?.split(':');
+      return hp&&(agora.getHours()>parseInt(hp[0])||(agora.getHours()===parseInt(hp[0])&&agora.getMinutes()>=parseInt(hp[1])));
+    }).length;
+  };
   const badges={
     tarefas:(S.op?.tarefas||[]).filter(t=>matchLoja(t)&&t.status!=='feito').length||0,
     erros:(S.op?.errosProcesso||[]).filter(e=>matchLoja(e)&&e.status==='pendente').length||0,
     manutencao:(S.op?.manutencao||[]).filter(m=>matchLoja(m)&&m.status!=='concluido').length||0,
+    checklists:lojaId?_clBadge(lojaId):OP_LOJAS.reduce((sum,lj)=>sum+_clBadge(lj.id),0),
   };
   const tabs=[
     {id:'hoje',        label:'Hoje',          grp:'Visão'},
@@ -9693,14 +9704,17 @@ function opRenderExec(){
           <textarea class="f-in" placeholder="Digite observações aqui..." rows="3" style="width:100%;resize:vertical;box-sizing:border-box;" oninput="opXSetObs('${item.id}',this.value)">${esc(ist.obs||'')}</textarea>
         </div>
         <div>
-          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTO${item.exigeFoto?` <span style="color:var(--red);">*</span>`:''}</div>
-          <label id="xfoto-label-${item.id}" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1px dashed ${(ist.fotos||[]).length?'var(--acc)':'var(--line)'};border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:700;color:${(ist.fotos||[]).length?'var(--acc)':'inherit'};">
-            ${(ist.fotos||[]).length?'TROCAR FOTO':'ANEXAR FOTO'}
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;">FOTO${item.exigeFoto?` <span style="color:var(--red);">*</span><span style="font-size:.55rem;font-weight:400;margin-left:4px;">(mínimo 1)</span>`:' <span style="font-size:.55rem;font-weight:400;color:var(--muted);">(opcional · várias permitidas)</span>'}</div>
+          <div id="xfoto-grid-${item.id}" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:${(ist.fotos||[]).length?'10px':'0px'};">
+            ${(ist.fotos||[]).map((f,fi)=>`<div style="position:relative;width:80px;height:80px;flex-shrink:0;">
+              <img src="${f}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${item.id}',${fi})">
+              <button onclick="opXDelFoto('${item.id}',${fi})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>
+            </div>`).join('')}
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px dashed var(--line);border-radius:10px;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--muted);transition:border-color .15s;" onmouseover="this.style.borderColor='var(--acc)';this.style.color='var(--acc)'" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--muted)'">
+            📷 ${(ist.fotos||[]).length?'Adicionar mais uma foto':'Anexar foto'}
             <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="opXAttachFoto('${item.id}',this)">
           </label>
-          <div id="xfoto-status-${item.id}" style="margin-top:8px;">
-            ${(ist.fotos||[]).length?`<img src="${ist.fotos[0]}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--acc);">`:''}
-          </div>
         </div>
       </div>
     </div>`;
@@ -9781,19 +9795,63 @@ function opXAttachFoto(itemId,input){
       canvas.width=w;canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
       const compressed=canvas.toDataURL('image/jpeg',0.72);
-      comp.items[itemId].fotos=[compressed];
-      try{saveLocal();}catch(e){toast('Foto grande demais, tente tirar outra.');return;}
-      // Update DOM immediately — no re-render needed
-      const statusEl=document.getElementById(`xfoto-status-${itemId}`);
-      const labelEl=document.getElementById(`xfoto-label-${itemId}`);
-      if(statusEl)statusEl.innerHTML=`<img src="${compressed}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--acc);">`;
-      if(labelEl){labelEl.style.borderColor='var(--acc)';labelEl.style.color='var(--acc)';
-        const txt=labelEl.childNodes[0];if(txt&&txt.nodeType===3)txt.textContent='TROCAR FOTO ';}
-      toast('Foto anexada!');
+      const fi=comp.items[itemId].fotos.length;
+      comp.items[itemId].fotos.push(compressed);
+      try{saveLocal();}catch(e){comp.items[itemId].fotos.pop();toast('Foto grande demais, tente tirar outra.');return;}
+      // Update DOM: append thumbnail to grid
+      const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
+      if(gridEl){
+        gridEl.style.marginBottom='10px';
+        const thumb=document.createElement('div');
+        thumb.style.cssText='position:relative;width:80px;height:80px;flex-shrink:0;';
+        thumb.innerHTML=`<img src="${compressed}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${itemId}',${fi})"><button onclick="opXDelFoto('${itemId}',${fi})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>`;
+        gridEl.appendChild(thumb);
+      }
+      // Update label text
+      const labelEl=gridEl?gridEl.nextElementSibling:null;
+      if(labelEl){const span=labelEl.querySelector('span:not([style])');if(!span){const nodes=Array.from(labelEl.childNodes);const txt=nodes.find(n=>n.nodeType===3&&n.textContent.trim());if(txt)txt.textContent='📷 Adicionar mais uma foto\n            ';}}
+      toast(`Foto ${fi+1} adicionada!`);
     };
     img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
+}
+function opXDelFoto(itemId,fi){
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
+  if(!comp?.items?.[itemId]?.fotos)return;
+  comp.items[itemId].fotos.splice(fi,1);
+  saveLocal();
+  // Re-render just the grid
+  const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
+  if(gridEl){
+    gridEl.style.marginBottom=comp.items[itemId].fotos.length?'10px':'0px';
+    gridEl.innerHTML=comp.items[itemId].fotos.map((f,i)=>`<div style="position:relative;width:80px;height:80px;flex-shrink:0;">
+      <img src="${f}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${itemId}',${i})">
+      <button onclick="opXDelFoto('${itemId}',${i})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>
+    </div>`).join('');
+  }
+  toast('Foto removida.');
+}
+function opXViewFoto(itemId,fi){
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
+  if(!comp?.items?.[itemId]?.fotos?.length)return;
+  const fotos=comp.items[itemId].fotos;
+  fi=Math.max(0,Math.min(fi,fotos.length-1));
+  const navHtml=fotos.length>1?`<div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">
+    ${fi>0?`<button class="btn-ghost btn-sm" onclick="closeModal();setTimeout(()=>opXViewFoto('${itemId}',${fi-1}),80)">← Anterior</button>`:'<div style="width:80px;"></div>'}
+    <span style="font-size:.78rem;color:var(--muted);align-self:center;">${fi+1} / ${fotos.length}</span>
+    ${fi<fotos.length-1?`<button class="btn-ghost btn-sm" onclick="closeModal();setTimeout(()=>opXViewFoto('${itemId}',${fi+1}),80)">Próxima →</button>`:'<div style="width:80px;"></div>'}
+  </div>`:'';
+  openModal(`<div style="padding:16px 20px;max-width:min(90vw,640px);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:.9rem;">${fotos.length>1?`Foto ${fi+1} de ${fotos.length}`:'Foto anexada'}</span>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">Fechar ✕</button>
+    </div>
+    <img src="${fotos[fi]}" style="width:100%;max-height:65vh;object-fit:contain;border-radius:10px;background:var(--panel);">
+    ${navHtml}
+  </div>`);
 }
 function opXUpdateProg(){
   const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
@@ -10775,6 +10833,100 @@ function opSaveErro(lojaId){
 function opTabChecklists(lojaId){
   if(!S.op.checklistModelos)S.op.checklistModelos={};
   if(!S.op.checklistModelos[lojaId])S.op.checklistModelos[lojaId]=[];
+  const sub=window._clSubTab||'acomp';
+  const tabBar=`<div style="display:flex;gap:4px;margin-bottom:20px;background:var(--panel2);border-radius:10px;padding:4px;">
+    <button onclick="window._clSubTab='acomp';renderOperacional()" style="flex:1;padding:7px 10px;border:none;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:700;
+      background:${sub==='acomp'?'var(--panel)':'transparent'};color:${sub==='acomp'?'var(--acc)':'var(--muted)'};">Acompanhamento</button>
+    <button onclick="window._clSubTab='modelos';renderOperacional()" style="flex:1;padding:7px 10px;border:none;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:700;
+      background:${sub==='modelos'?'var(--panel)':'transparent'};color:${sub==='modelos'?'var(--acc)':'var(--muted)'};">Modelos</button>
+  </div>`;
+  if(sub==='modelos') return tabBar+opTabChecklistsModelos(lojaId);
+  return tabBar+opTabChecklistsAcomp(lojaId);
+}
+function opTabChecklistsAcomp(lojaId){
+  const data=window._clAcompData||todayKey();
+  const modelos=(S.op.checklistModelos?.[lojaId]||[]).filter(m=>m.ativo!==false);
+  const comps=(S.op.completions?.[lojaId]?.[data])||{};
+  const hoje=todayKey();
+  const agora=new Date();
+  const isHoje=data===hoje;
+  const feitos=modelos.filter(m=>comps[m.id]?.status==='feito').length;
+  const atrasados=modelos.filter(m=>{
+    if(comps[m.id]?.status==='feito')return false;
+    const hp=m.horarioLimite?.split(':');
+    if(!hp)return false;
+    if(!isHoje)return true; // dias passados: tudo que não foi feito é atraso
+    return agora.getHours()>parseInt(hp[0])||(agora.getHours()===parseInt(hp[0])&&agora.getMinutes()>=parseInt(hp[1]));
+  }).length;
+  const pendentes=modelos.length-feitos-atrasados;
+  // Navegação de data
+  const prevData=(()=>{const d=new Date(data+'T12:00:00');d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})();
+  const nextData=(()=>{const d=new Date(data+'T12:00:00');d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);})();
+  const dataFmt=(()=>{const[y,m,d]=data.split('-');return`${d}/${m}/${y}`;})();
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <button onclick="window._clAcompData='${prevData}';renderOperacional()" class="btn-ghost btn-sm">← Ant.</button>
+    <input type="date" value="${data}" max="${hoje}" onchange="window._clAcompData=this.value;renderOperacional()"
+      style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--fg);font-size:.82rem;cursor:pointer;">
+    ${!isHoje?`<button onclick="window._clAcompData='${nextData}';renderOperacional()" class="btn-ghost btn-sm">Próx. →</button>`:''}
+    ${!isHoje?`<button onclick="window._clAcompData='${hoje}';renderOperacional()" class="btn-ghost btn-sm" style="color:var(--acc);">Hoje</button>`:''}
+    <div style="display:flex;gap:5px;margin-left:auto;flex-wrap:wrap;">
+      <span style="padding:3px 11px;border-radius:999px;font-size:.68rem;font-weight:700;background:#22c55e20;color:#22c55e;">${feitos} feito${feitos!==1?'s':''}</span>
+      ${atrasados?`<span style="padding:3px 11px;border-radius:999px;font-size:.68rem;font-weight:700;background:#ef444420;color:#ef4444;">${atrasados} atrasado${atrasados!==1?'s':''}</span>`:''}
+      ${pendentes>0?`<span style="padding:3px 11px;border-radius:999px;font-size:.68rem;font-weight:700;background:#f59e0b20;color:#f59e0b;">${pendentes} pendente${pendentes!==1?'s':''}</span>`:''}
+    </div>
+  </div>`;
+  if(!modelos.length){
+    return html+`<div style="padding:32px;text-align:center;color:var(--muted);font-size:.85rem;">Nenhum checklist ativo. Cadastre em "Modelos".</div>`;
+  }
+  // Progress bar
+  const pct=modelos.length?Math.round(feitos/modelos.length*100):0;
+  html+=`<div style="background:var(--panel2);border-radius:8px;height:6px;margin-bottom:20px;overflow:hidden;">
+    <div style="height:6px;border-radius:8px;background:${pct===100?'#22c55e':'var(--acc)'};width:${pct}%;transition:width .4s;"></div>
+  </div>`;
+  // Agrupar por setor
+  const setores=[...new Set(modelos.map(m=>m.setor||'Geral'))];
+  setores.forEach(setor=>{
+    const items=modelos.filter(m=>(m.setor||'Geral')===setor);
+    html+=`<div style="margin-bottom:24px;">
+      <div style="font-size:.66rem;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">${setor}</div>
+      ${items.map(m=>{
+        const comp=comps[m.id];
+        const feito=comp?.status==='feito';
+        const hp=m.horarioLimite?.split(':');
+        const passou=hp&&(isHoje?(agora.getHours()>parseInt(hp[0])||(agora.getHours()===parseInt(hp[0])&&agora.getMinutes()>=parseInt(hp[1]))):true);
+        const atrasado=!feito&&passou;
+        const quemFez=feito&&comp.finalizadoPor?M[comp.finalizadoPor]?.name||comp.finalizadoPor:'';
+        const horaFez=feito&&comp.finalizadoEm?comp.finalizadoEm.slice(11,16):'';
+        const totalFotos=feito?Object.values(comp.items||{}).reduce((sum,it)=>sum+(it.fotos?.length||0),0):0;
+        const totalItens=(m.items||[]).length;
+        const itensFeitosN=feito?Object.values(comp.items||{}).filter(it=>it.ok||it.nok||(it.valor!==undefined&&it.valor!=='')||(it.estrelas>0)||it.data).length:0;
+        const statusCor=feito?'#22c55e':atrasado?'#ef4444':'#f59e0b';
+        const statusLabel=feito?'✓ FEITO':atrasado?'ATRASADO':'PENDENTE';
+        return`<div onclick="${feito||atrasado?`opVerCompChecklist('${lojaId}','${m.id}','${data}')`:''}"
+          class="card" style="padding:12px 16px;margin-bottom:6px;${feito||atrasado?'cursor:pointer;':''}
+          border-left:3px solid ${statusCor};${feito?'background:rgba(34,197,94,.03);':''}${atrasado?'background:rgba(239,68,68,.03);':''}">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:.88rem;font-weight:700;margin-bottom:3px;">${esc(m.nome)}</div>
+              <div style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                ${m.turno?`<span>${m.turno}</span>`:''}
+                ${m.horarioLimite?`<span>Limite: ${m.horarioLimite}</span>`:''}
+                ${feito&&quemFez?`<span style="color:#22c55e;">por ${quemFez} às ${horaFez}</span>`:''}
+                ${feito&&totalFotos?`<span style="color:var(--acc);">📷 ${totalFotos} foto${totalFotos!==1?'s':''}</span>`:''}
+                ${feito?`<span>${itensFeitosN}/${totalItens} itens</span>`:''}
+              </div>
+            </div>
+            <span style="font-size:.66rem;font-weight:800;padding:4px 12px;border-radius:999px;flex-shrink:0;
+              background:${statusCor}20;color:${statusCor};">${statusLabel}</span>
+            ${feito?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--muted);flex-shrink:0;"><path d="m9 18 6-6-6-6"/></svg>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+  return html;
+}
+function opTabChecklistsModelos(lojaId){
   const modelos=S.op.checklistModelos[lojaId];
   const setores=opSetores(lojaId);
   const canEdit=opCanSeeAll()||(opLojaDoGerente(me)===lojaId);
@@ -10799,6 +10951,97 @@ function opTabChecklists(lojaId){
     </div>`;
   });
   return html;
+}
+function opVerCompChecklist(lojaId,modeloId,data){
+  data=data||todayKey();
+  const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
+  const comp=S.op.completions?.[lojaId]?.[data]?.[modeloId];
+  if(!m)return;
+  const feito=comp?.status==='feito';
+  const quemFez=feito&&comp.finalizadoPor?(M[comp.finalizadoPor]?.name||comp.finalizadoPor):'—';
+  const horaFez=feito&&comp.finalizadoEm?comp.finalizadoEm.slice(11,16):'—';
+  const[y,mo,d]=data.split('-');
+  const dataFmt=`${d}/${mo}/${y}`;
+  if(!feito){
+    openModal(`<div style="padding:22px 24px;max-width:460px;">
+      <div style="font-weight:700;font-size:1rem;margin-bottom:16px;">${esc(m.nome)}</div>
+      <div style="padding:28px;text-align:center;color:var(--muted);">
+        <div style="font-size:2.2rem;margin-bottom:10px;">⏳</div>
+        <div style="font-size:.9rem;font-weight:700;color:var(--fg);">Checklist não realizado</div>
+        <div style="font-size:.76rem;margin-top:5px;">Em ${dataFmt}, este checklist não foi preenchido.</div>
+      </div>
+      <button class="btn-ghost" style="width:100%;margin-top:4px;" onclick="closeModal()">Fechar</button>
+    </div>`);
+    return;
+  }
+  const okN=Object.values(comp.items||{}).filter(it=>it.ok).length;
+  const nokN=Object.values(comp.items||{}).filter(it=>it.nok).length;
+  const totalFotos=Object.values(comp.items||{}).reduce((sum,it)=>sum+(it.fotos?.length||0),0);
+  const itensHtml=(m.items||[]).map((item,idx)=>{
+    const st=comp.items?.[item.id]||{};
+    let respHtml='<span style="color:var(--muted);">—</span>';
+    if(item.tipoResp==='ok_nok'){
+      respHtml=st.ok?`<span style="color:#22c55e;font-weight:800;font-size:.78rem;">✓ OK</span>`:
+        st.nok?`<span style="color:#ef4444;font-weight:800;font-size:.78rem;">✗ NOK</span>`:'<span style="color:var(--muted);font-size:.78rem;">—</span>';
+    } else if(item.tipoResp==='valor'){
+      respHtml=(st.valor!==undefined&&st.valor!=='')?`<span style="font-weight:700;font-size:.82rem;">${esc(String(st.valor))}</span>`:'<span style="color:var(--muted);">—</span>';
+    } else if(item.tipoResp==='estrelas'){
+      respHtml=st.estrelas?`<span style="color:#f59e0b;font-size:.9rem;">${'★'.repeat(st.estrelas)}${'☆'.repeat(5-st.estrelas)}</span>`:'<span style="color:var(--muted);">—</span>';
+    } else if(item.tipoResp==='data'){
+      respHtml=st.data?`<span style="font-weight:700;font-size:.82rem;">${st.data}</span>`:'<span style="color:var(--muted);">—</span>';
+    }
+    const hasNok=item.tipoResp==='ok_nok'&&st.nok;
+    const fotosHtml=(st.fotos||[]).length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+      ${(st.fotos||[]).map((f,fi)=>`<img src="${f}" onclick="opModalViewFoto('${lojaId}','${modeloId}','${data}','${item.id}',${fi})"
+        style="width:58px;height:58px;object-fit:cover;border-radius:7px;border:1.5px solid var(--acc);cursor:pointer;" title="Ver foto ${fi+1}">`).join('')}
+    </div>`:'';
+    return`<div style="padding:10px 13px;background:${hasNok?'rgba(239,68,68,.05)':'var(--panel2)'};border-radius:10px;margin-bottom:6px;
+      border:1px solid ${hasNok?'rgba(239,68,68,.18)':'var(--line)'};">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:.68rem;font-weight:700;color:var(--muted);flex-shrink:0;padding-top:2px;">${idx+1}.</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.8rem;line-height:1.4;margin-bottom:5px;">${esc(item.texto)}</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${respHtml}
+            ${st.obs?`<span style="font-size:.7rem;color:var(--muted);font-style:italic;">"${esc(st.obs)}"</span>`:''}
+          </div>
+          ${fotosHtml}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  openWideModal(`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--line);flex-shrink:0;">
+      <div>
+        <div style="font-weight:800;font-size:.95rem;">${esc(m.nome)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px;">
+          ${dataFmt} &nbsp;·&nbsp; Preenchido por <b>${quemFez}</b> às ${horaFez}
+          ${okN||nokN?`&nbsp;·&nbsp; <span style="color:#22c55e;">${okN} OK</span>${nokN?` <span style="color:#ef4444;margin-left:4px;">${nokN} NOK</span>`:''}`:''}
+          ${totalFotos?`&nbsp;·&nbsp; 📷 ${totalFotos} foto${totalFotos!==1?'s':''}`:''}
+        </div>
+      </div>
+      <button onclick="closeModal()" style="background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--muted);border-radius:8px;width:30px;height:30px;display:grid;place-items:center;cursor:pointer;font-size:1rem;">✕</button>
+    </div>
+    <div style="padding:16px 22px;overflow-y:auto;flex:1;">
+      ${itensHtml||'<div style="color:var(--muted);text-align:center;padding:24px;">Nenhum item registrado.</div>'}
+    </div>`);
+}
+function opModalViewFoto(lojaId,modeloId,data,itemId,fi){
+  const fotos=S.op.completions?.[lojaId]?.[data]?.[modeloId]?.items?.[itemId]?.fotos||[];
+  fi=Math.max(0,Math.min(fi,fotos.length-1));
+  if(!fotos.length)return;
+  const nav=fotos.length>1?`<div style="display:flex;gap:8px;margin-top:12px;justify-content:center;align-items:center;">
+    ${fi>0?`<button class="btn-ghost btn-sm" onclick="closeModal();setTimeout(()=>opModalViewFoto('${lojaId}','${modeloId}','${data}','${itemId}',${fi-1}),80)">← Anterior</button>`:'<div style="width:80px;"></div>'}
+    <span style="font-size:.78rem;color:var(--muted);">${fi+1} / ${fotos.length}</span>
+    ${fi<fotos.length-1?`<button class="btn-ghost btn-sm" onclick="closeModal();setTimeout(()=>opModalViewFoto('${lojaId}','${modeloId}','${data}','${itemId}',${fi+1}),80)">Próxima →</button>`:'<div style="width:80px;"></div>'}
+  </div>`:'';
+  openModal(`<div style="padding:16px 20px;max-width:min(90vw,640px);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:.9rem;">${fotos.length>1?`Foto ${fi+1} de ${fotos.length}`:'Foto'}</span>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">Fechar ✕</button>
+    </div>
+    <img src="${fotos[fi]}" style="width:100%;max-height:65vh;object-fit:contain;border-radius:10px;background:var(--panel2);">
+    ${nav}
+  </div>`);
 }
 function opRenderModeloCard(m,lojaId,canEdit){
   const TURNO={'Manhã':{cor:'#22d3ee'},'Tarde':{cor:'#f59e0b'},'Noite':{cor:'#8b5cf6'},'Geral':{cor:'#a78bfa'},abertura:{cor:'#22d3ee'},fechamento:{cor:'#f59e0b'},geral:{cor:'#a78bfa'}};
