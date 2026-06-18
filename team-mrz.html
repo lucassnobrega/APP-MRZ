@@ -1269,7 +1269,90 @@ function migrateState(d){
       );
     }
   }
-  d.v=25;return d;
+  // v26: checklists SALÃO — Abertura/Fechamento 1º e 2º turno para Raz Alameda
+  if(!d.v||d.v<26){
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    const _rawAla=d.op.checklistModelos.alameda;
+    d.op.checklistModelos.alameda=Array.isArray(_rawAla)?_rawAla:(_rawAla?Object.values(_rawAla):[]);
+    const jaTemSalao=d.op.checklistModelos.alameda.some(m=>m.setor==='Salão');
+    if(!jaTemSalao){
+      d.op.checklistModelos.alameda.push(
+        {
+          id:'salao_ala_ab1',
+          nome:'Abertura do Salão – 1º Turno',
+          setor:'Salão',
+          tipo:'abertura',
+          turno:'Manhã',
+          horarioInicio:'',
+          horarioLimite:'12:00',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,
+          ativo:true,
+          items:[
+            {id:'sa1_01',texto:'Uniforme completo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa1_02',texto:'Limpar mesas externas e internas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa1_03',texto:'Higienização dos jogos americanos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa1_04',texto:'Montagem de mesas internas e externas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa1_05',texto:'Reposição de guardanapeira, azeite e sal em todas as mesas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa1_06',texto:'Montagem do buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa1_07',texto:'Verificar com a cozinha se existe algum item faltando',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          ]
+        },
+        {
+          id:'salao_ala_fe1',
+          nome:'Fechamento do Salão – 1º Turno',
+          setor:'Salão',
+          tipo:'fechamento',
+          turno:'Tarde',
+          horarioInicio:'',
+          horarioLimite:'16:00',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,
+          ativo:true,
+          items:[
+            {id:'sf1_01',texto:'Polimento de pratos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sf1_02',texto:'Retirada do buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sf1_03',texto:'Limpar o buffet após a retirada',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'salao_ala_ab2',
+          nome:'Abertura do Salão – 2º Turno',
+          setor:'Salão',
+          tipo:'abertura',
+          turno:'Tarde',
+          horarioInicio:'',
+          horarioLimite:'18:00',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,
+          ativo:true,
+          items:[
+            {id:'sa2_01',texto:'Uniforme completo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa2_02',texto:'Limpeza do chão e dos estofados',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa2_03',texto:'Limpeza do bar e do buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa2_04',texto:'Limpeza do caixa',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa2_05',texto:'Limpar mesas externas e internas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa2_06',texto:'Verificar montagem de mesa (organização completa)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sa2_07',texto:'Verificar com a cozinha se existe algum item faltando',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          ]
+        },
+        {
+          id:'salao_ala_fe2',
+          nome:'Fechamento do Salão – 2º Turno',
+          setor:'Salão',
+          tipo:'fechamento',
+          turno:'Noite',
+          horarioInicio:'23:00',
+          horarioLimite:'23:59',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,
+          ativo:true,
+          items:[
+            {id:'sf2_01',texto:'Recolher todos os jogos americanos, guardanapeiras, azeite e sal das mesas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'sf2_02',texto:'Polir pratos e talheres',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+  }
+  d.v=26;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
