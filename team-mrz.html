@@ -1065,7 +1065,8 @@ const M={
   saulo:{name:'Saulo',role:'Gerente · Zanoni Maringá',color:'#8b5cf6',icon:'SL',isLeader:false,email:'saulo@grupomrz.com',daily:[],weekly:{}},
   amanda:{name:'Amanda',role:'Gerente · Raz Alameda',color:'#ec4899',icon:'AM',isLeader:false,email:'amanda@grupomrz.com',daily:[],weekly:{}},
   carla:{name:'Carla',role:'Gerente · Raz Mercadão',color:'#14b8a6',icon:'CL',isLeader:false,email:'carla@grupomrz.com',daily:[],weekly:{}},
-  rogerio:{name:'Rogério',role:'Coordenador de Logística e Manutenção',color:'#84cc16',icon:'RG',isLeader:false,tipo:'frota',email:'rogerio@grupomrz.com',daily:[],weekly:{}}
+  rogerio:{name:'Rogério',role:'Coordenador de Logística e Manutenção',color:'#84cc16',icon:'RG',isLeader:false,tipo:'frota',email:'rogerio@grupomrz.com',daily:[],weekly:{}},
+  salaoalameda:{name:'Salão · Raz Alameda',role:'Líder · Salão',color:'#f59e0b',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alameda',setor:'Salão',email:'',daily:[],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1369,7 +1370,15 @@ function migrateState(d){
       );
     }
   }
-  d.v=26;return d;
+  // v27: garantir senha e perms dos usuários fixos de setor (idempotente — só define se não existir)
+  if(!d.v||d.v<27){
+    if(!d.pins)d.pins={};
+    if(!d.userPerms)d.userPerms={};
+    // salaoalameda — senha padrão 1234
+    if(!d.pins['salaoalameda'])d.pins['salaoalameda']=pwdHash('1234');
+    if(!d.userPerms['salaoalameda'])d.userPerms['salaoalameda']=['operacional'];
+  }
+  d.v=27;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
