@@ -1481,6 +1481,7 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
   // Show login immediately using local cache while Firebase connects
   const loc=loadLocal();
   if(loc){S=migrateState(loc);}else{S=defState();}
+  syncCustomUsers(); // garante que usuários customizados estão em M antes do Firebase responder
   buildLoginGrid();
   // Connect Firebase real-time listener
   _db.ref(_FBKEY).on('value',snap=>{
@@ -1513,6 +1514,7 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
   },err=>{
     console.warn('Firebase offline:',err);
     if(!S){const l=loadLocal();S=l?migrateState(l):defState();}
+    syncCustomUsers(); // garante login offline mesmo sem Firebase
     _fbReady=false;
     setSdot('off');
     buildLoginGrid();
