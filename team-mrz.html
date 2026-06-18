@@ -1148,6 +1148,8 @@ function migrateState(d){
   if(!Array.isArray(d.rh.contratacoes))d.rh.contratacoes=[];
   if(!Array.isArray(d.rh.agendamentos))d.rh.agendamentos=[];
   if(!d.contasPagar)d.contasPagar=null;
+  // Firebase converte arrays para objetos — normalizar customUsers
+  if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
   if(!Array.isArray(d.customUsers))d.customUsers=[];
   if(!d.userPerms||typeof d.userPerms!=='object')d.userPerms={};
   if(!d.userEmail||typeof d.userEmail!=='object')d.userEmail={};
@@ -1269,7 +1271,22 @@ function migrateState(d){
       );
     }
   }
-  // v26: checklists SALÃO — Abertura/Fechamento 1º e 2º turno para Raz Alameda
+  // v26: usuário salaoalameda + checklists SALÃO — Raz Alameda
+  if(!d.v||d.v<26){
+    // Usuário Salão · Raz Alameda
+    const _uidAla='salao_ala';
+    if(!d.customUsers)d.customUsers=[];
+    if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
+    if(!d.customUsers.find(u=>u.id===_uidAla)){
+      d.customUsers.push({id:_uidAla,username:'salaoalameda',name:'Salão · Raz Alameda',role:'Líder · Salão',color:'#f59e0b',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alameda',setor:'Salão',email:''});
+      if(!d.pins)d.pins={};
+      if(!d.usernames)d.usernames={};
+      if(!d.userPerms)d.userPerms={};
+      d.pins[_uidAla]=pwdHash('1234');
+      d.usernames[_uidAla]='salaoalameda';
+      d.userPerms[_uidAla]=['operacional'];
+    }
+  }
   if(!d.v||d.v<26){
     if(!d.op)d.op={};
     if(!d.op.checklistModelos)d.op.checklistModelos={};
@@ -1387,7 +1404,10 @@ function toggleTheme(){
 }
 // Mescla usuários customizados em M para que todo código M[id] funcione
 function syncCustomUsers(){
-  if(!S||!Array.isArray(S.customUsers))return;
+  if(!S)return;
+  // Firebase converte arrays para objetos com chaves numéricas — normalizar antes de iterar
+  if(S.customUsers&&!Array.isArray(S.customUsers))S.customUsers=Object.values(S.customUsers);
+  if(!Array.isArray(S.customUsers)||!S.customUsers.length)return;
   S.customUsers.forEach(u=>{
     if(!u||!u.id)return;
     M[u.id]={name:u.name,role:u.role,color:u.color,icon:u.icon,
