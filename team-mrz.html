@@ -1070,7 +1070,9 @@ const M={
   cozinhalago:{name:'Cozinha · Zanoni Lago',role:'Líder · Cozinha',color:'#ef4444',icon:'CL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Cozinha',email:'',daily:[],weekly:{}},
   cozinhaalpha:{name:'Cozinha · Zanoni Alphaville',role:'Líder · Cozinha',color:'#ef4444',icon:'CA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Cozinha',email:'',daily:[],weekly:{}},
   salaolago:{name:'Salão · Zanoni Lago',role:'Líder · Salão',color:'#8b5cf6',icon:'SG',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Salão',email:'',daily:[],weekly:{}},
-  salaoalpha:{name:'Salão · Zanoni Alphaville',role:'Líder · Salão',color:'#8b5cf6',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Salão',email:'',daily:[],weekly:{}}
+  salaoalpha:{name:'Salão · Zanoni Alphaville',role:'Líder · Salão',color:'#8b5cf6',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Salão',email:'',daily:[],weekly:{}},
+  limpezalago:{name:'Lavanderia · Zanoni Lago',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Lavanderia',email:'',daily:[],weekly:{}},
+  limpezaalpha:{name:'Lavanderia · Zanoni Alphaville',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Lavanderia',email:'',daily:[],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1651,7 +1653,68 @@ function migrateState(d){
       d.op.checklistModelos.alphaville.push(..._salaoChecklists('zv'));
     }
   }
-  d.v=32;return d;
+  d.v=32;
+  // v33: líderes de Lavanderia (Lago e Alphaville) + checklists Abertura e Fechamento
+  if(!d.v||d.v<33){
+    if(!d.pins)d.pins={};
+    if(!d.userPerms)d.userPerms={};
+    if(!d.pins['limpezalago'])d.pins['limpezalago']=pwdHash('1234');
+    if(!d.userPerms['limpezalago'])d.userPerms['limpezalago']=['operacional'];
+    if(!d.pins['limpezaalpha'])d.pins['limpezaalpha']=pwdHash('1234');
+    if(!d.userPerms['limpezaalpha'])d.userPerms['limpezaalpha']=['operacional'];
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    ['lago','alphaville'].forEach(lid=>{
+      const raw=d.op.checklistModelos[lid];
+      d.op.checklistModelos[lid]=Array.isArray(raw)?raw:(raw?Object.values(raw):[]);
+    });
+    const _lavChecklists=(pfx)=>[
+      {
+        id:`lav_${pfx}_ab`,
+        nome:'Abertura – Lavanderia',
+        setor:'Lavanderia',tipo:'abertura',turno:'Manhã',
+        horarioInicio:'',horarioLimite:'11:30',
+        responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+        items:[
+          {id:`${pfx}lab01`,texto:'Limpeza dos banheiros dos clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab02`,texto:'Abastecimento dos dispensers de papel toalha e higiênico dos banheiros dos clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab03`,texto:'Limpeza dos espelhos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab04`,texto:'Tirar os lixos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab05`,texto:'Limpeza do salão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab06`,texto:'Limpeza do banheiro dos funcionários',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab07`,texto:'Varrer a escada',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab08`,texto:'Por para bater as roupas e panos no tanquinho',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab09`,texto:'Ligar a máquina de lavar louça',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab10`,texto:'Manter as paredes limpas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab11`,texto:'Lavar as lixeiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab12`,texto:'Organização das prateleiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lab13`,texto:'Subir as louças limpas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        ]
+      },
+      {
+        id:`lav_${pfx}_fe`,
+        nome:'Fechamento – Lavanderia',
+        setor:'Lavanderia',tipo:'fechamento',turno:'Noite',
+        horarioInicio:'',horarioLimite:'23:59',
+        responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+        items:[
+          {id:`${pfx}lfe01`,texto:'Desmontar a máquina e efetuar a limpeza das peças',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lfe02`,texto:'Lavar o chão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lfe03`,texto:'Lavar as paredes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lfe04`,texto:'Retirar os lixos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}lfe05`,texto:'Limpeza (completar via editor)',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          {id:`${pfx}lfe06`,texto:'Caixa (completar via editor)',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        ]
+      },
+    ];
+    if(!d.op.checklistModelos.lago.some(m=>m.id==='lav_lg_ab')){
+      d.op.checklistModelos.lago.push(..._lavChecklists('llg'));
+    }
+    if(!d.op.checklistModelos.alphaville.some(m=>m.id==='lav_zv_ab')){
+      d.op.checklistModelos.alphaville.push(..._lavChecklists('lzv'));
+    }
+  }
+  d.v=33;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
