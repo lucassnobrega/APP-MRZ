@@ -1068,7 +1068,9 @@ const M={
   rogerio:{name:'Rogério',role:'Coordenador de Logística e Manutenção',color:'#84cc16',icon:'RG',isLeader:false,tipo:'frota',email:'rogerio@grupomrz.com',daily:[],weekly:{}},
   salaoalameda:{name:'Salão · Raz Alameda',role:'Líder · Salão',color:'#f59e0b',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alameda',setor:'Salão',email:'',daily:[],weekly:{}},
   cozinhalago:{name:'Cozinha · Zanoni Lago',role:'Líder · Cozinha',color:'#ef4444',icon:'CL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Cozinha',email:'',daily:[],weekly:{}},
-  cozinhaalpha:{name:'Cozinha · Zanoni Alphaville',role:'Líder · Cozinha',color:'#ef4444',icon:'CA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Cozinha',email:'',daily:[],weekly:{}}
+  cozinhaalpha:{name:'Cozinha · Zanoni Alphaville',role:'Líder · Cozinha',color:'#ef4444',icon:'CA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Cozinha',email:'',daily:[],weekly:{}},
+  salaolago:{name:'Salão · Zanoni Lago',role:'Líder · Salão',color:'#8b5cf6',icon:'SL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Salão',email:'',daily:[],weekly:{}},
+  salaoalpha:{name:'Salão · Zanoni Alphaville',role:'Líder · Salão',color:'#8b5cf6',icon:'SV',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Salão',email:'',daily:[],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1577,7 +1579,79 @@ function migrateState(d){
     if(!d.pins['cozinhaalpha'])d.pins['cozinhaalpha']=pwdHash('1234');
     if(!d.userPerms['cozinhaalpha'])d.userPerms['cozinhaalpha']=['operacional'];
   }
-  d.v=31;return d;
+  d.v=31;
+  // v32: líderes de Salão (Lago e Alphaville) + checklists Abertura e Fechamento Salão
+  if(!d.v||d.v<32){
+    if(!d.pins)d.pins={};
+    if(!d.userPerms)d.userPerms={};
+    if(!d.pins['salaolago'])d.pins['salaolago']=pwdHash('1234');
+    if(!d.userPerms['salaolago'])d.userPerms['salaolago']=['operacional'];
+    if(!d.pins['salaoalpha'])d.pins['salaoalpha']=pwdHash('1234');
+    if(!d.userPerms['salaoalpha'])d.userPerms['salaoalpha']=['operacional'];
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    ['lago','alphaville'].forEach(lid=>{
+      const raw=d.op.checklistModelos[lid];
+      d.op.checklistModelos[lid]=Array.isArray(raw)?raw:(raw?Object.values(raw):[]);
+    });
+    // Checklists de Salão — função por prefixo de loja
+    const _salaoChecklists=(pfx)=>[
+      {
+        id:`sal_${pfx}_ab`,
+        nome:'Abertura do Salão – Garçons',
+        setor:'Salão',tipo:'abertura',turno:'Manhã',
+        horarioInicio:'',horarioLimite:'11:30',
+        responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+        items:[
+          {id:`${pfx}sab01`,texto:'Tirar todas as cadeiras e bancos da parte externa e montar a praça de espera, mesas e cadeiras para os bistrôs, tapete da entrada, aquecedores quando estiverem na loja',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab02`,texto:'Passar panos nas mesas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab03`,texto:'Alinhar as mesas e colocar na posição correta caso alguma esteja errada',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab04`,texto:'Montar os suplas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab05`,texto:'Montar os pratos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab06`,texto:'Montar guardanapeiras e azeites nas mesas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab07`,texto:'Conferir todas as cortinas: sol forte → abaixar mais da metade; nublado → alinhado para cima',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab08`,texto:'Conferir se todos os vidros do salão estão limpos na parte de dentro',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          {id:`${pfx}sab09`,texto:'Conferir se tem água na cafeteira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab10`,texto:'Insumos abastecidos: açúcar, palitos de dente, adoçante e guardanapos',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          {id:`${pfx}sab11`,texto:'Lavar todas as bandejas dos cumins e dos garçons com água e sabão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab12`,texto:'Conferir pratos e talheres para polimento — polir, guardar nos aparadores e ensacar talheres',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          {id:`${pfx}sab13`,texto:'Conferir se tem louças e tábuas para subir',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          {id:`${pfx}sab14`,texto:'Ligar todas as TVs',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab15`,texto:'Ligar todos os ares condicionados, inclusive os dos banheiros dos clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab16`,texto:'Jogar gelo no mictório do banheiro masculino',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sab17`,texto:'Conferir se há reservas',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+          {id:`${pfx}sab18`,texto:'Conferir se há alguma falta de produto',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        ]
+      },
+      {
+        id:`sal_${pfx}_fe`,
+        nome:'Fechamento do Salão – Garçons',
+        setor:'Salão',tipo:'fechamento',turno:'Noite',
+        horarioInicio:'',horarioLimite:'23:59',
+        responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+        items:[
+          {id:`${pfx}sfe01`,texto:'Quem está na abertura: polir e ensacar os talheres e pratos antes de ir embora',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe02`,texto:'Esperar o último cliente sair — recolher os azeites, suplas e guardanapeiras juntos no fundo e abastecer',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe03`,texto:'Varrer o salão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe04`,texto:'Desligar os ares condicionados, inclusive os do banheiro dos clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe05`,texto:'Desligar os ventiladores do salão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe06`,texto:'Desligar todas as TVs',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe07`,texto:'Verificar se a porta de vidro dos fundos está trancada e todas as janelas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe08`,texto:'Abaixar as cortinas até a tranca',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe09`,texto:'Colocar para dentro todas as mesas e cadeiras da parte externa da loja',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe10`,texto:'Fechar o ombrelone',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          {id:`${pfx}sfe11`,texto:'Preencher a lista de pedidos de insumos para abastecimento antes de ir embora',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        ]
+      },
+    ];
+    if(!d.op.checklistModelos.lago.some(m=>m.id==='sal_lg_ab')){
+      d.op.checklistModelos.lago.push(..._salaoChecklists('lg'));
+    }
+    if(!d.op.checklistModelos.alphaville.some(m=>m.id==='sal_zv_ab')){
+      d.op.checklistModelos.alphaville.push(..._salaoChecklists('zv'));
+    }
+  }
+  d.v=32;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
