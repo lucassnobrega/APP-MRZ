@@ -1497,7 +1497,75 @@ function migrateState(d){
       d.op.checklistModelos.alphaville.push(..._cozChecklists('zv'));
     }
   }
-  d.v=29;return d;
+  d.v=29;
+  // v30: limpar testes no Lago (Churrasqueira + Cozinha velha) e forçar os 6 checklists corretos
+  if(!d.v||d.v<30){
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    // Normalizar
+    const _rawLg=d.op.checklistModelos.lago;
+    d.op.checklistModelos.lago=Array.isArray(_rawLg)?_rawLg:(_rawLg?Object.values(_rawLg):[]);
+    // Remover Churrasqueira (teste) e Cozinha antiga (teste) do Lago
+    d.op.checklistModelos.lago=d.op.checklistModelos.lago.filter(m=>
+      m.setor!=='Churrasqueira' && m.setor!=='Cozinha'
+    );
+    // Função que retorna os 6 checklists de cozinha (reutilizada)
+    const _cozLago=(pfx)=>[
+      {id:`coz_${pfx}_ab_alm`,nome:'Abertura da Cozinha – Almoço',setor:'Cozinha',tipo:'abertura',turno:'Manhã',horarioInicio:'',horarioLimite:'11:30',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,items:[
+        {id:`${pfx}caa01`,texto:'Verificar itens de geladeira para produção',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}caa02`,texto:'Organizar bancadas e verificar se falta algo',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}caa03`,texto:'Abastecer os produtos nas bancadas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}caa04`,texto:'Preparar o almoço',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}caa05`,texto:'Mise en place feito (pré-preparo completo)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}caa06`,texto:'Olhar as etiquetas de validade dos produtos',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}caa07`,texto:'Verificar a temperatura dos freezers e geladeiras',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+      ]},
+      {id:`coz_${pfx}_fe_alm`,nome:'Fechamento da Cozinha – Almoço',setor:'Cozinha',tipo:'fechamento',turno:'Tarde',horarioInicio:'',horarioLimite:'16:00',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,items:[
+        {id:`${pfx}cfa01`,texto:'Organizar as bancadas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfa02`,texto:'Limpeza dos setores',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfa03`,texto:'Mise en place pronto para a noite',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+      ]},
+      {id:`coz_${pfx}_ab_noi`,nome:'Abertura da Cozinha – Noite',setor:'Cozinha',tipo:'abertura',turno:'Tarde',horarioInicio:'',horarioLimite:'18:00',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,items:[
+        {id:`${pfx}can01`,texto:'Abastecimento nas bancadas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}can02`,texto:'Organização do setor',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}can03`,texto:'Vistoria dos produtos da câmara fria',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}can04`,texto:'Preparar o jantar dos funcionários',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+      ]},
+      {id:`coz_${pfx}_fe_noi`,nome:'Fechamento da Cozinha – Noite',setor:'Cozinha',tipo:'fechamento',turno:'Noite',horarioInicio:'22:00',horarioLimite:'23:59',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,items:[
+        {id:`${pfx}cfn01`,texto:'Limpeza geral da cozinha',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfn02`,texto:'Verificação das fritadeiras',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}cfn03`,texto:'Verificação das câmaras frias',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}cfn04`,texto:'Verificação do fogão e botijões de gás',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}cfn05`,texto:'Verificação do balcão refrigerado',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}cfn06`,texto:'Verificação dos freezers',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}cfn07`,texto:'Organização das prateleiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfn08`,texto:'Preencher planilha de temperatura',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfn09`,texto:'Organizar guarnições prontas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfn10`,texto:'Jogar os lixos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}cfn11`,texto:'Anotação de perdas do dia',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+        {id:`${pfx}cfn12`,texto:'Olhar as etiquetas de validade — descartar vencidos',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+      ]},
+      {id:`coz_${pfx}_sal_alm`,nome:'Registro de Saladas – Almoço',setor:'Cozinha',tipo:'geral',turno:'Manhã',horarioInicio:'',horarioLimite:'12:00',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,items:[
+        {id:`${pfx}sa01`,texto:'Salada de tomate temperada por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sa02`,texto:'Vinagrete temperado por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sa03`,texto:'Mandioca cozida por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sa04`,texto:'Arroz cozido por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sa05`,texto:'Bacon frito por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sa06`,texto:'Batatonese temperada por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+      ]},
+      {id:`coz_${pfx}_sal_noi`,nome:'Registro de Saladas – Noite',setor:'Cozinha',tipo:'geral',turno:'Noite',horarioInicio:'',horarioLimite:'19:00',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,items:[
+        {id:`${pfx}sn01`,texto:'Salada de tomate temperada por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sn02`,texto:'Vinagrete temperado por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sn03`,texto:'Mandioca cozida por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sn04`,texto:'Arroz cozido por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sn05`,texto:'Bacon frito por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+        {id:`${pfx}sn06`,texto:'Batatonese temperada por',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+      ]},
+    ];
+    // Adicionar os 6 checklists de Cozinha no Lago (já limpamos os antigos acima)
+    d.op.checklistModelos.lago.push(..._cozLago('lg'));
+  }
+  d.v=30;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
