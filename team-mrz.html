@@ -1072,7 +1072,8 @@ const M={
   salaolago:{name:'Salão · Zanoni Lago',role:'Líder · Salão',color:'#8b5cf6',icon:'SG',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Salão',email:'',daily:[],weekly:{}},
   salaoalpha:{name:'Salão · Zanoni Alphaville',role:'Líder · Salão',color:'#8b5cf6',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Salão',email:'',daily:[],weekly:{}},
   limpezalago:{name:'Lavanderia · Zanoni Lago',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Lavanderia',email:'',daily:[],weekly:{}},
-  limpezaalpha:{name:'Lavanderia · Zanoni Alphaville',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Lavanderia',email:'',daily:[],weekly:{}}
+  limpezaalpha:{name:'Lavanderia · Zanoni Alphaville',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Lavanderia',email:'',daily:[],weekly:{}},
+  barlago:{name:'Bar · Zanoni Lago',role:'Líder · Bar',color:'#f97316',icon:'BL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Bar',email:'',daily:[],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1714,7 +1715,60 @@ function migrateState(d){
       d.op.checklistModelos.alphaville.push(..._lavChecklists('lzv'));
     }
   }
-  d.v=33;return d;
+  d.v=33;
+  // v34: barlago — copia checklists do Bar do Alphaville para o Lago
+  if(!d.v||d.v<34){
+    if(!d.pins)d.pins={};
+    if(!d.userPerms)d.userPerms={};
+    if(!d.pins['barlago'])d.pins['barlago']=pwdHash('1234');
+    if(!d.userPerms['barlago'])d.userPerms['barlago']=['operacional'];
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    const _rawLgBar=d.op.checklistModelos.lago;
+    d.op.checklistModelos.lago=Array.isArray(_rawLgBar)?_rawLgBar:(_rawLgBar?Object.values(_rawLgBar):[]);
+    if(!d.op.checklistModelos.lago.some(m=>m.setor==='Bar')){
+      d.op.checklistModelos.lago.push(
+        {
+          id:'bar_lago_abertura',
+          nome:'Abertura do Bar',
+          setor:'Bar',tipo:'abertura',turno:'Abertura',
+          horarioLimite:'11:00',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'blga01',texto:'Verifique a temperatura dos freezers e anote o valor em °C',tipoResp:'valor',exigeObs:false,exigeFoto:false},
+            {id:'blga02',texto:'Confira o abastecimento das geladeiras — nada faltando',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blga03',texto:'Máquina de lavar copos: lave e teste o funcionamento antes de abrir',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blga04',texto:'Chopeira: verifique o gás e teste o funcionamento',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blga05',texto:'Montagem do bar: coloque tapetes e posicione as cubas de inox para os garçons',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blga06',texto:'Limão e laranja: esprema e corte a quantidade suficiente para o plantão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blga07',texto:'Polpas de frutas: verifique os estoques e abasteça as cubas corretamente',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blga08',texto:'Garrafas de destilados: confira as que serão usadas no plantão — reponha se necessário',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blga09',texto:'Sanitização das frutas realizada com produto adequado e tempo correto',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blga10',texto:'Limpeza geral: lixeira esvaziada, balcão e copos limpos e secos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blga11',texto:'Plantas aguadas — realizar somente 1x por semana (marque N/OK nos demais dias)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'bar_lago_fechamento',
+          nome:'Fechamento do Bar',
+          setor:'Bar',tipo:'fechamento',turno:'Fechamento',
+          horarioLimite:'23:59',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'blgf01',texto:'Troque a água da máquina de lavar copos ao final do turno',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blgf02',texto:'Abasteça as geladeiras com revezamento: bebidas mais velhas na frente, novas atrás',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blgf03',texto:'Retire os sacos de gelo do freezer e descarte ou guarde corretamente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blgf04',texto:'Limpeza do balcão: remova resíduos, seque completamente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blgf05',texto:'Limpeza da chopeira: siga o protocolo correto de limpeza das torneiras e linhas',tipoResp:'ok_nok',exigeObs:true,exigeFoto:false},
+            {id:'blgf06',texto:'Jogue água no escorrimento da chopeira para evitar acúmulo e odores',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blgf07',texto:'Higienize internamente a máquina de lavar copos com produto adequado',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'blgf08',texto:'Passe pano úmido nos balcões de inox e varra e passe pano no chão do bar',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+  }
+  d.v=34;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
