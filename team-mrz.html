@@ -1073,7 +1073,8 @@ const M={
   salaoalpha:{name:'Salão · Zanoni Alphaville',role:'Líder · Salão',color:'#8b5cf6',icon:'SA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Salão',email:'',daily:[],weekly:{}},
   limpezalago:{name:'Lavanderia · Zanoni Lago',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Lavanderia',email:'',daily:[],weekly:{}},
   limpezaalpha:{name:'Lavanderia · Zanoni Alphaville',role:'Líder · Lavanderia',color:'#06b6d4',icon:'LA',isLeader:false,tipo:'setorLider',loja:'alphaville',setor:'Lavanderia',email:'',daily:[],weekly:{}},
-  barlago:{name:'Bar · Zanoni Lago',role:'Líder · Bar',color:'#f97316',icon:'BL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Bar',email:'',daily:[],weekly:{}}
+  barlago:{name:'Bar · Zanoni Lago',role:'Líder · Bar',color:'#f97316',icon:'BL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Bar',email:'',daily:[],weekly:{}},
+  churrasqueiralago:{name:'Churrasqueira · Zanoni Lago',role:'Líder · Churrasqueira',color:'#dc2626',icon:'CH',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Churrasqueira',email:'',daily:[],weekly:{}}
 };
 const APPROVERS=['bruna','marlon','lucas','raquel'];
 
@@ -1768,7 +1769,84 @@ function migrateState(d){
       );
     }
   }
-  d.v=34;return d;
+  d.v=34;
+  // v35: churrasqueiralago — 4 checklists para Churrasqueira do Zanoni Lago
+  if(!d.v||d.v<35){
+    if(!d.pins)d.pins={};
+    if(!d.userPerms)d.userPerms={};
+    if(!d.pins['churrasqueiralago'])d.pins['churrasqueiralago']=pwdHash('1234');
+    if(!d.userPerms['churrasqueiralago'])d.userPerms['churrasqueiralago']=['operacional'];
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    const _rawLgCh=d.op.checklistModelos.lago;
+    d.op.checklistModelos.lago=Array.isArray(_rawLgCh)?_rawLgCh:(_rawLgCh?Object.values(_rawLgCh):[]);
+    if(!d.op.checklistModelos.lago.some(m=>m.id==='chur_lg_ab')){
+      d.op.checklistModelos.lago.push(
+        // ── ABERTURA (diário) ───────────────────────────────
+        {
+          id:'chur_lg_ab',
+          nome:'Abertura – Churrasqueira',
+          setor:'Churrasqueira',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'11:30',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'chab01',texto:'Limpeza da churrasqueira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab02',texto:'Organização',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab03',texto:'Lavar grelhas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab04',texto:'Acender fogo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab05',texto:'Assar linguiça toscana',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab06',texto:'Alimentar fogo da costela',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab07',texto:'Preparar quentinhas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab08',texto:'Preparar guarnições',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab09',texto:'Abastecer carvão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chab10',texto:'Conferir pegadores guarnições',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        // ── RETIRADA DE CINZA (segunda + terça) ─────────────
+        {
+          id:'chur_lg_cinza',
+          nome:'Retirada de Cinza',
+          setor:'Churrasqueira',tipo:'geral',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'11:30',
+          responsaveis:[],diasBloq:['dom','qua','qui','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'chcz01',texto:'Retirada de cinza da churrasqueira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        // ── MANUTENÇÃO SEMANAL (só terças) ──────────────────
+        {
+          id:'chur_lg_man',
+          nome:'Manutenção Semanal – Churrasqueira',
+          setor:'Churrasqueira',tipo:'geral',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'13:00',
+          responsaveis:[],diasBloq:['dom','seg','qua','qui','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'chma01',texto:'Limpeza da caixa de gordura',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chma02',texto:'Limpeza de ralos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chma03',texto:'Limpeza das paredes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chma04',texto:'Limpeza de coifas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chma05',texto:'Limpeza dos rechauds',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        // ── FECHAMENTO (diário) ──────────────────────────────
+        {
+          id:'chur_lg_fe',
+          nome:'Fechamento – Churrasqueira',
+          setor:'Churrasqueira',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'23:59',
+          responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'chfe01',texto:'Limpeza da churrasqueira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chfe02',texto:'Guardar carnes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chfe03',texto:'Etiquetar sobras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chfe04',texto:'Colocar grelhas no tanque',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'chfe05',texto:'Lavar serra fita',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+  }
+  d.v=35;return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
