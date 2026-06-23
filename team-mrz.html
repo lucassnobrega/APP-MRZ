@@ -1813,12 +1813,12 @@ function migrateState(d){
             {id:'chcz01',texto:'Retirada de cinza da churrasqueira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
           ]
         },
-        // ── MANUTENÇÃO SEMANAL (só terças) ──────────────────
+        // ── LIMPEZA SEMANAL FECHAMENTO (só terças) ──────────────────
         {
           id:'chur_lg_man',
-          nome:'Manutenção Semanal – Churrasqueira',
-          setor:'Churrasqueira',tipo:'geral',turno:'Manhã',
-          horarioInicio:'',horarioLimite:'13:00',
+          nome:'Limpeza Semanal – Churrasqueira',
+          setor:'Churrasqueira',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'23:59',
           responsaveis:[],diasBloq:['dom','seg','qua','qui','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
           items:[
             {id:'chma01',texto:'Limpeza da caixa de gordura',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
