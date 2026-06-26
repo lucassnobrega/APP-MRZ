@@ -2006,7 +2006,31 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
         // Deep copy ANTES de passar para migrateState — evita que o fb seja mutado in-place
         // (sem isso, S e fb ficam sendo o mesmo objeto e o diff nunca detecta mudanças)
         const fbSnap=JSON.parse(JSON.stringify(fb));
+        // Preservar completions pendentes locais (hoje) antes de substituir S
+        // Proteção contra race condition: outro dispositivo salva antes de receber o dado local
+        const _hj=new Date().toISOString().slice(0,10);
+        const _localPend={};
+        if(S?.op?.completions){
+          for(const[_lj,_dias]of Object.entries(S.op.completions)){
+            if(!_dias[_hj])continue;
+            for(const[_mid,_cp]of Object.entries(_dias[_hj])){
+              if(_cp&&_cp.status==='pendente'){
+                if(!_localPend[_lj])_localPend[_lj]={};
+                _localPend[_lj][_mid]=_cp;
+              }
+            }
+          }
+        }
         S=migrateState(fb);
+        // Re-injetar completions pendentes que o Firebase pode ter perdido por race condition
+        for(const[_lj,_mods]of Object.entries(_localPend)){
+          if(!S.op.completions)S.op.completions={};
+          if(!S.op.completions[_lj])S.op.completions[_lj]={};
+          if(!S.op.completions[_lj][_hj])S.op.completions[_lj][_hj]={};
+          for(const[_mid,_cp]of Object.entries(_mods)){
+            if(!S.op.completions[_lj][_hj][_mid])S.op.completions[_lj][_hj][_mid]=_cp;
+          }
+        }
         localStorage.setItem(SK,JSON.stringify(S));
         // Se a migration mudou algo (ex: limpou userPerms), salvar de volta no Firebase
         if(JSON.stringify(S)!==JSON.stringify(fbSnap))setTimeout(()=>{if(_fbReady)_fbSave();},1500);
@@ -10228,6 +10252,7 @@ function opOpenExecutarChecklist(lojaId,modeloId){
   if(!S.op.completions[lojaId])S.op.completions[lojaId]={};
   if(!S.op.completions[lojaId][hoje])S.op.completions[lojaId][hoje]={};
   if(!S.op.completions[lojaId][hoje][modeloId])S.op.completions[lojaId][hoje][modeloId]={items:{},status:'pendente'};
+  saveLocal(); // salva init no Firebase imediatamente — evita race condition
   opRenderExec();
   document.getElementById('exec-ov').classList.add('show');
 }
@@ -10470,7 +10495,7 @@ function opFinalizarChecklist(lojaId,modeloId){
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   const errEl=document.getElementById('xexec-err')||document.getElementById('cl-exec-err');
   const showErr=msg=>{if(errEl){errEl.textContent=msg;errEl.style.display='block';}};
-  if(!comp){showErr('Erro interno.');return;}
+  if(!comp){showErr('Erro interno — tente fechar e abrir o checklist novamente.');return;}
   if(m&&(m.items||[]).length>0){
     const unchecked=(m.items||[]).filter(it=>{
       const st=comp.items?.[it.id];const tr=it.tipoResp||'ok_nok';
@@ -10480,11 +10505,32 @@ function opFinalizarChecklist(lojaId,modeloId){
       if(tr==='data')return !st?.data;
       return false;
     });
-    if(unchecked.length>0){showErr(`Marque todos os itens antes de finalizar. (${unchecked.length} pendente${unchecked.length>1?'s':''})`);return;}
+    if(unchecked.length>0){
+      showErr(`Marque todos os itens antes de finalizar. (${unchecked.length} pendente${unchecked.length>1?'s':''})`);
+      const firstEl=document.getElementById(`xcard-${unchecked[0].id}`);
+      if(firstEl)setTimeout(()=>firstEl.scrollIntoView({behavior:'smooth',block:'center'}),80);
+      return;
+    }
     for(const it of m.items||[]){
       const st=comp.items?.[it.id];
-      if(it.exigeObs&&!(st?.obs||'').trim()){showErr(`"${it.texto.slice(0,30)}..." requer observação obrigatória.`);return;}
-      if(it.exigeFoto&&!(st?.fotos?.length)){showErr(`"${it.texto.slice(0,30)}..." requer foto obrigatória.`);return;}
+      if(it.exigeObs&&!(st?.obs||'').trim()){
+        showErr(`"${it.texto.slice(0,28)}…" requer observação obrigatória.`);
+        const bodyEl=document.getElementById(`xbody-${it.id}`);
+        const arrEl=document.getElementById(`xarrow-${it.id}`);
+        if(bodyEl){bodyEl.classList.add('open');if(arrEl)arrEl.textContent='▴';}
+        const cardEl=document.getElementById(`xcard-${it.id}`);
+        if(cardEl)setTimeout(()=>cardEl.scrollIntoView({behavior:'smooth',block:'center'}),80);
+        return;
+      }
+      if(it.exigeFoto&&!(st?.fotos?.length)){
+        showErr(`"${it.texto.slice(0,28)}…" requer foto obrigatória.`);
+        const bodyEl=document.getElementById(`xbody-${it.id}`);
+        const arrEl=document.getElementById(`xarrow-${it.id}`);
+        if(bodyEl){bodyEl.classList.add('open');if(arrEl)arrEl.textContent='▴';}
+        const cardEl=document.getElementById(`xcard-${it.id}`);
+        if(cardEl)setTimeout(()=>cardEl.scrollIntoView({behavior:'smooth',block:'center'}),80);
+        return;
+      }
     }
   }
   comp.status='feito';comp.finalizadoEm=new Date().toISOString();comp.finalizadoPor=me;
