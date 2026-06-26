@@ -1504,8 +1504,8 @@ function migrateState(d){
     if(!d.op.checklistModelos.alphaville.some(m=>m.setor==='Cozinha')){
       d.op.checklistModelos.alphaville.push(..._cozChecklists('zv'));
     }
+    d.v=29; // ← dentro do bloco, evita re-execução desnecessária
   }
-  d.v=29;
   // v30: limpar testes no Lago (Churrasqueira + Cozinha velha) e forçar os 6 checklists corretos
   if(!d.v||d.v<30){
     if(!d.op)d.op={};
@@ -1709,10 +1709,10 @@ function migrateState(d){
         ]
       },
     ];
-    if(!d.op.checklistModelos.lago.some(m=>m.id==='lav_lg_ab')){
+    if(!d.op.checklistModelos.lago.some(m=>m.id==='lav_llg_ab')){
       d.op.checklistModelos.lago.push(..._lavChecklists('llg'));
     }
-    if(!d.op.checklistModelos.alphaville.some(m=>m.id==='lav_zv_ab')){
+    if(!d.op.checklistModelos.alphaville.some(m=>m.id==='lav_lzv_ab')){
       d.op.checklistModelos.alphaville.push(..._lavChecklists('lzv'));
     }
   }
@@ -1846,10 +1846,27 @@ function migrateState(d){
       );
     }
   }
-  d.v=35;return d;
+  d.v=35;
+  // v36: remover duplicatas de checklists em todas as lojas (causadas pelo bug do d.v=29 fora do bloco)
+  if(!d.v||d.v<36){
+    if(d.op&&d.op.checklistModelos){
+      ['lago','alphaville','alameda','maringa','mercadao'].forEach(lid=>{
+        if(!Array.isArray(d.op.checklistModelos[lid]))return;
+        const seen=new Set();
+        d.op.checklistModelos[lid]=d.op.checklistModelos[lid].filter(m=>{
+          if(!m||!m.id)return false;
+          if(seen.has(m.id))return false;
+          seen.add(m.id);
+          return true;
+        });
+      });
+    }
+    d.v=36;
+  }
+  return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
-function saveLocal(){S.lastUp=new Date().toISOString();localStorage.setItem(SK,JSON.stringify(S));if(_fbReady)_fbSave();}
+function saveLocal(){S.lastUp=new Date().toISOString();try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){console.warn('localStorage cheio:',e);toast('Armazenamento local cheio — dados salvos na nuvem ☁️',4000);}if(_fbReady)_fbSave();}
 async function loadGH(){try{const r=await fetch(GH_RAW+'?t='+Date.now());if(!r.ok)return null;const d=await r.json();return(d&&d.v)?d:null;}catch(e){return null;}}
 
 // Date utils
