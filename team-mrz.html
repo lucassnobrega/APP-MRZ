@@ -1871,7 +1871,11 @@ async function loadGH(){try{const r=await fetch(GH_RAW+'?t='+Date.now());if(!r.o
 
 // Date utils
 function weekId(d){const dt=d?new Date(d):new Date();const day=dt.getDay();const mon=new Date(dt);mon.setDate(dt.getDate()-(day===0?6:day-1));const yr=mon.getFullYear(),wn=Math.ceil((((mon-new Date(yr,0,1))/864e5)+new Date(yr,0,1).getDay()+1)/7);return yr+'-W'+String(wn).padStart(2,'0');}
-function todayKey(){return new Date().toISOString().slice(0,10);}
+function todayKey(){const d=new Date();const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+// serviceKey: horário do restaurante — horas 00h–04h pertencem ao dia anterior (fechamento depois da meia-noite)
+function serviceKey(){const d=new Date();if(d.getHours()<5)d.setDate(d.getDate()-1);const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+// localISOString: ISO em horário local (sem UTC+offset)
+function localISOString(){const d=new Date();const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
 function todayDay(){return['dom','seg','ter','qua','qui','sex','sab'][new Date().getDay()];}
 function fmtDate(iso){try{return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});}catch(e){return iso;}}
 function fmtTime(){return new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
@@ -2244,7 +2248,7 @@ function buildOpSidebarHtml(){
   // Abas de navegação
   const matchLoja=x=>lojaId?x.loja===lojaId:true;
   const _clBadge=(lid)=>{
-    const hoje=todayKey();const agora=new Date();
+    const hoje=serviceKey();const agora=new Date();
     const mods=(S.op?.checklistModelos?.[lid]||[]).filter(m=>m.ativo!==false);
     const comps=(S.op?.completions?.[lid]?.[hoje])||{};
     return mods.filter(m=>{
@@ -2393,7 +2397,7 @@ function donoOverdue(k){
 }
 function donoPctColor(pct){return pct>=100?'var(--green)':pct>=50?'var(--amber)':'var(--red)';}
 function donoLojaStats(lojaId){
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const modelos=((S.op?.checklistModelos?.[lojaId])||[]).filter(m=>m.ativo);
   const comps=(S.op?.completions?.[lojaId]?.[hoje])||{};
   const done=modelos.filter(m=>comps[m.id]?.status==='feito').length;
@@ -10134,7 +10138,7 @@ function renderOpSetorLider(el){
   const setor=M[me]?.setor||'';
   const loja=opGetLoja(lojaId);
   if(!loja||!setor){el.innerHTML='<div class="card" style="padding:24px;">Configuração inválida. Fale com o gestor.</div>';return;}
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const TIPO_COR={abertura:'#22d3ee',fechamento:'#f59e0b',geral:'#a78bfa','Manhã':'#22d3ee',Tarde:'#f59e0b',Noite:'#8b5cf6',Geral:'#a78bfa'};
   const modelos=(S.op.checklistModelos?.[lojaId]||[]).filter(m=>m.setor===setor&&m.ativo);
   const completions=S.op.completions?.[lojaId]?.[hoje]||{};
@@ -10247,7 +10251,7 @@ function opOpenExecutarChecklist(lojaId,modeloId){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
   window._xLoja=lojaId;window._xModelo=modeloId;window._xPasso=false;window._xPassoIdx=0;
-  const hoje=todayKey();
+  const hoje=serviceKey();
   if(!S.op.completions)S.op.completions={};
   if(!S.op.completions[lojaId])S.op.completions[lojaId]={};
   if(!S.op.completions[lojaId][hoje])S.op.completions[lojaId][hoje]={};
@@ -10260,7 +10264,7 @@ function opRenderExec(){
   const lojaId=window._xLoja,modeloId=window._xModelo;
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const comp=S.op.completions[lojaId][hoje][modeloId]||{items:{}};
   const funcs=S.op.funcionarios||[];
   const respNomes=(m.responsaveis||[]).map(id=>funcs.find(f=>f.id===id)?.nome).filter(Boolean);
@@ -10361,7 +10365,7 @@ function opXToggle(itemId){
   if(b){b.classList.toggle('open');if(a)a.textContent=b.classList.contains('open')?'▴':'▾';}
 }
 function opXSetItem(itemId,tipo){
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions[lojaId][hoje][modeloId];
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
@@ -10380,7 +10384,7 @@ function opXSetItem(itemId,tipo){
   opXUpdateProg();
 }
 function opXSetVal(itemId,field,val){
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions[lojaId][hoje][modeloId];
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
@@ -10392,7 +10396,7 @@ function opXSetVal(itemId,field,val){
   opXUpdateProg();
 }
 function opXSetObs(itemId,obs){
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   if(!comp)return;
   if(!comp.items)comp.items={};
@@ -10401,7 +10405,7 @@ function opXSetObs(itemId,obs){
 }
 function opXAttachFoto(itemId,input){
   if(!input.files||!input.files[0])return;
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions[lojaId][hoje][modeloId];
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
@@ -10441,7 +10445,7 @@ function opXAttachFoto(itemId,input){
   reader.readAsDataURL(file);
 }
 function opXDelFoto(itemId,fi){
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   if(!comp?.items?.[itemId]?.fotos)return;
   comp.items[itemId].fotos.splice(fi,1);
@@ -10458,7 +10462,7 @@ function opXDelFoto(itemId,fi){
   toast('Foto removida.');
 }
 function opXViewFoto(itemId,fi){
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   if(!comp?.items?.[itemId]?.fotos?.length)return;
   const fotos=comp.items[itemId].fotos;
@@ -10478,7 +10482,7 @@ function opXViewFoto(itemId,fi){
   </div>`);
 }
 function opXUpdateProg(){
-  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=todayKey();
+  const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   if(!m||!comp)return;
@@ -10491,7 +10495,7 @@ function opXUpdateProg(){
 }
 function opFinalizarChecklist(lojaId,modeloId){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   const errEl=document.getElementById('xexec-err')||document.getElementById('cl-exec-err');
   const showErr=msg=>{if(errEl){errEl.textContent=msg;errEl.style.display='block';}};
@@ -10533,7 +10537,7 @@ function opFinalizarChecklist(lojaId,modeloId){
       }
     }
   }
-  comp.status='feito';comp.finalizadoEm=new Date().toISOString();comp.finalizadoPor=me;
+  comp.status='feito';comp.finalizadoEm=localISOString();comp.finalizadoPor=me;
   saveLocal();
   document.getElementById('exec-ov').classList.remove('show');
   renderOperacional();toast('Checklist finalizado!');
@@ -10579,7 +10583,7 @@ function opVerFAQSetor(lojaId,setor,secao){
 function opTabHoje(lojaId){
   // Modo "todas as lojas" — resumo por loja
   if(!lojaId){
-    const hoje=todayKey();
+    const hoje=serviceKey();
     const agora=new Date();
     let html=`<div style="font-size:.78rem;color:var(--muted);margin-bottom:18px;">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">`;
@@ -10643,7 +10647,7 @@ function opTabHoje(lojaId){
     }
     return html;
   }
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const setores=opSetores(lojaId);
   const modelos=S.op.checklistModelos?.[lojaId]||[];
   const completions=S.op.completions?.[lojaId]?.[hoje]||{};
@@ -10693,7 +10697,7 @@ function opTabHoje(lojaId){
 function opVerCompletionDetalhes(lojaId,modeloId,setor){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   if(!comp||comp.status!=='feito'){toast('Checklist ainda não executado.');return;}
   const nokItens=(m.items||[]).filter(item=>{const st=comp.items?.[item.id];return st?.nok;});
@@ -11489,10 +11493,10 @@ function opTabChecklists(lojaId){
   return tabBar+opTabChecklistsAcomp(lojaId);
 }
 function opTabChecklistsAcomp(lojaId){
-  const data=window._clAcompData||todayKey();
+  const data=window._clAcompData||serviceKey();
   const modelos=(S.op.checklistModelos?.[lojaId]||[]).filter(m=>m.ativo!==false);
   const comps=(S.op.completions?.[lojaId]?.[data])||{};
-  const hoje=todayKey();
+  const hoje=serviceKey();
   const agora=new Date();
   const isHoje=data===hoje;
   const feitos=modelos.filter(m=>comps[m.id]?.status==='feito').length;
@@ -11598,7 +11602,7 @@ function opTabChecklistsModelos(lojaId){
   return html;
 }
 function opVerCompChecklist(lojaId,modeloId,data){
-  data=data||todayKey();
+  data=data||serviceKey();
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   const comp=S.op.completions?.[lojaId]?.[data]?.[modeloId];
   if(!m)return;
