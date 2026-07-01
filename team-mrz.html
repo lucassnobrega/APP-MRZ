@@ -1863,10 +1863,22 @@ function migrateState(d){
     }
     d.v=36;
   }
+  // ── Limpeza automática: remover completions com mais de 5 dias (mantém banco leve)
+  if(d.op?.completions){
+    const _cut=new Date();_cut.setDate(_cut.getDate()-5);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cutKey=`${_cut.getFullYear()}-${_p(_cut.getMonth()+1)}-${_p(_cut.getDate())}`;
+    for(const _lj in d.op.completions){
+      for(const _dt in d.op.completions[_lj]){
+        if(_dt<_cutKey)delete d.op.completions[_lj][_dt];
+      }
+    }
+  }
   return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
-function saveLocal(){S.lastUp=new Date().toISOString();try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){console.warn('localStorage cheio:',e);toast('Armazenamento local cheio — dados salvos na nuvem ☁️',4000);}if(_fbReady)_fbSave();}
+// Modo Firebase-only: sem localStorage — evita "armazenamento cheio" em celulares
+function saveLocal(){S.lastUp=new Date().toISOString();if(_fbReady)_fbSave();else console.warn('saveLocal: Firebase ainda não conectado');}
 async function loadGH(){try{const r=await fetch(GH_RAW+'?t='+Date.now());if(!r.ok)return null;const d=await r.json();return(d&&d.v)?d:null;}catch(e){return null;}}
 
 // Date utils
@@ -1996,23 +2008,18 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
 // ══════════════════════════════════════
 (function(){
   setSdot('loading');
-  // Show login immediately using local cache while Firebase connects
-  const loc=loadLocal();
-  if(loc){S=migrateState(loc);}else{S=defState();}
-  syncCustomUsers(); // garante que usuários customizados estão em M antes do Firebase responder
-  buildLoginGrid();
-  // Connect Firebase real-time listener
+  // Modo Firebase-only: limpar localStorage antigo para liberar espaço no dispositivo
+  try{localStorage.removeItem(SK);}catch(e){}
+  // Conectar ao Firebase — único source of truth
   _db.ref(_FBKEY).on('value',snap=>{
     const fb=snap.val();
     if(fb&&fb.v){
       const newer=!S||!S.lastUp||fb.lastUp>S.lastUp;
       if(newer){
-        // Deep copy ANTES de passar para migrateState — evita que o fb seja mutado in-place
-        // (sem isso, S e fb ficam sendo o mesmo objeto e o diff nunca detecta mudanças)
+        // Deep copy antes de migrateState para poder comparar depois
         const fbSnap=JSON.parse(JSON.stringify(fb));
-        // Preservar completions pendentes locais (hoje) antes de substituir S
-        // Proteção contra race condition: outro dispositivo salva antes de receber o dado local
-        const _hj=new Date().toISOString().slice(0,10);
+        // Preservar completions em andamento (em memória) — proteção contra race condition
+        const _hj=serviceKey();
         const _localPend={};
         if(S?.op?.completions){
           for(const[_lj,_dias]of Object.entries(S.op.completions)){
@@ -2026,7 +2033,7 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
           }
         }
         S=migrateState(fb);
-        // Re-injetar completions pendentes que o Firebase pode ter perdido por race condition
+        // Re-injetar completions pendentes que o Firebase pode ter perdido
         for(const[_lj,_mods]of Object.entries(_localPend)){
           if(!S.op.completions)S.op.completions={};
           if(!S.op.completions[_lj])S.op.completions[_lj]={};
@@ -2035,8 +2042,7 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
             if(!S.op.completions[_lj][_hj][_mid])S.op.completions[_lj][_hj][_mid]=_cp;
           }
         }
-        localStorage.setItem(SK,JSON.stringify(S));
-        // Se a migration mudou algo (ex: limpou userPerms), salvar de volta no Firebase
+        // Se migration mudou algo, salvar de volta no Firebase
         if(JSON.stringify(S)!==JSON.stringify(fbSnap))setTimeout(()=>{if(_fbReady)_fbSave();},1500);
       }
       syncCustomUsers();
@@ -2045,8 +2051,8 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
       if(me)reRenderAll();
       else buildLoginGrid();
     }else{
-      // Firebase empty — push local data up
-      if(!S){S=loc?migrateState(loc):defState();}
+      // Firebase vazio — criar estado padrão e subir
+      S=defState();
       syncCustomUsers();
       _fbReady=true;
       setSdot('ok');
@@ -2055,11 +2061,11 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
     }
   },err=>{
     console.warn('Firebase offline:',err);
-    if(!S){const l=loadLocal();S=l?migrateState(l):defState();}
-    syncCustomUsers(); // garante login offline mesmo sem Firebase
-    _fbReady=false;
     setSdot('off');
-    buildLoginGrid();
+    _fbReady=false;
+    // Sem cache local — mostrar mensagem de erro na tela de login
+    const errEl=document.getElementById('login-err');
+    if(errEl)errEl.textContent='⚠️ Sem conexão com o servidor. Verifique a internet e recarregue a página.';
   });
 })();
 
@@ -2086,9 +2092,11 @@ function doLogin(){
   const userEl=document.getElementById('login-email');
   const pwdEl=document.getElementById('login-pwd');
   const errEl=document.getElementById('login-err');
+  errEl.textContent='';
+  // Aguardar Firebase conectar
+  if(!S||!_fbReady){errEl.textContent='⏳ Conectando ao servidor, aguarde um momento...';setTimeout(()=>{if(S&&_fbReady)errEl.textContent='';},3000);return;}
   const username=(userEl.value||'').trim().toLowerCase();
   const pwd=pwdEl.value||'';
-  errEl.textContent='';
   if(!username||!pwd){errEl.textContent='Preencha usuário e senha.';return;}
   // Busca: primeiro pelo username customizado (S.usernames), depois pelo key do M
   const found=Object.entries(M).find(([k])=>{
@@ -10425,7 +10433,7 @@ function opXAttachFoto(itemId,input){
       const compressed=canvas.toDataURL('image/jpeg',0.72);
       const fi=comp.items[itemId].fotos.length;
       comp.items[itemId].fotos.push(compressed);
-      try{saveLocal();}catch(e){comp.items[itemId].fotos.pop();toast('Foto grande demais, tente tirar outra.');return;}
+      saveLocal(); // Firebase-only: salva diretamente na nuvem
       // Update DOM: append thumbnail to grid
       const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
       if(gridEl){
