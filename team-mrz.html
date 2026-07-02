@@ -227,6 +227,7 @@ html,body{transition:background .35s,color .35s;}
 .sdot{width:7px;height:7px;border-radius:50%;background:var(--muted2);}
 .sdot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
 .sdot.loading{background:var(--amber);animation:pulse 1.5s infinite;}
+.sdot.saving{background:var(--amber);animation:pulse 0.7s infinite;}
 .sdot.err{background:var(--red);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .tb-btn{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:5px 13px;font-size:.77rem;color:var(--muted);cursor:pointer;transition:var(--tr);display:flex;align-items:center;gap:5px;}
@@ -1112,7 +1113,37 @@ firebase.initializeApp(_fbConfig);
 const _db=firebase.database();
 const _FBKEY='mrz_team_v3';
 let _fbReady=false;
-function _fbSave(){_db.ref(_FBKEY).set(S).then(()=>{setSdot('ok');}).catch(e=>{console.warn('Firebase write:',e);setSdot('err');setTimeout(()=>setSdot('ok'),4000);});}
+let _savePending=false;   // save em andamento — protege S de ser sobrescrito pelo listener
+let _saveQueue=null;      // snapshot mais recente enfileirado enquanto _savePending=true
+function _fbSave(attempt=0){
+  // Re-captura S a cada tentativa (pode ter mudado desde tentativa anterior)
+  const snap=JSON.parse(JSON.stringify(S));
+  _savePending=true;
+  setSdot('saving');
+  _db.ref(_FBKEY).set(snap).then(()=>{
+    _savePending=false;
+    setSdot('ok');
+    // Há um save mais recente na fila? Enviá-lo agora.
+    if(_saveQueue){
+      const q=_saveQueue;_saveQueue=null;
+      _savePending=true;
+      _db.ref(_FBKEY).set(q).then(()=>{_savePending=false;setSdot('ok');}).catch(e=>{
+        _savePending=false;setSdot('err');console.warn('Firebase queued write:',e);
+      });
+    }
+  }).catch(e=>{
+    if(attempt<3){
+      // _savePending permanece true durante o retry (protege S)
+      const delay=1000*Math.pow(2,attempt); // 1s, 2s, 4s
+      setTimeout(()=>_fbSave(attempt+1),delay);
+    }else{
+      _savePending=false;
+      console.warn('Firebase write falhou após 3 tentativas:',e);
+      setSdot('err');
+      toast('⚠️ Erro ao salvar! Verifique a conexão e tente novamente.',7000);
+    }
+  });
+}
 function reRenderAll(){
   if(!me||!S)return;
   try{buildSidebar();}catch(e){}
@@ -1152,10 +1183,12 @@ function migrateState(d){
     const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
     d.rotinas.defs=[...defRotinas(),...custom];
   }
-  if(!d.rh||typeof d.rh!=='object')d.rh={pontos:[],contratacoes:[],agendamentos:[]};
+  if(!d.rh||typeof d.rh!=='object')d.rh={pontos:[],contratacoes:[],agendamentos:[],documentos:[],advertencias:[]};
   if(!Array.isArray(d.rh.pontos))d.rh.pontos=[];
   if(!Array.isArray(d.rh.contratacoes))d.rh.contratacoes=[];
   if(!Array.isArray(d.rh.agendamentos))d.rh.agendamentos=[];
+  if(!Array.isArray(d.rh.documentos))d.rh.documentos=[];
+  if(!Array.isArray(d.rh.advertencias))d.rh.advertencias=[];
   if(!d.contasPagar)d.contasPagar=null;
   // Firebase converte arrays para objetos — normalizar customUsers
   if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
@@ -1863,9 +1896,9 @@ function migrateState(d){
     }
     d.v=36;
   }
-  // ── Limpeza automática: remover completions com mais de 5 dias (mantém banco leve)
+  // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
-    const _cut=new Date();_cut.setDate(_cut.getDate()-5);
+    const _cut=new Date();_cut.setDate(_cut.getDate()-2);
     const _p=n=>String(n).padStart(2,'0');
     const _cutKey=`${_cut.getFullYear()}-${_p(_cut.getMonth()+1)}-${_p(_cut.getDate())}`;
     for(const _lj in d.op.completions){
@@ -1874,11 +1907,91 @@ function migrateState(d){
       }
     }
   }
+  // ── Limpeza: rotinas.completions com mais de 60 dias (campo 'em' = data da conclusão)
+  if(d.rotinas?.completions){
+    const _cut60=new Date();_cut60.setDate(_cut60.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut60Key=`${_cut60.getFullYear()}-${_p(_cut60.getMonth()+1)}-${_p(_cut60.getDate())}`;
+    for(const _rk in d.rotinas.completions){
+      const _rc=d.rotinas.completions[_rk];
+      if(_rc?.em&&_rc.em<_cut60Key)delete d.rotinas.completions[_rk];
+    }
+  }
+  // ── Limpeza: op.errosProcesso resolvidos com mais de 60 dias
+  if(Array.isArray(d.op?.errosProcesso)){
+    const _cut60=new Date();_cut60.setDate(_cut60.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut60Key=`${_cut60.getFullYear()}-${_p(_cut60.getMonth()+1)}-${_p(_cut60.getDate())}`;
+    d.op.errosProcesso=d.op.errosProcesso.filter(e=>e.status==='pendente'||!e.date||e.date>=_cut60Key);
+  }
+  // ── Limpeza: errosCaixa resolvidos/fechados com mais de 60 dias
+  if(Array.isArray(d.errosCaixa)){
+    const _cut60=new Date();_cut60.setDate(_cut60.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut60Key=`${_cut60.getFullYear()}-${_p(_cut60.getMonth()+1)}-${_p(_cut60.getDate())}`;
+    d.errosCaixa=d.errosCaixa.filter(e=>e.status==='pendente'||!e.date||e.date>=_cut60Key);
+  }
+  // ── Limpeza: mural — mensagens não fixadas com mais de 90 dias
+  if(Array.isArray(d.mural)){
+    const _cut90=new Date();_cut90.setDate(_cut90.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut90Key=`${_cut90.getFullYear()}-${_p(_cut90.getMonth()+1)}-${_p(_cut90.getDate())}`;
+    d.mural=d.mural.filter(p=>p.pinned||!p.date||p.date>=_cut90Key);
+  }
+  // ── Limpeza: occ (ocorrências) com mais de 90 dias
+  if(Array.isArray(d.occ)){
+    const _cut90=new Date();_cut90.setDate(_cut90.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut90Key=`${_cut90.getFullYear()}-${_p(_cut90.getMonth()+1)}-${_p(_cut90.getDate())}`;
+    d.occ=d.occ.filter(o=>!o.date||o.date>=_cut90Key);
+  }
+  // ── Limpeza: logs pessoais com mais de 90 dias (chave: user-YYYY-MM-DD)
+  if(d.logs&&typeof d.logs==='object'){
+    const _cut90=new Date();_cut90.setDate(_cut90.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut90Key=`${_cut90.getFullYear()}-${_p(_cut90.getMonth()+1)}-${_p(_cut90.getDate())}`;
+    for(const _lk in d.logs){
+      const _date=_lk.slice(-10); // últimos 10 chars = YYYY-MM-DD
+      if(_date<_cut90Key)delete d.logs[_lk];
+    }
+  }
+  // ── Limpeza: reports semanais com mais de 90 dias (chave: user-YYYY-Wnn)
+  if(d.reports&&typeof d.reports==='object'){
+    const _cut90=new Date();_cut90.setDate(_cut90.getDate()-60);
+    const _cutYear=_cut90.getFullYear();
+    const _cutWeek=Math.ceil((((_cut90-new Date(_cutYear,0,1))/864e5)+new Date(_cutYear,0,1).getDay()+1)/7);
+    const _cutWk=`${_cutYear}-W${String(_cutWeek).padStart(2,'0')}`;
+    for(const _rk in d.reports){
+      if(d.reports[_rk]?._arq)continue; // arquivados: manter
+      const _wk=_rk.slice(-8); // últimos 8 chars = YYYY-Wnn
+      if(_wk<_cutWk)delete d.reports[_rk];
+    }
+  }
+  // ── Limpeza: contasPagar.pagamentos com mais de 6 meses
+  if(d.contasPagar?.pagamentos&&typeof d.contasPagar.pagamentos==='object'){
+    const _cut6m=new Date();_cut6m.setDate(_cut6m.getDate()-60);
+    const _p=n=>String(n).padStart(2,'0');
+    const _cut6mKey=`${_cut6m.getFullYear()}-${_p(_cut6m.getMonth()+1)}`;
+    for(const _pk in d.contasPagar.pagamentos){
+      const _ym=_pk.split('|')[1]; // chave = contaId|YYYY-MM
+      if(_ym&&_ym<_cut6mKey)delete d.contasPagar.pagamentos[_pk];
+    }
+  }
   return d;
 }
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(SK)||'null');return(d&&d.v)?d:null;}catch(e){return null;}}
 // Modo Firebase-only: sem localStorage — evita "armazenamento cheio" em celulares
-function saveLocal(){S.lastUp=new Date().toISOString();if(_fbReady)_fbSave();else console.warn('saveLocal: Firebase ainda não conectado');}
+function saveLocal(){
+  S.lastUp=new Date().toISOString();
+  setSdot('saving');
+  if(!_fbReady){console.warn('saveLocal: Firebase ainda não conectado');return;}
+  if(_savePending){
+    // Já há um save em andamento — enfileirar este snapshot
+    _saveQueue=JSON.parse(JSON.stringify(S));
+  }else{
+    _fbSave();
+  }
+}
 async function loadGH(){try{const r=await fetch(GH_RAW+'?t='+Date.now());if(!r.ok)return null;const d=await r.json();return(d&&d.v)?d:null;}catch(e){return null;}}
 
 // Date utils
@@ -2014,7 +2127,8 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
   _db.ref(_FBKEY).on('value',snap=>{
     const fb=snap.val();
     if(fb&&fb.v){
-      const newer=!S||!S.lastUp||fb.lastUp>S.lastUp;
+      // Não sobrescrever S se há um save local em andamento — evita perda de dados
+      const newer=(!S||!S.lastUp||fb.lastUp>S.lastUp)&&!_savePending;
       if(newer){
         // Deep copy antes de migrateState para poder comparar depois
         const fbSnap=JSON.parse(JSON.stringify(fb));
@@ -2033,13 +2147,14 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
           }
         }
         S=migrateState(fb);
-        // Re-injetar completions pendentes que o Firebase pode ter perdido
+        // Re-injetar completions pendentes — versão local é SEMPRE mais recente que Firebase
+        // (não usar condicional: se Firebase já tem uma versão antiga, substituímos pela local)
         for(const[_lj,_mods]of Object.entries(_localPend)){
           if(!S.op.completions)S.op.completions={};
           if(!S.op.completions[_lj])S.op.completions[_lj]={};
           if(!S.op.completions[_lj][_hj])S.op.completions[_lj][_hj]={};
           for(const[_mid,_cp]of Object.entries(_mods)){
-            if(!S.op.completions[_lj][_hj][_mid])S.op.completions[_lj][_hj][_mid]=_cp;
+            S.op.completions[_lj][_hj][_mid]=_cp; // sempre substitui — local mais recente
           }
         }
         // Se migration mudou algo, salvar de volta no Firebase
@@ -2931,8 +3046,9 @@ function pendingAll(){return(S.tasks||[]).filter(t=>t.status==='review').length;
 function renderTasks(){
   if(!S||!me)return;
   const isL=M[me].isLeader;
+  const isMob=window.innerWidth<640;
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-    <div style="font-size:.74rem;color:var(--muted);">Arraste para mover entre colunas ou reordenar dentro delas</div>
+    <div style="font-size:.74rem;color:var(--muted);">${isMob?'Toque no cartão para editar • use o botão ▶ para avançar o status':'Arraste para mover entre colunas ou reordenar dentro delas'}</div>
     <button class="btn-gold btn-sm" onclick="openNewTask()">+ Nova Tarefa</button>
   </div><div class="kanban-wrap"><div class="kanban">`;
   COLS.forEach(col=>{
@@ -2959,6 +3075,10 @@ function renderTasks(){
       const devBadge=t.status==='review'&&isL?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">Aguarda devolutiva</span>`:'';
       const reviewBadge=t.status==='review'&&!isL?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">Em aprovação</span>`:'';
       const _ = reviewBadge; // used below
+      // Próximo status lógico para o botão mobile
+      const _nextSt={todo:'doing',doing:'review',review:isL?'aprovado':'review',aprovado:'done',ajuste:'doing',done:'done'};
+      const _nextLbl={todo:'→ Fazendo',doing:'→ Aprovação',review:isL?'→ Aprovar':'Em Aprovação',aprovado:'→ Feito',ajuste:'→ Fazendo',done:'✓ Feito'};
+      const canAdvance=canDrag&&t.status!=='done'&&!(t.status==='review'&&!isL);
       html+=`<div class="task-card" id="tc-${t.id}"
         draggable="${canDrag}"
         ondragstart="kDragStart(event,'${t.id}')"
@@ -2977,6 +3097,7 @@ function renderTasks(){
           </div>
           <button onclick="event.stopPropagation();taskToWhatsApp('${t.id}')" title="Compartilhar no WhatsApp" style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;line-height:1;display:flex;align-items:center;opacity:.65;" onmouseover="this.style.opacity='1';this.style.background='#25d36618'" onmouseout="this.style.opacity='.65';this.style.background='none'"><svg viewBox="0 0 24 24" width="15" height="15" fill="#25d366" style="pointer-events:none;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
         </div>
+        ${isMob&&canAdvance?`<button onclick="event.stopPropagation();kAdvanceStatus('${t.id}')" style="width:100%;margin-top:8px;padding:6px 0;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:.72rem;cursor:pointer;">${_nextLbl[t.status]||'→ Avançar'}</button>`:''}
       </div>`;
     });
     html+=`</div></div>`;
@@ -3056,6 +3177,21 @@ function kDrop(e,colId,allowed){
 }
 
 // ══════════════════════════════════════
+// Avança tarefa para o próximo status (botão mobile)
+function kAdvanceStatus(id){
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  const isL=M[me].isLeader;
+  const nextMap={todo:'doing',doing:'review',review:isL?'aprovado':'review',aprovado:'done',ajuste:'doing'};
+  const next=nextMap[t.status];
+  if(!next||next===t.status)return;
+  if((next==='aprovado')&&!isL){toast('Apenas líderes podem aprovar.');return;}
+  t.status=next;
+  if(['review','aprovado','done'].includes(next)&&!t.doneAt)t.doneAt=todayKey();
+  saveLocal();renderTasks();renderHome();
+  toast('Status avançado!');
+  if(next==='review'){waNotify('aprovacao',{title:t.title,from:M[me]?.name||me});}
+}
+
 // TASK MODAL (open/edit)
 function taskToWhatsApp(id){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
@@ -3319,8 +3455,26 @@ function handleFileAtt(taskId,inp){
     if(file.size>2*1024*1024){toast('Arquivo muito grande (máx 2MB). Use um link.');return;}
     const reader=new FileReader();
     reader.onload=e=>{
-      const type=file.type.startsWith('image/')?'img':'file';
-      addAttachment(taskId,{id:uid(),type,name:file.name,data:e.target.result,mime:file.type});
+      if(file.type.startsWith('image/')){
+        // Comprimir imagem antes de salvar (max 420px, jpeg 50%) — mantém banco leve
+        setTimeout(()=>{
+          const img=new Image();
+          img.onload=()=>{
+            const MAX=420;
+            const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+            const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+            const canvas=document.createElement('canvas');
+            canvas.width=w;canvas.height=h;
+            canvas.getContext('2d').drawImage(img,0,0,w,h);
+            const compressed=canvas.toDataURL('image/jpeg',0.50);
+            canvas.width=1;canvas.height=1;img.src='';
+            addAttachment(taskId,{id:uid(),type:'img',name:file.name,data:compressed,mime:'image/jpeg'});
+          };
+          img.src=e.target.result;
+        },80);
+      }else{
+        addAttachment(taskId,{id:uid(),type:'file',name:file.name,data:e.target.result,mime:file.type});
+      }
     };
     reader.readAsDataURL(file);
   });
@@ -5833,7 +5987,7 @@ function saveRhPonto(id){
   if(!S.rh.pontos)S.rh.pontos=[];
   const func=document.getElementById('rh-p-func')?.value.trim();
   const dias=document.getElementById('rh-p-dias')?.value.trim();
-  if(!func){toast('Informe o nome do funcionário.','#ef4444');return;}
+  if(!func){toast('Informe o nome do funcionário.',4000);return;}
   const obj={
     id:id||uid(),
     funcionario:func,
@@ -5852,7 +6006,7 @@ function saveRhPonto(id){
 function rhPontoWhatsApp(lojaFiltro){
   const LOJAS_NOMES={'raz-alameda':'ALAMEDA','zanoni-lago':'ZANONI LAGO','zanoni-alphaville':'ZANONI ALPHAVILLE','raz-mercadao':'MERCADÃO','zanoni-maringa':'MARINGÁ'};
   const pendentes=(S.rh.pontos||[]).filter(p=>p.status==='pendente'&&(lojaFiltro==='todas'||p.loja===lojaFiltro));
-  if(!pendentes.length){toast('Nenhum pendente para esta loja.','#f59e0b');return;}
+  if(!pendentes.length){toast('Nenhum pendente para esta loja.',4000);return;}
   // Agrupar por loja
   const byLoja={};
   pendentes.forEach(p=>{if(!byLoja[p.loja])byLoja[p.loja]=[];byLoja[p.loja].push(p);});
@@ -5896,7 +6050,7 @@ function saveRhCont(id){
   if(!S.rh.contratacoes)S.rh.contratacoes=[];
   const nome=document.getElementById('rh-c-nome')?.value.trim();
   const cargo=document.getElementById('rh-c-cargo')?.value.trim();
-  if(!nome||!cargo){toast('Preencha nome e cargo.','#ef4444');return;}
+  if(!nome||!cargo){toast('Preencha nome e cargo.',4000);return;}
   const obj={
     id:id||uid(),
     nome,cargo,
@@ -5940,7 +6094,7 @@ function saveRhAgend(id){
   if(!S.rh.agendamentos)S.rh.agendamentos=[];
   const func=document.getElementById('rh-a-func')?.value.trim();
   const data=document.getElementById('rh-a-data')?.value;
-  if(!func||!data){toast('Preencha funcionário e data.','#ef4444');return;}
+  if(!func||!data){toast('Preencha funcionário e data.',4000);return;}
   const obj={
     id:id||uid(),
     funcionario:func,
@@ -5980,7 +6134,7 @@ function openRhDocModal(){
 function saveRhDoc(){
   if(!S.rh.documentos)S.rh.documentos=[];
   const func=document.getElementById('rh-d-func')?.value.trim();
-  if(!func){toast('Informe o funcionário.','#ef4444');return;}
+  if(!func){toast('Informe o funcionário.',4000);return;}
   S.rh.documentos.push({
     id:uid(),
     funcionario:func,
@@ -6017,7 +6171,7 @@ function saveRhAdv(){
   if(!S.rh.advertencias)S.rh.advertencias=[];
   const func=document.getElementById('rh-adv-func')?.value.trim();
   const motivo=document.getElementById('rh-adv-motivo')?.value.trim();
-  if(!func||!motivo){toast('Preencha funcionário e motivo.','#ef4444');return;}
+  if(!func||!motivo){toast('Preencha funcionário e motivo.',4000);return;}
   const advId=uid();
   const lojaRhId=document.getElementById('rh-adv-loja')?.value||'raz-alameda';
   const dataAdv=document.getElementById('rh-adv-data')?.value||todayKey();
@@ -9841,7 +9995,7 @@ async function saveGestaoTask(){
 // ══════════════════════════════════════
 // SYNC — Firebase (indicador de conexão)
 // ══════════════════════════════════════
-function setSdot(st){const d=document.getElementById('sdot');if(!d)return;d.className='sdot'+(st==='ok'?' ok':st==='loading'?' loading':st==='err'?' err':'');}
+function setSdot(st){const d=document.getElementById('sdot');if(!d)return;d.className='sdot'+(st==='ok'?' ok':st==='loading'?' loading':st==='err'?' err':st==='saving'?' saving':'');}
 
 // TOAST
 function toast(msg,dur=3000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),dur);}
@@ -10403,6 +10557,7 @@ function opXSetVal(itemId,field,val){
   }
   opXUpdateProg();
 }
+let _obsTimer=null;
 function opXSetObs(itemId,obs){
   const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
@@ -10410,6 +10565,9 @@ function opXSetObs(itemId,obs){
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
   comp.items[itemId].obs=obs;
+  // Debounce: salvar no Firebase após 1.5s sem digitar (evita perda se app sincronizar)
+  clearTimeout(_obsTimer);
+  _obsTimer=setTimeout(()=>saveLocal(),1500);
 }
 function opXAttachFoto(itemId,input){
   if(!input.files||!input.files[0])return;
@@ -10419,36 +10577,45 @@ function opXAttachFoto(itemId,input){
   if(!comp.items[itemId])comp.items[itemId]={};
   if(!comp.items[itemId].fotos)comp.items[itemId].fotos=[];
   const file=input.files[0];
+  // Aviso imediato: processamento de foto bloqueia a UI por alguns instantes
+  toast('📷 Processando foto...', 4000);
   const reader=new FileReader();
   reader.onload=ev=>{
-    // Compress image via canvas (max 800px, jpeg 0.72) to prevent localStorage overflow
-    const img=new Image();
-    img.onload=()=>{
-      const MAX=800;
-      const scale=Math.min(1,MAX/Math.max(img.width,img.height));
-      const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
-      const canvas=document.createElement('canvas');
-      canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      const compressed=canvas.toDataURL('image/jpeg',0.72);
-      const fi=comp.items[itemId].fotos.length;
-      comp.items[itemId].fotos.push(compressed);
-      saveLocal(); // Firebase-only: salva diretamente na nuvem
-      // Update DOM: append thumbnail to grid
-      const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
-      if(gridEl){
-        gridEl.style.marginBottom='10px';
-        const thumb=document.createElement('div');
-        thumb.style.cssText='position:relative;width:80px;height:80px;flex-shrink:0;';
-        thumb.innerHTML=`<img src="${compressed}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${itemId}',${fi})"><button onclick="opXDelFoto('${itemId}',${fi})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>`;
-        gridEl.appendChild(thumb);
-      }
-      // Update label text
-      const labelEl=gridEl?gridEl.nextElementSibling:null;
-      if(labelEl){const span=labelEl.querySelector('span:not([style])');if(!span){const nodes=Array.from(labelEl.childNodes);const txt=nodes.find(n=>n.nodeType===3&&n.textContent.trim());if(txt)txt.textContent='📷 Adicionar mais uma foto\n            ';}}
-      toast(`Foto ${fi+1} adicionada!`);
-    };
-    img.src=ev.target.result;
+    // Compress image via canvas (max 420px, jpeg 0.50) — mantém banco leve e reduz uso de memória
+    // Usar setTimeout para deixar o toast renderizar antes de bloquear a thread
+    setTimeout(()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=420;
+        const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+        const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        const compressed=canvas.toDataURL('image/jpeg',0.50);
+        // Liberar referências grandes da memória antes de salvar
+        canvas.width=1;canvas.height=1;
+        img.src='';
+        const fi=comp.items[itemId].fotos.length;
+        comp.items[itemId].fotos.push(compressed);
+        saveLocal(); // Firebase-only: salva diretamente na nuvem
+        // Update DOM: append thumbnail to grid
+        const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
+        if(gridEl){
+          gridEl.style.marginBottom='10px';
+          const thumb=document.createElement('div');
+          thumb.style.cssText='position:relative;width:80px;height:80px;flex-shrink:0;';
+          thumb.innerHTML=`<img src="${compressed}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${itemId}',${fi})"><button onclick="opXDelFoto('${itemId}',${fi})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>`;
+          gridEl.appendChild(thumb);
+        }
+        // Update label text
+        const labelEl=gridEl?gridEl.nextElementSibling:null;
+        if(labelEl){const span=labelEl.querySelector('span:not([style])');if(!span){const nodes=Array.from(labelEl.childNodes);const txt=nodes.find(n=>n.nodeType===3&&n.textContent.trim());if(txt)txt.textContent='📷 Adicionar mais uma foto\n            ';}}
+        toast(`✅ Foto ${fi+1} salva!`);
+      };
+      img.onerror=()=>toast('⚠️ Erro ao processar a foto. Tente novamente.',5000);
+      img.src=ev.target.result;
+    }, 80); // aguarda 80ms para browser renderizar o toast antes de bloquear
   };
   reader.readAsDataURL(file);
 }
