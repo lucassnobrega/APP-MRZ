@@ -4409,7 +4409,8 @@ function downloadECHist(mes){
   const pendentes=filtrado.filter(e=>e.status==='pendente').length;
   const resolvidos=filtrado.filter(e=>e.status==='resolvido').length;
   const semErro=filtrado.filter(e=>e.status==='sem-erro').length;
-  const valorTotal=filtrado.filter(e=>e.valor).reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
+  const totalFaltas=filtrado.filter(e=>e.valor&&(e.sinal||'falta')==='falta').reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
+  const totalSobras=filtrado.filter(e=>e.valor&&e.sinal==='sobra').reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
 
   // Cores por loja
   const lojaCores={'Zanoni Lago':'#6366f1','Zanoni Alphaville':'#f472b6','Zanoni Maringá':'#22d3ee','Raz Alameda':'#f59e0b','Raz Mercadão':'#22c55e'};
@@ -4421,7 +4422,8 @@ function downloadECHist(mes){
     const cor=lojaCores[lj]||'#c9a96e';
     const list=grupos[lj].slice().sort((a,b)=>b.date.localeCompare(a.date));
     const ljPend=list.filter(e=>e.status==='pendente').length;
-    const ljValor=list.filter(e=>e.valor).reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
+    const ljFaltas=list.filter(e=>e.valor&&(e.sinal||'falta')==='falta').reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
+    const ljSobras=list.filter(e=>e.valor&&e.sinal==='sobra').reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
     const rows=list.map(e=>{
       const st=stCor[e.status]||stCor['sem-erro'];
       return`<tr style="border-bottom:1px solid #f0ebe3;">
@@ -4445,7 +4447,10 @@ function downloadECHist(mes){
               <div style="font-size:11px;color:#8a7e72;">${list.length} registro(s)${ljPend>0?` · <span style="color:#b45309;font-weight:700;">${ljPend} pendente(s)</span>`:''}</div>
             </div>
           </div>
-          ${ljValor>0?`<div style="text-align:right;"><div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;">Valor em aberto</div><div style="font-size:16px;font-weight:800;color:#b45309;">${fmtBRL(ljValor)}</div></div>`:''}
+          <div style="display:flex;gap:16px;">
+            ${ljFaltas>0?`<div style="text-align:right;"><div style="font-size:9px;color:#b45309;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">▼ Faltas</div><div style="font-size:15px;font-weight:800;color:#b45309;">${fmtBRL(ljFaltas)}</div></div>`:''}
+            ${ljSobras>0?`<div style="text-align:right;"><div style="font-size:9px;color:#065f46;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">▲ Sobras</div><div style="font-size:15px;font-weight:800;color:#065f46;">${fmtBRL(ljSobras)}</div></div>`:''}
+          </div>
         </div>
         <table style="width:100%;border-collapse:collapse;border:1px solid #e8e0d6;border-radius:8px;overflow:hidden;">
           <thead><tr style="background:#f8f4ee;">
@@ -4481,22 +4486,22 @@ function downloadECHist(mes){
         <div>${M[me]?.name||me}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
       <div style="border:1px solid #e8e0d6;border-radius:8px;padding:12px 14px;text-align:center;">
         <div style="font-size:20px;font-weight:800;color:#2d2317;">${filtrado.length}</div>
-        <div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Total</div>
-      </div>
-      <div style="border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;text-align:center;background:#fef3c7;">
-        <div style="font-size:20px;font-weight:800;color:#92400e;">${pendentes}</div>
-        <div style="font-size:10px;color:#92400e;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Pendentes</div>
+        <div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Registros</div>
       </div>
       <div style="border:1px solid #6ee7b7;border-radius:8px;padding:12px 14px;text-align:center;background:#d1fae5;">
         <div style="font-size:20px;font-weight:800;color:#065f46;">${resolvidos}</div>
         <div style="font-size:10px;color:#065f46;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Resolvidos</div>
       </div>
-      <div style="border:1px solid #e8e0d6;border-radius:8px;padding:12px 14px;text-align:center;">
-        <div style="font-size:20px;font-weight:800;color:#b45309;">${valorTotal>0?fmtBRL(valorTotal):'—'}</div>
-        <div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Valor em aberto</div>
+      <div style="border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;text-align:center;background:#fef2f2;">
+        <div style="font-size:16px;font-weight:800;color:#b91c1c;">${totalFaltas>0?fmtBRL(totalFaltas):'—'}</div>
+        <div style="font-size:10px;color:#b91c1c;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">▼ Total Faltas</div>
+      </div>
+      <div style="border:1px solid #6ee7b7;border-radius:8px;padding:12px 14px;text-align:center;background:#f0fdf4;">
+        <div style="font-size:16px;font-weight:800;color:#15803d;">${totalSobras>0?fmtBRL(totalSobras):'—'}</div>
+        <div style="font-size:10px;color:#15803d;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">▲ Total Sobras</div>
       </div>
     </div>
     ${secoes}
