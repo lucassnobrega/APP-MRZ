@@ -2070,8 +2070,10 @@ function arquivarMes(arr,resolvedStatuses,onDone){
   const prevMes=prevMonthKey();
   let count=0;
   arr.forEach(item=>{
-    if(!item._arq&&item.date&&item.date.startsWith(prevMes)&&resolvedStatuses.includes(item.status)){
-      item._arq=true;item._arqMes=prevMes;count++;
+    // Usa dataErro (data real do erro) se disponível, senão date (data de lançamento)
+    const refDate=item.dataErro||item.date||'';
+    if(!item._arq&&refDate.startsWith(prevMes)&&resolvedStatuses.includes(item.status)){
+      item._arq=true;item._arqMes=refDate.slice(0,7);count++;
     }
   });
   if(!count){toast('Nenhum item resolvido do mês anterior para arquivar.');return;}
@@ -4405,7 +4407,7 @@ function downloadECHist(mes){
       return`<tr style="border-bottom:1px solid #f0ebe3;">
         <td style="padding:8px 10px;font-size:12px;font-weight:600;color:#2d2317;max-width:200px;">${e.titulo||'—'}</td>
         <td style="padding:8px 8px;font-size:11px;color:#6b5f53;">${e.tipo||'—'}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#6b5f53;">${fmtD(e.date)}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#6b5f53;">${fmtD(e.dataErro||e.date)}</td>
         <td style="padding:8px 8px;text-align:right;font-size:12px;font-weight:700;color:${e.valor?'#b45309':'#aaa'};">${e.valor?'R$ '+parseFloat(e.valor).toFixed(2).replace('.',','):'—'}</td>
         <td style="padding:8px 8px;text-align:center;">
           <span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;background:${st.bg};color:${st.color};border:1px solid ${st.border};">${sl[e.status]||e.status}</span>
@@ -6456,7 +6458,7 @@ function renderErrosCaixa(){
             <span style="font-size:.65rem;font-weight:800;padding:2px 8px;border-radius:999px;background:${lojaColor}18;color:${lojaColor};border:1px solid ${lojaColor}33;">${esc(e.loja)}</span>
           </div>
           <div style="font-size:.88rem;font-weight:700;margin-bottom:3px;">${esc(e.titulo)}</div>
-          <div class="ec-meta"><span>${esc(e.tipo)}</span><span>${fmtDate(e.date)}</span>${e.valor?`<span class="ec-valor">R$ ${esc(e.valor)}</span>`:''}</div>
+          <div class="ec-meta"><span>${esc(e.tipo)}</span><span title="Data do erro">${fmtDate(e.dataErro||e.date)}</span>${e.dataErro&&e.dataErro!==e.date?`<span style="font-size:.65rem;color:var(--muted);font-style:italic;">lançado ${fmtDate(e.date)}</span>`:''} ${e.valor?`<span class="ec-valor">R$ ${esc(e.valor)}</span>`:''}</div>
           ${e.obs?`<div style="font-size:.76rem;color:var(--muted);margin-top:5px;">${esc(e.obs)}</div>`:''}
         </div>
       </div>`;
@@ -6515,7 +6517,8 @@ function renderErrosCaixa(){
           <div style="font-size:.9rem;font-weight:700;margin-bottom:4px;">${esc(e.titulo)}</div>
           <div class="ec-meta">
             <span>${esc(e.tipo)}</span>
-            <span>${fmtDate(e.date)}</span>
+            <span title="Data do erro">${fmtDate(e.dataErro||e.date)}</span>
+            ${e.dataErro&&e.dataErro!==e.date?`<span style="font-size:.65rem;color:var(--muted);font-style:italic;">lançado ${fmtDate(e.date)}</span>`:''}
             ${ecValorHtml(e)}
           </div>
           ${e.obs?`<div style="font-size:.78rem;color:var(--muted);margin-top:8px;line-height:1.4;">${esc(e.obs)}</div>`:''}
@@ -6602,6 +6605,9 @@ function openNovoErroCaixa(editId){
         <select id="ec-tipo" class="finput">${tipoOpts}</select>
       </div>
     </div>
+    <div class="form-row"><label>Data do erro <span style="font-size:.72rem;color:var(--muted);font-weight:400;">(quando o erro ocorreu — pode ser diferente da data de hoje)</span></label>
+      <input id="ec-dataErro" class="finput" type="date" value="${ec?.dataErro||todayKey()}"/>
+    </div>
     <div class="form-row"><label>Valor impactado (R$)</label>
       <div style="display:flex;gap:8px;align-items:center;">
         <button id="ecb-falta" class="ec-sinal-btn${sinal==='falta'?' sel falta':''}" onclick="ecSelSinal('falta')">▼ Falta</button>
@@ -6644,7 +6650,8 @@ function saveEC(editId){
     valor:document.getElementById('ec-valor').value,
     sinal:document.getElementById('ec-sinal').value||'falta',
     status:document.getElementById('ec-status').value,
-    obs:document.getElementById('ec-obs').value.trim()
+    obs:document.getElementById('ec-obs').value.trim(),
+    dataErro:document.getElementById('ec-dataErro').value||todayKey()
   };
   let ecEntry;
   if(editId){
