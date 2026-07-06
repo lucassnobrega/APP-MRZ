@@ -1896,6 +1896,26 @@ function migrateState(d){
     }
     d.v=36;
   }
+  // v37: arquivar todos os erros de caixa ativos como Jun/2026 + definir dataErro
+  if(d.v<37){
+    if(Array.isArray(d.errosCaixa)){
+      d.errosCaixa.forEach(e=>{
+        if(e._arq)return; // já arquivado, não mexer
+        // Tentar extrair data do título (ex: "28/06/26" → "2026-06-28")
+        const m=e.titulo&&e.titulo.match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+        if(m){
+          const [,dd,mm,yy]=m;
+          const yyyy=yy.length===2?'20'+yy:yy;
+          e.dataErro=`${yyyy}-${mm}-${dd}`;
+        } else if(!e.dataErro){
+          e.dataErro=e.date||'2026-06-30';
+        }
+        e._arq=true;
+        e._arqMes='2026-06';
+      });
+    }
+    d.v=37;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
