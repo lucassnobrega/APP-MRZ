@@ -3314,6 +3314,7 @@ function renderTaskModal(t){
     </div>`;
   document.getElementById('task-modal').classList.add('show');
   setupFileDrop(t.id);
+  setTimeout(_tcotAutoGrow, 60); // ajusta altura das obs de cotação ao abrir
 }
 
 // ── Cotação dentro da tarefa ──────────────────────────────
@@ -3340,9 +3341,10 @@ function renderTcot(tid){
         <button onclick="tcotRemove(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:2px 6px;line-height:1;"></button>
       </div>
       <textarea
+        rows="4"
         oninput="window.tmpTask.cotacaoItems[${i}].obs=this.value;this.style.height='auto';this.style.height=this.scrollHeight+'px';"
-        placeholder="Observações: acidez, qualidade, link do produto, condições de entrega..."
-        style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.8rem;color:var(--text);resize:none;overflow:hidden;min-height:38px;font-family:inherit;line-height:1.5;box-sizing:border-box;"
+        placeholder="Observações: acidez, qualidade, link do produto, condições de entrega...&#10;&#10;Use Enter para criar linhas e tópicos."
+        style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.8rem;color:var(--text);resize:none;overflow:hidden;min-height:82px;font-family:inherit;line-height:1.5;box-sizing:border-box;white-space:pre-wrap;"
       >${esc(item.obs||'')}</textarea>
     </div>`).join('');
   return`${btn}
@@ -4239,6 +4241,12 @@ function renderCotacao(){
     <div class="card-panel" style="margin-bottom:20px">
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div style="flex:2;min-width:150px"><label class="f-lb">Nome da cotação</label><input class="f-in" id="cot-name" placeholder="Ex: Carnes — Semana 18"></div>
+        <div><label class="f-lb">Loja</label>
+          <select class="f-in" id="cot-loja">
+            <option value="">Todas / Geral</option>
+            ${OP_LOJAS.map(lj=>`<option value="${lj.id}">${lj.label}</option>`).join('')}
+          </select>
+        </div>
         <div><label class="f-lb">Data</label><input class="f-in" type="date" id="cot-date" value="${todayKey()}"></div>
       </div>
       <div style="overflow-x:auto;margin-bottom:14px">
@@ -4327,6 +4335,7 @@ function saveCotacao(){
   cotFornA=fA;cotFornB=fB;cotFornC=fC;
   S.cotacoes.push({
     id:uid(),name,date:document.getElementById('cot-date').value,
+    loja:document.getElementById('cot-loja')?.value||'',
     obs:document.getElementById('cot-obs').value,
     escolhido:document.getElementById('cot-escolhido').value,
     motivo:document.getElementById('cot-motivo').value.trim(),
@@ -4354,19 +4363,255 @@ function loadCotacao(id){
     const ob=document.getElementById('cot-obs');if(ob)ob.value=c.obs||'';
     const nm=document.getElementById('cot-name');if(nm)nm.value=c.name||'';
     const dt=document.getElementById('cot-date');if(dt)dt.value=c.date||todayKey();
+    const lj=document.getElementById('cot-loja');if(lj&&c.loja)lj.value=c.loja;
   },50);
 }
 
 function deleteCotacao(id){S.cotacoes=S.cotacoes.filter(x=>x.id!==id);saveLocal();renderCotacao();}
 function downloadECHist(mes){
-  const sl={pendente:'Pendente',resolvido:'Resolvido','sem-erro':'Nao achou'};
-  const rows=S.errosCaixa.filter(e=>e._arq&&e._arqMes===mes).map(e=>({'Data':e.date,'Loja':e.loja,'Titulo':e.titulo,'Tipo':e.tipo,'Valor':e.valor||'','Status':sl[e.status]||e.status,'Obs':e.obs||'','Membro':M[e.member]?.name||e.member||''}));
-  downloadCSV(rows,'erros_caixa_'+mes+'.csv');
+  const filtrado=(S.errosCaixa||[]).filter(e=>e._arq&&e._arqMes===mes);
+  if(!filtrado.length){toast('Nenhum registro no mês '+mes+'.');return;}
+  const [ano,m]=mes.split('-');
+  const mesLabel=new Date(+ano,+m-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  // Agrupar por loja (na ordem de LOJAS)
+  const grupos={};
+  filtrado.forEach(e=>{const lj=e.loja||'Geral';if(!grupos[lj])grupos[lj]=[];grupos[lj].push(e);});
+  const ordem=[...LOJAS,'Geral'];
+
+  const sl={pendente:'Pendente',resolvido:'Resolvido','sem-erro':'Não achou'};
+  const stCor={pendente:{bg:'#fef3c7',color:'#92400e',border:'#fcd34d'},resolvido:{bg:'#d1fae5',color:'#065f46',border:'#6ee7b7'},'sem-erro':{bg:'#f3f4f6',color:'#6b7280',border:'#d1d5db'}};
+  const fmtD=d=>{if(!d)return'';const[y,mo,dy]=d.split('-');return`${dy}/${mo}/${y}`;};
+
+  // Resumo geral
+  const pendentes=filtrado.filter(e=>e.status==='pendente').length;
+  const resolvidos=filtrado.filter(e=>e.status==='resolvido').length;
+  const semErro=filtrado.filter(e=>e.status==='sem-erro').length;
+  const valorTotal=filtrado.filter(e=>e.valor).reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
+
+  // Cores por loja
+  const lojaCores={'Zanoni Lago':'#6366f1','Zanoni Alphaville':'#f472b6','Zanoni Maringá':'#22d3ee','Raz Alameda':'#f59e0b','Raz Mercadão':'#22c55e'};
+
+  // Montar seções
+  let secoes='';
+  ordem.forEach(lj=>{
+    if(!grupos[lj]||!grupos[lj].length)return;
+    const cor=lojaCores[lj]||'#c9a96e';
+    const list=grupos[lj].slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const ljPend=list.filter(e=>e.status==='pendente').length;
+    const ljValor=list.filter(e=>e.valor).reduce((s,e)=>s+(parseFloat(e.valor)||0),0);
+    const rows=list.map(e=>{
+      const st=stCor[e.status]||stCor['sem-erro'];
+      return`<tr style="border-bottom:1px solid #f0ebe3;">
+        <td style="padding:8px 10px;font-size:12px;font-weight:600;color:#2d2317;max-width:200px;">${e.titulo||'—'}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#6b5f53;">${e.tipo||'—'}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#6b5f53;">${fmtD(e.date)}</td>
+        <td style="padding:8px 8px;text-align:right;font-size:12px;font-weight:700;color:${e.valor?'#b45309':'#aaa'};">${e.valor?'R$ '+parseFloat(e.valor).toFixed(2).replace('.',','):'—'}</td>
+        <td style="padding:8px 8px;text-align:center;">
+          <span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;background:${st.bg};color:${st.color};border:1px solid ${st.border};">${sl[e.status]||e.status}</span>
+        </td>
+        <td style="padding:8px 8px;font-size:11px;color:#8a7e72;font-size:10px;">${e.obs||''}</td>
+      </tr>`;
+    }).join('');
+    secoes+=`
+      <div style="break-before:page;padding-top:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid ${cor};">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:14px;height:40px;border-radius:4px;background:${cor};flex-shrink:0;"></div>
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#2d2317;">${lj}</div>
+              <div style="font-size:11px;color:#8a7e72;">${list.length} registro(s)${ljPend>0?` · <span style="color:#b45309;font-weight:700;">${ljPend} pendente(s)</span>`:''}</div>
+            </div>
+          </div>
+          ${ljValor>0?`<div style="text-align:right;"><div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;">Valor em aberto</div><div style="font-size:16px;font-weight:800;color:#b45309;">${fmtBRL(ljValor)}</div></div>`:''}
+        </div>
+        <table style="width:100%;border-collapse:collapse;border:1px solid #e8e0d6;border-radius:8px;overflow:hidden;">
+          <thead><tr style="background:#f8f4ee;">
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;">Título</th>
+            <th style="padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Tipo</th>
+            <th style="padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Data</th>
+            <th style="padding:7px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Valor</th>
+            <th style="padding:7px 8px;text-align:center;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Status</th>
+            <th style="padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Observação</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  });
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Erros de Caixa ${mesLabel} — Grupo MRZ</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#2d2317;padding:32px 40px;}
+    @page{size:A4;margin:20mm 15mm;}
+    @media print{body{padding:0;}}
+  </style>
+  </head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #c9a96e;">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.15em;color:#c9a96e;text-transform:uppercase;margin-bottom:4px;">GRUPO MRZ</div>
+        <h1 style="font-size:22px;font-weight:800;color:#2d2317;">Relatório de Erros de Caixa</h1>
+        <div style="font-size:12px;color:#8a7e72;margin-top:4px;">${mesLabel} · ${filtrado.length} registros · Emitido em ${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#8a7e72;">
+        <div style="font-weight:700;color:#2d2317;font-size:14px;">Controle Financeiro</div>
+        <div>${M[me]?.name||me}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px;">
+      <div style="border:1px solid #e8e0d6;border-radius:8px;padding:12px 14px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#2d2317;">${filtrado.length}</div>
+        <div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Total</div>
+      </div>
+      <div style="border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;text-align:center;background:#fef3c7;">
+        <div style="font-size:20px;font-weight:800;color:#92400e;">${pendentes}</div>
+        <div style="font-size:10px;color:#92400e;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Pendentes</div>
+      </div>
+      <div style="border:1px solid #6ee7b7;border-radius:8px;padding:12px 14px;text-align:center;background:#d1fae5;">
+        <div style="font-size:20px;font-weight:800;color:#065f46;">${resolvidos}</div>
+        <div style="font-size:10px;color:#065f46;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Resolvidos</div>
+      </div>
+      <div style="border:1px solid #e8e0d6;border-radius:8px;padding:12px 14px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#b45309;">${valorTotal>0?fmtBRL(valorTotal):'—'}</div>
+        <div style="font-size:10px;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Valor em aberto</div>
+      </div>
+    </div>
+    ${secoes}
+    <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e8e0d6;font-size:10px;color:#aaa;text-align:center;">Gerado pelo sistema Team MRZ · ${new Date().toLocaleString('pt-BR')}</div>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  if(!w){toast('Permita pop-ups para gerar o PDF.',5000);return;}
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>{w.print();},600);
 }
 function downloadCotacaoHist(mes){
   const filtrado=(S.cotacoes||[]).filter(c=>c._arq&&c._arqMes===mes);
-  const rows=filtrado.map(c=>({'Nome':c.name||'','Data':c.date||'','Fornecedor A':c.fornNames?.A||'','Fornecedor B':c.fornNames?.B||'','Fornecedor C':c.fornNames?.C||'','Escolhido':c.fornNames?.[c.escolhido]||c.escolhido||'','Observacoes':c.obs||'','Motivo':c.motivo||'','Mes Arquivado':c._arqMes||''}));
-  downloadCSV(rows,'cotacoes_'+mes+'.csv');
+  if(!filtrado.length){toast('Nenhuma cotação no mês '+mes+'.');return;}
+  const [ano,m]=mes.split('-');
+  const mesLabel=new Date(+ano,+m-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  // Agrupar por loja
+  const grupos={};
+  filtrado.forEach(c=>{
+    const lj=c.loja||'geral';
+    if(!grupos[lj])grupos[lj]=[];
+    grupos[lj].push(c);
+  });
+
+  // Ordem das lojas
+  const ordemLojas=[...OP_LOJAS.map(l=>l.id),'geral'];
+
+  const fmtR=v=>v!=null&&v!==''?fmtBRL(parseFloat(v)||0):'—';
+  const fmtMesData=d=>{if(!d)return'';const[y,mo,dy]=d.split('-');return`${dy}/${mo}/${y}`;};
+
+  // Gerar HTML de uma cotação
+  const renderCot=c=>{
+    const fns=c.fornNames||{};
+    const fA=fns.A||'Fornecedor A',fB=fns.B||'Fornecedor B',fC=fns.C||'Fornecedor C';
+    const rows=(c.rows||[]).filter(r=>r.item&&r.item.trim());
+    const rowsHtml=rows.map(r=>{
+      const tA=(parseFloat(r.qty)||0)*(parseFloat(r.pA)||0);
+      const tB=(parseFloat(r.qty)||0)*(parseFloat(r.pB)||0);
+      const tC=(parseFloat(r.qty)||0)*(parseFloat(r.pC)||0);
+      const vals=[tA,tB,tC].filter(v=>v>0);
+      const best=vals.length?Math.min(...vals):null;
+      const hl=t=>t>0&&t===best?'font-weight:700;color:#166534;background:#dcfce7;':'';
+      return`<tr>
+        <td style="padding:6px 10px;border-bottom:1px solid #f0ebe3;font-size:12px;">${r.item||''}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;color:#666;">${r.qty||'—'} ${r.unit||''}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;">${r.pA?'R$ '+parseFloat(r.pA).toFixed(2).replace('.',','):'—'}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;${hl(tA)}">${tA?fmtBRL(tA):'—'}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;">${r.pB?'R$ '+parseFloat(r.pB).toFixed(2).replace('.',','):'—'}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;${hl(tB)}">${tB?fmtBRL(tB):'—'}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;">${r.pC?'R$ '+parseFloat(r.pC).toFixed(2).replace('.',','):'—'}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #f0ebe3;font-size:11px;${hl(tC)}">${tC?fmtBRL(tC):'—'}</td>
+      </tr>`;
+    }).join('');
+    const escolhidoLabel=c.escolhido&&fns[c.escolhido]?`<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:700;border:1px solid #86efac;">✓ Escolhido: ${fns[c.escolhido]}</span>`:'';
+    return`<div style="break-inside:avoid;border:1px solid #e8e0d6;border-radius:10px;margin-bottom:16px;overflow:hidden;">
+      <div style="background:#f8f4ee;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#2d2317;">${c.name||'Cotação'}</div>
+          <div style="font-size:11px;color:#8a7e72;margin-top:2px;">${fmtMesData(c.date)} · ${M[c.member]?.name||c.member||''}</div>
+        </div>
+        ${escolhidoLabel}
+      </div>
+      ${rows.length?`<table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f0ebe3;">
+          <th style="padding:6px 10px;text-align:left;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;letter-spacing:.06em;">Produto</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Qtd</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Un. ${fA}</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Total</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Un. ${fB}</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Total</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Un. ${fC}</th>
+          <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#8a7e72;text-transform:uppercase;">Total</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr style="background:#f8f4ee;">
+          <td colspan="2" style="padding:7px 10px;font-size:11px;font-weight:700;color:#8a7e72;">TOTAL GERAL</td>
+          <td></td><td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:800;color:#c9a96e;">${c.totA?fmtBRL(c.totA):'—'}</td>
+          <td></td><td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:800;color:#c9a96e;">${c.totB?fmtBRL(c.totB):'—'}</td>
+          <td></td><td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:800;color:#c9a96e;">${c.totC?fmtBRL(c.totC):'—'}</td>
+        </tr></tfoot>
+      </table>`:'<div style="padding:10px 14px;font-size:11px;color:#aaa;">Nenhum item registrado.</div>'}
+      ${c.motivo||c.obs?`<div style="padding:8px 14px;background:#fffdf8;border-top:1px solid #f0ebe3;font-size:11px;color:#6b5f53;line-height:1.5;">${c.motivo?`<strong>Motivo:</strong> ${c.motivo}`:''}${c.motivo&&c.obs?' · ':''}${c.obs?`<em>Obs: ${c.obs}</em>`:''}</div>`:''}
+    </div>`;
+  };
+
+  // Montar seções por loja
+  let secoes='';
+  ordemLojas.forEach(lid=>{
+    if(!grupos[lid]||!grupos[lid].length)return;
+    const lj=OP_LOJAS.find(l=>l.id===lid);
+    const ljNome=lj?lj.label:'Geral / Sem loja';
+    const ljCor=lj?lj.cor:'#c9a96e';
+    const ljAbbr=lj?lj.abbr:'G';
+    secoes+=`
+      <div style="break-before:page;padding-top:24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid ${ljCor};">
+          <div style="width:36px;height:36px;border-radius:8px;background:${ljCor}22;display:flex;align-items:center;justify-content:center;font-weight:800;color:${ljCor};font-size:13px;">${ljAbbr}</div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#2d2317;">${ljNome}</div>
+            <div style="font-size:11px;color:#8a7e72;">${grupos[lid].length} cotação(ões)</div>
+          </div>
+        </div>
+        ${grupos[lid].map(c=>renderCot(c)).join('')}
+      </div>`;
+  });
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Cotações ${mesLabel} — Grupo MRZ</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#2d2317;padding:32px 40px;}
+    @page{size:A4;margin:20mm 15mm;}
+    @media print{body{padding:0;}h1{font-size:18px;}.page-hd{padding:16px 0;}}
+  </style>
+  </head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;padding-bottom:16px;border-bottom:2px solid #c9a96e;">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.15em;color:#c9a96e;text-transform:uppercase;margin-bottom:4px;">GRUPO MRZ</div>
+        <h1 style="font-size:22px;font-weight:800;color:#2d2317;">Relatório de Cotações</h1>
+        <div style="font-size:12px;color:#8a7e72;margin-top:4px;">${mesLabel} · ${filtrado.length} cotações · Emitido em ${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#8a7e72;margin-top:4px;">
+        <div style="font-weight:700;color:#2d2317;font-size:14px;">Compras</div>
+        <div>${M[me]?.name||me}</div>
+      </div>
+    </div>
+    ${secoes}
+    <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e8e0d6;font-size:10px;color:#aaa;text-align:center;">Gerado pelo sistema Team MRZ · ${new Date().toLocaleString('pt-BR')}</div>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  if(!w){toast('Permita pop-ups para gerar o PDF.',5000);return;}
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>{w.print();},600);
 }
 function arquivarMesCotacao(){
   const prevMes=prevMonthKey();
