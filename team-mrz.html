@@ -1116,24 +1116,22 @@ let _fbReady=false;
 let _savePending=false;   // save em andamento — protege S de ser sobrescrito pelo listener
 let _saveQueue=null;      // snapshot mais recente enfileirado enquanto _savePending=true
 function _fbSave(attempt=0){
-  // Re-captura S a cada tentativa (pode ter mudado desde tentativa anterior)
-  const snap=JSON.parse(JSON.stringify(S));
+  // IMPORTANTE: usamos S diretamente (sem JSON.parse/stringify) pois o Firebase SDK
+  // serializa o objeto sincronamente antes de retornar a Promise.
+  // Clonar S por inteiro (com fotos em base64) dobraria o uso de memória e causava crashes.
   _savePending=true;
   setSdot('saving');
-  _db.ref(_FBKEY).set(snap).then(()=>{
+  _db.ref(_FBKEY).set(S).then(()=>{
     _savePending=false;
     setSdot('ok');
-    // Há um save mais recente na fila? Enviá-lo agora.
+    // Há um save mais recente na fila? Reenvia com o S atual (já inclui mudanças acumuladas)
     if(_saveQueue){
-      const q=_saveQueue;_saveQueue=null;
-      _savePending=true;
-      _db.ref(_FBKEY).set(q).then(()=>{_savePending=false;setSdot('ok');}).catch(e=>{
-        _savePending=false;setSdot('err');console.warn('Firebase queued write:',e);
-      });
+      _saveQueue=null;
+      _fbSave(0);
     }
   }).catch(e=>{
     if(attempt<3){
-      // _savePending permanece true durante o retry (protege S)
+      // _savePending permanece true durante o retry (protege S do listener)
       const delay=1000*Math.pow(2,attempt); // 1s, 2s, 4s
       setTimeout(()=>_fbSave(attempt+1),delay);
     }else{
@@ -2007,7 +2005,7 @@ function saveLocal(){
   if(!_fbReady){console.warn('saveLocal: Firebase ainda não conectado');return;}
   if(_savePending){
     // Já há um save em andamento — enfileirar este snapshot
-    _saveQueue=JSON.parse(JSON.stringify(S));
+    _saveQueue=true; // flag: reenviar com S atualizado quando o save atual completar
   }else{
     _fbSave();
   }
@@ -2152,8 +2150,8 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
       // Não sobrescrever S se há um save local em andamento — evita perda de dados
       const newer=(!S||!S.lastUp||fb.lastUp>S.lastUp)&&!_savePending;
       if(newer){
-        // Deep copy antes de migrateState para poder comparar depois
-        const fbSnap=JSON.parse(JSON.stringify(fb));
+        // Verificar versão ANTES de migrar (sem clonar fb — evita alocação de memória desnecessária)
+        const _fbV=fb.v||0;
         // Preservar completions em andamento (em memória) — proteção contra race condition
         const _hj=serviceKey();
         const _localPend={};
@@ -2179,8 +2177,8 @@ function histAcordiao(secao,arr,cardFn,downloadFnName,renderFnName){
             S.op.completions[_lj][_hj][_mid]=_cp; // sempre substitui — local mais recente
           }
         }
-        // Se migration mudou algo, salvar de volta no Firebase
-        if(JSON.stringify(S)!==JSON.stringify(fbSnap))setTimeout(()=>{if(_fbReady)_fbSave();},1500);
+        // Se migration mudou a versão (ou outra mudança detectada), salvar de volta no Firebase
+        if(S.v!==_fbV)setTimeout(()=>{if(_fbReady)_fbSave();},1500);
       }
       syncCustomUsers();
       _fbReady=true;
@@ -3477,30 +3475,42 @@ function addUrlAtt(taskId){
 function handleFileAtt(taskId,inp){
   Array.from(inp.files).forEach(file=>{
     if(file.size>2*1024*1024){toast('Arquivo muito grande (máx 2MB). Use um link.');return;}
-    const reader=new FileReader();
-    reader.onload=e=>{
-      if(file.type.startsWith('image/')){
-        // Comprimir imagem antes de salvar (max 420px, jpeg 50%) — mantém banco leve
-        setTimeout(()=>{
-          const img=new Image();
-          img.onload=()=>{
-            const MAX=420;
-            const scale=Math.min(1,MAX/Math.max(img.width,img.height));
-            const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
-            const canvas=document.createElement('canvas');
-            canvas.width=w;canvas.height=h;
-            canvas.getContext('2d').drawImage(img,0,0,w,h);
-            const compressed=canvas.toDataURL('image/jpeg',0.50);
-            canvas.width=1;canvas.height=1;img.src='';
-            addAttachment(taskId,{id:uid(),type:'img',name:file.name,data:compressed,mime:'image/jpeg'});
-          };
-          img.src=e.target.result;
-        },80);
+    if(file.type.startsWith('image/')){
+      // Comprimir imagem (max 420px, jpeg 50%) via createImageBitmap (sem base64 gigante em memória)
+      const _comprimirEAnexar=(bmp)=>{
+        try{
+          const MAX=420;
+          const scale=Math.min(1,MAX/Math.max(bmp.width||MAX,bmp.height||1));
+          const w=Math.round((bmp.width||MAX)*scale)||MAX;
+          const h=Math.round((bmp.height||1)*scale)||1;
+          const canvas=document.createElement('canvas');
+          canvas.width=w;canvas.height=h;
+          canvas.getContext('2d').drawImage(bmp,0,0,w,h);
+          if(typeof bmp.close==='function')bmp.close();
+          const compressed=canvas.toDataURL('image/jpeg',0.50);
+          canvas.width=1;canvas.height=1;
+          addAttachment(taskId,{id:uid(),type:'img',name:file.name,data:compressed,mime:'image/jpeg'});
+        }catch(err){
+          if(typeof bmp?.close==='function')bmp.close();
+          toast('⚠️ Erro ao comprimir imagem.',4000);
+        }
+      };
+      if(typeof createImageBitmap==='function'){
+        createImageBitmap(file).then(_comprimirEAnexar).catch(()=>{
+          const reader=new FileReader();
+          reader.onload=e=>{setTimeout(()=>{const img=new Image();img.onload=()=>_comprimirEAnexar(img);img.src=e.target.result;},80);};
+          reader.readAsDataURL(file);
+        });
       }else{
-        addAttachment(taskId,{id:uid(),type:'file',name:file.name,data:e.target.result,mime:file.type});
+        const reader=new FileReader();
+        reader.onload=e=>{setTimeout(()=>{const img=new Image();img.onload=()=>_comprimirEAnexar(img);img.src=e.target.result;},80);};
+        reader.readAsDataURL(file);
       }
-    };
-    reader.readAsDataURL(file);
+    }else{
+      const reader=new FileReader();
+      reader.onload=e=>addAttachment(taskId,{id:uid(),type:'file',name:file.name,data:e.target.result,mime:file.type});
+      reader.readAsDataURL(file);
+    }
   });
 }
 
@@ -10849,52 +10859,96 @@ function opXSetObs(itemId,obs){
 function opXAttachFoto(itemId,input){
   if(!input.files||!input.files[0])return;
   const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
-  const comp=S.op.completions[lojaId][hoje][modeloId];
+  // Guard: checklist pode ter sido sobrescrito pelo listener enquanto aguardávamos o arquivo
+  const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
+  if(!comp){toast('⚠️ Erro interno. Feche e abra o checklist novamente.',5000);return;}
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
   if(!comp.items[itemId].fotos)comp.items[itemId].fotos=[];
   const file=input.files[0];
-  // Aviso imediato: processamento de foto bloqueia a UI por alguns instantes
-  toast('📷 Processando foto...', 4000);
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    // Compress image via canvas (max 420px, jpeg 0.50) — mantém banco leve e reduz uso de memória
-    // Usar setTimeout para deixar o toast renderizar antes de bloquear a thread
-    setTimeout(()=>{
-      const img=new Image();
-      img.onload=()=>{
-        const MAX=420;
-        const scale=Math.min(1,MAX/Math.max(img.width,img.height));
-        const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
-        const canvas=document.createElement('canvas');
-        canvas.width=w;canvas.height=h;
-        canvas.getContext('2d').drawImage(img,0,0,w,h);
-        const compressed=canvas.toDataURL('image/jpeg',0.50);
-        // Liberar referências grandes da memória antes de salvar
-        canvas.width=1;canvas.height=1;
-        img.src='';
-        const fi=comp.items[itemId].fotos.length;
-        comp.items[itemId].fotos.push(compressed);
-        saveLocal(); // Firebase-only: salva diretamente na nuvem
-        // Update DOM: append thumbnail to grid
-        const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
-        if(gridEl){
-          gridEl.style.marginBottom='10px';
-          const thumb=document.createElement('div');
-          thumb.style.cssText='position:relative;width:80px;height:80px;flex-shrink:0;';
-          thumb.innerHTML=`<img src="${compressed}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${itemId}',${fi})"><button onclick="opXDelFoto('${itemId}',${fi})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>`;
-          gridEl.appendChild(thumb);
-        }
-        // Update label text
-        const labelEl=gridEl?gridEl.nextElementSibling:null;
-        if(labelEl){const span=labelEl.querySelector('span:not([style])');if(!span){const nodes=Array.from(labelEl.childNodes);const txt=nodes.find(n=>n.nodeType===3&&n.textContent.trim());if(txt)txt.textContent='📷 Adicionar mais uma foto\n            ';}}
-        toast(`✅ Foto ${fi+1} salva!`);
-      };
-      img.onerror=()=>toast('⚠️ Erro ao processar a foto. Tente novamente.',5000);
-      img.src=ev.target.result;
-    }, 80); // aguarda 80ms para browser renderizar o toast antes de bloquear
+  input.disabled=true; // bloqueia duplo-clique acidental durante processamento
+  toast('📷 Processando foto...', 6000);
+  const MAX=420;
+
+  // Etapa final: persiste e atualiza DOM
+  const _salvar=(compressed)=>{
+    try{
+      const fi=comp.items[itemId].fotos.length;
+      comp.items[itemId].fotos.push(compressed);
+      saveLocal();
+      const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
+      if(gridEl){
+        gridEl.style.marginBottom='10px';
+        const thumb=document.createElement('div');
+        thumb.style.cssText='position:relative;width:80px;height:80px;flex-shrink:0;';
+        thumb.innerHTML=`<img src="${compressed}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--acc);cursor:pointer;display:block;" onclick="opXViewFoto('${itemId}',${fi})"><button onclick="opXDelFoto('${itemId}',${fi})" title="Remover foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.3);">✕</button>`;
+        gridEl.appendChild(thumb);
+        const labelEl=gridEl.nextElementSibling;
+        if(labelEl){const nodes=Array.from(labelEl.childNodes);const txt=nodes.find(n=>n.nodeType===3&&n.textContent.trim());if(txt)txt.textContent='📷 Adicionar mais uma foto\n            ';}
+      }
+      toast(`✅ Foto ${fi+1} salva!`);
+    }catch(err){
+      console.error('opXAttachFoto _salvar:',err);
+      toast('⚠️ Erro ao salvar foto.',5000);
+    }finally{
+      input.disabled=false;
+      try{input.value='';}catch(_){}
+    }
   };
-  reader.readAsDataURL(file);
+
+  // Comprime bmp/img para canvas 420px e salva como JPEG 50%
+  const _processar=(bmp)=>{
+    try{
+      const scale=Math.min(1,MAX/Math.max(bmp.width||MAX,bmp.height||1));
+      const w=Math.round((bmp.width||MAX)*scale)||MAX;
+      const h=Math.round((bmp.height||1)*scale)||1;
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(bmp,0,0,w,h);
+      if(typeof bmp.close==='function')bmp.close(); // ImageBitmap: libera bitmap da GPU imediatamente
+      const compressed=canvas.toDataURL('image/jpeg',0.50);
+      canvas.width=1;canvas.height=1; // libera memória do canvas
+      _salvar(compressed);
+    }catch(err){
+      if(typeof bmp?.close==='function')bmp.close();
+      console.error('opXAttachFoto _processar:',err);
+      toast('⚠️ Erro ao comprimir foto.',5000);
+      input.disabled=false;
+    }
+  };
+
+  // Caminho preferencial: createImageBitmap lê o Blob diretamente, sem alocar string base64 nem
+  // decodificar o bitmap em resolução original na main thread — muito mais leve em memória.
+  // Suporte: iOS 15+, Android Chrome 55+, Firefox 42+.
+  if(typeof createImageBitmap==='function'){
+    createImageBitmap(file).then(_processar).catch(()=>{
+      // Fallback: FileReader + Image (iOS < 15, navegadores antigos)
+      const r=new FileReader();
+      r.onerror=()=>{toast('⚠️ Erro ao ler foto.',5000);input.disabled=false;};
+      r.onload=ev=>{
+        setTimeout(()=>{
+          const img=new Image();
+          img.onerror=()=>{toast('⚠️ Erro ao processar foto.',5000);input.disabled=false;};
+          img.onload=()=>_processar(img);
+          img.src=ev.target.result;
+        },80);
+      };
+      r.readAsDataURL(file);
+    });
+  }else{
+    // Fallback explícito quando createImageBitmap não existe
+    const r=new FileReader();
+    r.onerror=()=>{toast('⚠️ Erro ao ler foto.',5000);input.disabled=false;};
+    r.onload=ev=>{
+      setTimeout(()=>{
+        const img=new Image();
+        img.onerror=()=>{toast('⚠️ Erro ao processar foto.',5000);input.disabled=false;};
+        img.onload=()=>_processar(img);
+        img.src=ev.target.result;
+      },80);
+    };
+    r.readAsDataURL(file);
+  }
 }
 function opXDelFoto(itemId,fi){
   const lojaId=window._xLoja,modeloId=window._xModelo,hoje=serviceKey();
