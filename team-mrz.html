@@ -1914,6 +1914,25 @@ function migrateState(d){
     }
     d.v=37;
   }
+  if(d.v<38){
+    // Corrigir bug da v37: erros de JULHO (ou posterior) foram incorretamente arquivados como junho
+    // porque o financeiro os cadastrou antes da v37 ser processada no dispositivo deles.
+    // Esta migração "desarquiva" qualquer erro com _arqMes='2026-06' cuja data real seja ≥ 2026-07-01.
+    if(Array.isArray(d.errosCaixa)){
+      d.errosCaixa.forEach(e=>{
+        if(!e._arq||e._arqMes!=='2026-06')return;
+        const refDate=e.dataErro||e.date||'';
+        if(refDate>='2026-07-01'){
+          // Erro pertence a julho ou depois — tirar do arquivo
+          delete e._arq;
+          delete e._arqMes;
+          // Garantir que o status é pendente para aparecer na lista ativa
+          if(!e.status||e.status==='')e.status='pendente';
+        }
+      });
+    }
+    d.v=38;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
