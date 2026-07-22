@@ -1933,6 +1933,28 @@ function migrateState(d){
     }
     d.v=38;
   }
+  if(d.v<39){
+    // Copiar todos os checklists do Zanoni Lago para o Zanoni Maringá.
+    // Só adiciona os que ainda não existem no Maringá (compara nome+setor+tipo).
+    // Gera novos IDs para não conflitar com os do Lago.
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    const _rawMg=d.op.checklistModelos.maringa;
+    d.op.checklistModelos.maringa=Array.isArray(_rawMg)?_rawMg:(_rawMg?Object.values(_rawMg):[]);
+    const _rawLg=d.op.checklistModelos.lago;
+    d.op.checklistModelos.lago=Array.isArray(_rawLg)?_rawLg:(_rawLg?Object.values(_rawLg):[]);
+    const _mgList=d.op.checklistModelos.maringa;
+    const _lgList=d.op.checklistModelos.lago||[];
+    _lgList.forEach(m=>{
+      // Não duplicar se já existe no Maringá com mesmo nome+setor+tipo
+      if(_mgList.some(x=>x.nome===m.nome&&x.setor===m.setor&&x.tipo===m.tipo))return;
+      // Clonar com novos IDs para Maringá
+      const novoId='mg_'+uid();
+      const novosItems=(m.items||[]).map(item=>({...item,id:'mg_'+uid()}));
+      _mgList.push({...m,id:novoId,items:novosItems});
+    });
+    d.v=39;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
