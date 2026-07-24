@@ -1010,7 +1010,7 @@ const M={
       qua:['Editar conteúdos','Criar posts / reels / stories'],
       qui:['Gravar ofertas e promoções','Configurar campanhas'],
       sex:['Analisar feedbacks','Ajustar estratégia','Registrar aprendizados']}},
-  raquel:{name:'Raquel',role:'Marketing · Líder',color:'#c084fc',icon:'RA',email:'raquel@grupomrz.com',
+  raquel:{name:'Raquel',role:'Marketing · Líder',color:'#c084fc',icon:'RA',podeAprovar:true,email:'raquel@grupomrz.com',
     daily:['Revisar conteúdos publicados','Checar métricas'],
     weekly:{seg:['Alinhamento com Carol'],ter:['Supervisionar gravação'],
       qua:['Revisar e aprovar conteúdos'],qui:['Acompanhar anúncios','Aprovar campanhas'],
@@ -1077,6 +1077,17 @@ const M={
   churrasqueiralago:{name:'Churrasqueira · Zanoni Lago',role:'Líder · Churrasqueira',color:'#dc2626',icon:'CH',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Churrasqueira',email:'',daily:[],weekly:{}}
 };
 const APPROVERS=['marlon','lucas','raquel','saulo'];
+// Gerentes de loja — só usam o módulo Operacional, não devem aparecer nos seletores de tarefas do ADM
+const OP_GERENTES_LOJA=['marcio','elias','douglas','amanda','carla'];
+// Retorna true se o usuário é elegível para receber/aparecer em tarefas do ADM
+// (exclui login genéricos de setor operacional, frota, gerentes de loja e quem já saiu da empresa)
+function isAdmMember(k){
+  const u=M[k];if(!u)return false;
+  if(u.saiu)return false;
+  if(u.tipo==='setorLider'||u.tipo==='frota')return false;
+  if(OP_GERENTES_LOJA.includes(k))return false;
+  return true;
+}
 
 // Institutional flowcharts per role
 const ROLE_FLOWS={
@@ -1151,7 +1162,7 @@ function reRenderAll(){
 function defState(){return{v:23,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],carros:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},op:{gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[],checklistModelos:{},faq:{},completions:{},lojaConfig:{}},lastUp:null};}
 function migrateState(d){
   // Segurança permanente: líderes nunca têm customPerms (roda a cada sync)
-  const _LIDERES_FIXOS=['marlon','lucas','raquel','dario','carlos','nelci','carol','saulo'];
+  const _LIDERES_FIXOS=['marlon','lucas','dario','carlos','nelci','carol','saulo'];
   if(d.userPerms){_LIDERES_FIXOS.forEach(u=>{if(d.userPerms[u])delete d.userPerms[u];});}
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1982,6 +1993,12 @@ function migrateState(d){
     d.rotinas={...(d.rotinas||{}),defs:deduped};
     d.v=42;
   }
+  if(d.v<43){
+    // Restringir o acesso da Raquel: só Início, Tarefas (só as dela), Campanhas, Ocorrências e Aprovações (só as dela).
+    if(!d.userPerms)d.userPerms={};
+    d.userPerms.raquel=['home','tasks','campanhas','occ','queue'];
+    d.v=43;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
@@ -2367,7 +2384,7 @@ const NAV_ITEMS=[
   {id:'calendar',label:'Calendário',          grp:'Pessoal'},
   {id:'tasks',  label:'Tarefas',              grp:'Pessoal'},
   {id:'report', label:'Relatório Semanal',    grp:'Pessoal',  exclude:['raquel']},
-  {id:'campanhas',label:'Campanhas',          grp:'Pessoal',  roles:['carol']},
+  {id:'campanhas',label:'Campanhas',          grp:'Pessoal',  roles:['carol','raquel']},
   {id:'insights',label:'Insights de Cliente', grp:'Pessoal',  roles:['carol']},
   {id:'cotacao',label:'Cotação',              grp:'Pessoal',  roles:['carlos'],leader:true},
   {id:'fornecedores',label:'Fornecedores',    grp:'Pessoal',  roles:['carlos']},
@@ -2378,7 +2395,7 @@ const NAV_ITEMS=[
   {id:'erros-caixa',label:'Erros de Caixa',   grp:'Pessoal',  roles:['nelci']},
   {id:'occ',    label:'Ocorrências',          grp:'Pessoal'},
   {id:'log',    label:'Registro Diário',      grp:'Pessoal',  exclude:['raquel']},
-  {id:'team',   label:'Visão da Equipe',      grp:'Supervisão',leader:true, extra:['raquel']},
+  {id:'team',   label:'Visão da Equipe',      grp:'Supervisão',leader:true},
   {id:'queue',  label:'Aprovações',           grp:'Liderança', leader:true, extra:['raquel']},
   {id:'processos',label:'Processos',           grp:'Gestão',    leader:true, exclude:['marlon']},
   {id:'projetos',label:'Projetos',            grp:'Gestão',    leader:true},
@@ -2618,7 +2635,7 @@ function donoHomeHtml(){
   if(!DONO_VIEW.includes(me))return'';
   const td=todayKey();
   // ── Designação rápida de tarefa
-  const opts=Object.entries(M).filter(([k])=>k!==me).map(([k,m2])=>`<option value="${k}">${m2.name} — ${m2.role}</option>`).join('');
+  const opts=Object.entries(M).filter(([k])=>k!==me&&isAdmMember(k)).map(([k,m2])=>`<option value="${k}">${m2.name} — ${m2.role}</option>`).join('');
   let html=`<div class="sc" style="padding:16px;margin-bottom:18px;border-left:3px solid var(--gold2,#c9a96e);">
     <div style="font-weight:800;font-size:.95rem;margin-bottom:10px;">Designar Tarefa</div>
     <div style="display:grid;grid-template-columns:2fr 1.4fr;gap:8px;margin-bottom:8px;">
@@ -2909,7 +2926,7 @@ function renderHome(){
 
   // Alert leaders
   let alertHtml='';
-  if(M[me].isLeader&&pendingAll()>0){
+  if(podeAprovarGeral()&&pendingAll()>0){
     alertHtml=`<div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);border-radius:12px;padding:12px 15px;display:flex;align-items:center;gap:10px;margin-bottom:16px;">
       <span style="font-size:1.1rem;">—</span>
       <div style="flex:1;font-size:.82rem;"><strong style="color:var(--amber);">${pendingAll()} tarefa${pendingAll()>1?'s':''} aguardando devolutiva</strong></div>
@@ -2953,7 +2970,7 @@ const HOME_QUICK={
   marco: [{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Tarefas',panel:'tasks'},{label:'Trilha',panel:'trilha'}],
   saulo: [{label:'Contas',panel:'contas'},{label:'Aprovações',panel:'queue'},{label:'Rotinas',panel:'rotinas'},{label:'Equipe',panel:'team'}],
   marlon:[{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Timeline',panel:'timeline'},{label:'Equipe',panel:'team'}],
-  raquel:[{label:'Mural',panel:'mural'},{label:'Calendário',panel:'calendar'},{label:'Equipe',panel:'team'},{label:'Ocorrências',panel:'occ'}],
+  raquel:[{label:'Tarefas',panel:'tasks'},{label:'Campanhas',panel:'campanhas'},{label:'Ocorrências',panel:'occ'},{label:'Aprovações',panel:'queue'}],
 };
 function homeQuickHtml(){
   const cor=M[me]?.color||'var(--acc)';
@@ -3130,11 +3147,21 @@ const COLS=[
 ];
 let _dragId=null,_dragOverId=null,_dragOverBefore=true;
 
-function pendingAll(){return(S.tasks||[]).filter(t=>t.status==='review').length;} // tasks awaiting devolutiva
+// Aprovação de tarefas: líderes sempre podem; outras pessoas podem se tiverem M[uid].podeAprovar===true (ex: Raquel)
+function podeAprovarGeral(uid){uid=uid||me;const u=M[uid];return!!(u&&(u.isLeader||u.podeAprovar));}
+// Pode agir sobre ESTA tarefa específica: tem capacidade geral de aprovar E (não há aprovador definido OU é ela mesma)
+function podeAprovarTask(t,uid){uid=uid||me;if(!podeAprovarGeral(uid))return false;return!t.aprovador||t.aprovador===uid;}
+
+function pendingAll(){
+  // tasks awaiting devolutiva — quem pode aprovar: só as que precisa aprovar · quem não pode: só as próprias em aprovação
+  if(!podeAprovarGeral())return(S.tasks||[]).filter(t=>t.status==='review'&&(t.assignees||[]).includes(me)).length;
+  return(S.tasks||[]).filter(t=>t.status==='review'&&podeAprovarTask(t)).length;
+}
 
 function renderTasks(){
   if(!S||!me)return;
   const isL=M[me].isLeader;
+  const podeAprovG=podeAprovarGeral();
   const isMob=window.innerWidth<640;
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
     <div style="font-size:.74rem;color:var(--muted);">${isMob?'Toque no cartão para editar • use o botão ▶ para avançar o status':'Arraste para mover entre colunas ou reordenar dentro delas'}</div>
@@ -3142,10 +3169,13 @@ function renderTasks(){
   </div><div class="kanban-wrap"><div class="kanban">`;
   COLS.forEach(col=>{
     const tasks=S.tasks.filter(t=>{
-      if(isL)return t.status===col.id;
-      return t.status===col.id&&(t.assignees||[]).includes(me);
+      if(t.status!==col.id)return false;
+      if(isL)return true; // líderes veem tudo
+      if((t.assignees||[]).includes(me))return true; // é responsável pela tarefa
+      if(t.aprovador===me)return true; // foi escolhida como aprovadora desta tarefa
+      return false;
     });
-    const canDrop=(col.id!=='aprovado'&&col.id!=='ajuste')||isL;
+    const canDrop=(col.id!=='aprovado'&&col.id!=='ajuste')||podeAprovG;
     // review column: anyone can drop (person marks as done/submits for approval)
     html+=`<div class="kan-col">
       <div class="kan-hd"><div class="kc ${col.dot}"></div>${col.label}<span class="kan-cnt">${tasks.length}</span></div>
@@ -3156,18 +3186,20 @@ function renderTasks(){
     if(!tasks.length)html+=`<div class="empty" style="padding:20px 10px;pointer-events:none;"><div class="ei" style="font-size:1.4rem;">—</div></div>`;
     tasks.forEach(t=>{
       const isAssignee=(t.assignees||[]).includes(me);
-      const canDrag=isL||isAssignee;
+      const canDrag=isL||isAssignee||t.aprovador===me;
+      // Pode dar devolutiva nesta tarefa: tem capacidade de aprovar E (sem aprovador definido OU é ela mesma)
+      const souAprovadorDaTask=podeAprovarTask(t);
       const assigneesHtml=(t.assignees||[]).slice(0,3).map(a=>`<span class="av-chip" style="background:${M[a]?.color||'#888'}22;color:${M[a]?.color||'#888'}">${M[a]?.icon||'?'} ${M[a]?.name.split(' ')[0]||a}</span>`).join('');
       const attCount=(t.attachments||[]).length;
       const ajusteBadge=t.ajusteNote?`<span class="approval-badge" style="background:rgba(249,115,22,.12);color:#fb923c;">↺ Em Ajuste</span>`:'';
       const cotBadge=(t.cotacaoItems||[]).length?`<span class="approval-badge" style="background:rgba(197,165,114,.1);color:var(--gold);">COT ${(t.cotacaoItems||[]).length}${(t.cotacaoItems||[]).some(x=>x.escolhido)?' · ok':''}</span>`:'';
-      const devBadge=t.status==='review'&&isL?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">Aguarda devolutiva</span>`:'';
-      const reviewBadge=t.status==='review'&&!isL?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">Em aprovação</span>`:'';
+      const devBadge=t.status==='review'&&souAprovadorDaTask?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">Aguarda devolutiva</span>`:'';
+      const reviewBadge=t.status==='review'&&!souAprovadorDaTask?`<span class="approval-badge" style="background:rgba(99,102,241,.12);color:var(--blue);">Em aprovação</span>`:'';
       const _ = reviewBadge; // used below
       // Próximo status lógico para o botão mobile
-      const _nextSt={todo:'doing',doing:'review',review:isL?'aprovado':'review',aprovado:'done',ajuste:'doing',done:'done'};
-      const _nextLbl={todo:'→ Fazendo',doing:'→ Aprovação',review:isL?'→ Aprovar':'Em Aprovação',aprovado:'→ Feito',ajuste:'→ Fazendo',done:'✓ Feito'};
-      const canAdvance=canDrag&&t.status!=='done'&&!(t.status==='review'&&!isL);
+      const _nextSt={todo:'doing',doing:'review',review:souAprovadorDaTask?'aprovado':'review',aprovado:'done',ajuste:'doing',done:'done'};
+      const _nextLbl={todo:'→ Fazendo',doing:'→ Aprovação',review:souAprovadorDaTask?'→ Aprovar':'Em Aprovação',aprovado:'→ Feito',ajuste:'→ Fazendo',done:'✓ Feito'};
+      const canAdvance=canDrag&&t.status!=='done'&&!(t.status==='review'&&!souAprovadorDaTask);
       html+=`<div class="task-card" id="tc-${t.id}"
         draggable="${canDrag}"
         ondragstart="kDragStart(event,'${t.id}')"
@@ -3234,8 +3266,12 @@ function kDrop(e,colId,allowed){
   const t=S.tasks.find(x=>x.id===_dragId);if(!t)return;
   const isL=M[me].isLeader;
   const isAssignee=(t.assignees||[]).includes(me);
-  if(!isL&&!isAssignee){toast('Você não é responsável por esta tarefa.');return;}
-  if((colId==='aprovado'||colId==='ajuste')&&!isL){toast('Apenas líderes podem dar devolutiva.');return;}
+  const souAprovadorDaTask=podeAprovarTask(t);
+  if(!isL&&!isAssignee&&!souAprovadorDaTask){toast('Você não é responsável por esta tarefa.');return;}
+  if((colId==='aprovado'||colId==='ajuste')&&!souAprovadorDaTask){
+    toast(t.aprovador?`Apenas ${M[t.aprovador]?.name||t.aprovador} pode dar devolutiva nesta tarefa.`:'Você não pode dar devolutiva nesta tarefa.');
+    return;
+  }
   if(colId==='review'&&!isAssignee&&!isL){toast('Você não pode submeter esta tarefa.');return;}
   if(colId==='doing'&&t.ajusteNote)t.ajusteNote='';
   const prevStatus=t.status;
@@ -3269,11 +3305,14 @@ function kDrop(e,colId,allowed){
 // Avança tarefa para o próximo status (botão mobile)
 function kAdvanceStatus(id){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
-  const isL=M[me].isLeader;
-  const nextMap={todo:'doing',doing:'review',review:isL?'aprovado':'review',aprovado:'done',ajuste:'doing'};
+  const souAprovadorDaTask=podeAprovarTask(t);
+  const nextMap={todo:'doing',doing:'review',review:souAprovadorDaTask?'aprovado':'review',aprovado:'done',ajuste:'doing'};
   const next=nextMap[t.status];
   if(!next||next===t.status)return;
-  if((next==='aprovado')&&!isL){toast('Apenas líderes podem aprovar.');return;}
+  if((next==='aprovado')&&!souAprovadorDaTask){
+    toast(t.aprovador?`Apenas ${M[t.aprovador]?.name||t.aprovador} pode aprovar esta tarefa.`:'Você não pode aprovar esta tarefa.');
+    return;
+  }
   t.status=next;
   if(['review','aprovado','done'].includes(next)&&!t.doneAt)t.doneAt=todayKey();
   saveLocal();renderTasks();renderHome();
@@ -3322,7 +3361,8 @@ function closeModal(){document.getElementById('gen-modal').classList.remove('sho
 
 function renderTaskModal(t){
   const isNew=!S.tasks.find(x=>x.id===t.id);
-  const assigneeChips=Object.entries(M).map(([k,m2])=>{
+  // Só mostra membros do ADM (não mistura com contas operacionais) — mas mantém quem já estava marcado, mesmo que seja legado
+  const assigneeChips=Object.entries(M).filter(([k])=>isAdmMember(k)||(t.assignees||[]).includes(k)).map(([k,m2])=>{
     const sel=(t.assignees||[]).includes(k);
     return`<span class="collab-chip" style="background:${m2.color}${sel?'33':'11'};color:${m2.color};border:1px solid ${m2.color}${sel?'55':'22'};cursor:pointer;" onclick="toggleTaskAssignee('${t.id}','${k}')">${m2.icon} ${m2.name.split(' ')[0]}${sel?' ':''}</span>`;
   }).join('');
@@ -3334,8 +3374,10 @@ function renderTaskModal(t){
   </div>`).join('');
 
   const isL=M[me].isLeader;
-  // Devolutiva section — visible to leaders when task is 'review' (Em Aprovação)
-  const devolutivaSection=t.status==='review'&&isL?`
+  const podeAprovG=podeAprovarGeral();
+  // Devolutiva section — visível a quem pode aprovar quando a tarefa está 'review' (Em Aprovação).
+  // Se a tarefa tem aprovador específico definido, só aparece para ele.
+  const devolutivaSection=t.status==='review'&&podeAprovarTask(t)?`
     <div class="sec">Devolutiva</div>
     <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:14px;">
       <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">Como foi a entrega? Sua resposta moverá a tarefa automaticamente.</div>
@@ -3367,7 +3409,7 @@ function renderTaskModal(t){
           <option value="doing" ${t.status==='doing'?'selected':''}>Fazendo</option>
           <option value="review" ${t.status==='review'?'selected':''}>Em Aprovação</option>
           <option value="done" ${t.status==='done'?'selected':''}>Feito</option>
-          ${isL?`<option value="aprovado" ${t.status==='aprovado'?'selected':''}>Aprovado</option>
+          ${podeAprovG?`<option value="aprovado" ${t.status==='aprovado'?'selected':''}>Aprovado</option>
           <option value="ajuste" ${t.status==='ajuste'?'selected':''}>Em Ajuste</option>`:''}
         </select></div>
         <div class="f-grp"><label class="f-lb">Prioridade</label><select class="f-in" id="tm-prio">
@@ -3378,6 +3420,12 @@ function renderTaskModal(t){
         <div class="f-grp"><label class="f-lb">Prazo</label><input class="f-in" type="date" id="tm-dl" value="${t.deadline||''}"/></div>
       </div>
       <div class="f-grp"><label class="f-lb">Responsáveis</label><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;" id="tm-assignees">${assigneeChips}</div></div>
+      <div class="f-grp"><label class="f-lb">Aprovador <span style="font-weight:400;color:var(--muted);font-size:.68rem;">(quem precisa aprovar — deixe em branco para qualquer líder ver)</span></label>
+        <select class="f-in" id="tm-aprovador">
+          <option value="">Qualquer líder</option>
+          ${Object.entries(M).filter(([,m2])=>m2.isLeader||m2.podeAprovar).map(([k,m2])=>`<option value="${k}" ${t.aprovador===k?'selected':''}>${esc(m2.name)}</option>`).join('')}
+        </select>
+      </div>
       ${devolutivaSection}
       <div class="sec">Anexos</div>
       <div class="att-list" id="att-list">${attsHtml}</div>
@@ -3455,8 +3503,8 @@ function toggleTaskAssignee(tid,k){
   const t=window.tmpTask;if(!t)return;
   const i=(t.assignees||[]).indexOf(k);
   if(i>=0)t.assignees.splice(i,1);else{if(!t.assignees)t.assignees=[];t.assignees.push(k);}
-  // re-render just assignees
-  const assigneeChips=Object.entries(M).map(([key,m2])=>{
+  // re-render just assignees (só ADM, mesma regra do renderTaskModal)
+  const assigneeChips=Object.entries(M).filter(([key])=>isAdmMember(key)||(t.assignees||[]).includes(key)).map(([key,m2])=>{
     const sel=(t.assignees||[]).includes(key);
     return`<span class="collab-chip" style="background:${m2.color}${sel?'33':'11'};color:${m2.color};border:1px solid ${m2.color}${sel?'55':'22'};cursor:pointer;" onclick="toggleTaskAssignee('${tid}','${key}')">${m2.icon} ${m2.name.split(' ')[0]}${sel?' ':''}</span>`;
   }).join('');
@@ -3471,6 +3519,7 @@ function saveTask(id){
     status:newStatus,priority:document.getElementById('tm-prio').value,
     deadline:document.getElementById('tm-dl').value,
     assignees:t.assignees||[me],attachments:t.attachments||[],
+    aprovador:document.getElementById('tm-aprovador')?.value||'',
     cotacaoItems:t.cotacaoItems||[]};
   if(newStatus==='doing'&&t.ajusteNote)updated.ajusteNote=''; // clear when back to doing
   if(['review','aprovado','done'].includes(newStatus)&&!updated.doneAt)updated.doneAt=todayKey();
@@ -3485,6 +3534,10 @@ function saveTask(id){
 }
 function darDevolutiva(id,resultado){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  if(!podeAprovarTask(t)){
+    toast(t.aprovador?`Apenas ${M[t.aprovador]?.name||t.aprovador} pode dar devolutiva nesta tarefa.`:'Você não pode dar devolutiva.');
+    return;
+  }
   const obs=document.getElementById('dev-obs')?.value.trim()||'';
   t.status=resultado;
   if(resultado==='aprovado'&&!t.doneAt)t.doneAt=todayKey();
@@ -6932,8 +6985,14 @@ function delMural(id){S.mural=(S.mural||[]).filter(p=>p.id!==id);saveLocal();ren
 
 function renderQueue(){
   // Mostra tarefas em "Em Aprovação" (review) do Kanban
-  const pending=(S.tasks||[]).filter(t=>t.status==='review');
-  const isL=M[me]?.isLeader;
+  // Se a tarefa tem um aprovador específico definido, só aparece pra ele (e pra quem enviou) — não pra todos que podem aprovar
+  const podeAprovG=podeAprovarGeral();
+  const pending=(S.tasks||[]).filter(t=>{
+    if(t.status!=='review')return false;
+    if(!podeAprovG)return(t.assignees||[]).includes(me); // sem capacidade de aprovar — só vê as próprias tarefas em aprovação
+    if(!t.aprovador)return true; // sem aprovador definido — mantém visível a todos que podem aprovar (comportamento antigo)
+    return t.aprovador===me||(t.assignees||[]).includes(me);
+  });
   let html='';
   if(!pending.length){
     html=`<div class="empty"><div class="ei">–</div><p>Nenhuma tarefa aguardando aprovação.</p></div>`;
@@ -6942,6 +7001,8 @@ function renderQueue(){
     pending.forEach(t=>{
       const from=(t.assignees||[]).map(a=>M[a]?.name||a).join(', ');
       const prioLabel={h:'Alta',m:'Média',l:'Baixa'}[t.priority]||'';
+      const souAprovador=podeAprovarTask(t);
+      const aprovadorTag=t.aprovador?`<span style="font-size:.68rem;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);">Aprovador: ${esc(M[t.aprovador]?.name||t.aprovador)}</span>`:'';
       html+=`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--blue);">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
           <div style="flex:1">
@@ -6949,15 +7010,16 @@ function renderQueue(){
             <div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${esc(from)} · ${fmtDate(t.created)} ${t.deadline?'· Prazo: '+fmtDate(t.deadline):''}
               ${prioLabel?` · ${prioLabel}`:''}
             </div>
+            ${aprovadorTag?`<div style="margin-top:5px;">${aprovadorTag}</div>`:''}
             ${t.desc?`<div style="font-size:.8rem;color:var(--text);margin-top:6px;line-height:1.5;">${esc(t.desc.slice(0,150))}${t.desc.length>150?'...':''}</div>`:''}
           </div>
           <button class="btn-ghost btn-sm" onclick="openTask('${t.id}')">Ver</button>
         </div>
         ${(t.attachments||[]).length?`<div style="font-size:.72rem;color:var(--blue);margin-bottom:8px;">${t.attachments.length} anexo(s)</div>`:''}
-        ${isL?`<div style="display:flex;gap:8px;margin-top:4px;">
+        ${souAprovador?`<div style="display:flex;gap:8px;margin-top:4px;">
           <button class="btn-gold btn-sm" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green);flex:1;" onclick="darDevolutiva('${t.id}','aprovado')">Aprovar</button>
           <button class="btn-ghost btn-sm" style="flex:1;" onclick="darDevolutivaPrompt('${t.id}')">↺ Pedir Ajuste</button>
-        </div>`:`<div style="font-size:.75rem;color:var(--muted);background:var(--panel2);border-radius:6px;padding:6px 10px;">⏳ Aguardando aprovação do líder</div>`}
+        </div>`:`<div style="font-size:.75rem;color:var(--muted);background:var(--panel2);border-radius:6px;padding:6px 10px;">⏳ Aguardando aprovação de ${t.aprovador?esc(M[t.aprovador]?.name||t.aprovador):'um líder'}</div>`}
       </div>`;
     });
   }
@@ -6965,9 +7027,13 @@ function renderQueue(){
 }
 
 function darDevolutivaPrompt(id){
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  if(!podeAprovarTask(t)){
+    toast(t.aprovador?`Apenas ${M[t.aprovador]?.name||t.aprovador} pode dar devolutiva nesta tarefa.`:'Você não pode dar devolutiva.');
+    return;
+  }
   const obs=prompt('Motivo do ajuste (opcional):','');
   if(obs===null)return; // cancelou
-  const t=S.tasks.find(x=>x.id===id);if(!t)return;
   t.status='ajuste';
   t.ajusteNote=obs||'Revise e reenvie.';
   if(!t.comments)t.comments=[];
@@ -10285,7 +10351,7 @@ function renderGestao(){
   <div class="gestao-card">
     <div class="f-grp"><label>Para quem</label>
       <select class="f-in" id="gest-mb">
-        ${Object.entries(M).filter(([k])=>k!==me).map(([k,m2])=>`<option value="${k}">${m2.name} — ${m2.role}</option>`).join('')}
+        ${Object.entries(M).filter(([k])=>k!==me&&isAdmMember(k)).map(([k,m2])=>`<option value="${k}">${m2.name} — ${m2.role}</option>`).join('')}
       </select></div>
     <div class="f-grp"><label>Tarefa</label>
       <input class="f-in" id="gest-ttl" placeholder="Descreva a demanda..."/></div>
