@@ -1974,6 +1974,14 @@ function migrateState(d){
     d.rotinas={...(d.rotinas||{}),defs:deduped};
     d.v=41;
   }
+  if(d.v<42){
+    // Refresh novamente: Reunião de Gestores (dia 28) sai da Bruna e passa para o Saulo.
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=42;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
@@ -8135,7 +8143,7 @@ function defRotinas(){return[
   {id:'rot053',titulo:'Sexta — Relatórios Semanais e Reuniões de Feedback',desc:'Toda sexta-feira: visualizar os relatórios semanais enviados pela equipe (Compras, Financeiro, Marketing). Realizar reuniões individuais de feedback com cada área, revisando resultados da semana e alinhando prioridades para a próxima.',assignees:['saulo'],freq:'semanal',diaSemana:5,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatórios semanais da equipe revisados?',tipo:'sim-nao'},{id:'cf2',label:'Reunião individual com Compras realizada?',tipo:'sim-nao'},{id:'cf3',label:'Reunião individual com Financeiro realizada?',tipo:'sim-nao'},{id:'cf4',label:'Reunião individual com Marketing realizada?',tipo:'sim-nao'},{id:'cf5',label:'Principais pontos de feedback',tipo:'text'}]},
   // MARLON - CEO
   {id:'rot029',titulo:'Análise DRE e Folha de Pagamento',desc:'Dia 25 de cada mês: analisar a DRE final e a folha de pagamento. Validar os números, questionar desvios e aprovar antes do fechamento.',assignees:['marlon'],freq:'mensal',diaMes:25,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE aprovada?',tipo:'sim-nao'},{id:'cf2',label:'Folha de pagamento aprovada?',tipo:'sim-nao'},{id:'cf3',label:'Desvios relevantes identificados',tipo:'text'}]},
-  {id:'rot030',titulo:'Reunião MKT e Reunião de Gestores',desc:'Dia 28 de cada mês: conduzir reunião de marketing com a equipe e em seguida reunião com os gestores. Revisar resultados do mês e definir prioridades do próximo.',assignees:['marlon','bruna','lucas','raquel'],freq:'mensal',diaMes:28,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Reunião MKT realizada?',tipo:'sim-nao'},{id:'cf2',label:'Reunião de Gestores realizada?',tipo:'sim-nao'},{id:'cf3',label:'Principais decisões tomadas',tipo:'text'}]},
+  {id:'rot030',titulo:'Reunião MKT e Reunião de Gestores',desc:'Dia 28 de cada mês: conduzir reunião de marketing com a equipe e em seguida reunião com os gestores. Revisar resultados do mês e definir prioridades do próximo.',assignees:['marlon','saulo','lucas','raquel'],freq:'mensal',diaMes:28,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Reunião MKT realizada?',tipo:'sim-nao'},{id:'cf2',label:'Reunião de Gestores realizada?',tipo:'sim-nao'},{id:'cf3',label:'Principais decisões tomadas',tipo:'text'}]},
 ];}
 
 function rotWeekNum(date){const d=new Date(date);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w)/864e5-(3-((w.getDay()+6)%7)))/7);}
