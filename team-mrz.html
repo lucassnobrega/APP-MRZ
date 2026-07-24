@@ -1021,13 +1021,11 @@ const M={
       ter:['Conferir caixas Maringá','Conferir caixas de segunda'],
       qua:['Conferir caixas de terça','Conferir PagSeguro'],qui:['Conferir iFood'],
       sex:['Consolidação bancária (Pix, boletos, faturas)']}},
-  marco:{name:'Marco',role:'Financeiro · Contas a Pagar',color:'#60a5fa',icon:'MA',email:'marco@grupomrz.com',
-    daily:['Verificar DDA','Lançar notas fiscais','Executar pagamentos urgentes'],
-    weekly:{seg:['DDA semanal completo','Listar pagamentos','Mapear pendências','Alertar quem não lançou'],
-      ter:['Cobrar documentos pendentes','Resolver boletos com erro'],
-      qua:['Executar pagamentos programados','Registrar comprovantes'],
-      qui:['Revisar pagamentos','Verificar inconsistências'],
-      sex:['Planejar semana seguinte','Verificar limites bancários']}},
+  marco:{name:'Marco',role:'Lançador · Financeiro e Estoque',color:'#60a5fa',icon:'MA',email:'marco@grupomrz.com',
+    daily:['Lançar notas fiscais no sistema','Lançar boletos no sistema','Atualizar estoque'],
+    weekly:{seg:['Verificar boletos da semana'],ter:['Conferir notas pendentes'],
+      qua:['Lançar movimentações de estoque'],qui:['Conferir inconsistências de lançamento'],
+      sex:['Fechar lançamentos da semana']}},
   carlos:{name:'Carlos',role:'Compras',color:'#fb923c',icon:'CR',email:'carlos@grupomrz.com',
     daily:[],
     weekly:{seg:['Fazer cotações','Emitir pedidos'],
@@ -1035,18 +1033,13 @@ const M={
       qua:['Analisar variação de preço de carnes','Verificar ruptura/excesso'],
       qui:['Acompanhar recebimentos','Registrar ressalvas'],
       sex:['Follow-up fornecedores','Elaborar relatório de compras']}},
-  iza:{name:'Iza',role:'RH · Administrativo',color:'#f59e0b',icon:'IZ',email:'srzanoni.ldn_rh@hotmail.com',
+  iza:{name:'Iza',role:'(desligada)',color:'#888',icon:'IZ',saiu:true,email:'srzanoni.ldn_rh@hotmail.com',
+    daily:[],weekly:{}},
+  bruna:{name:'Bruna',role:'RH · Administrativo',color:'#a78bfa',icon:'BR',email:'srzanoni.londrina@hotmail.com',
     daily:['Lançar notas fiscais no sistema','Digitalizar documentos'],
     weekly:{seg:['Verificar ponto dos funcionários'],ter:['Atualizar cadastros'],
       qua:['Digitalizar e arquivar documentos'],qui:['Lançamentos RH'],
       sex:['Verificar pendências','Fechar contas sem boleto (dia 5)']}},
-  bruna:{name:'Bruna',role:'Líder do Escritório',color:'#a78bfa',icon:'BR',isLeader:true,email:'srzanoni.londrina@hotmail.com',
-    daily:['Checar pendências críticas','Validar aprovações pendentes'],
-    weekly:{seg:['Mapear pendências','Definir prioridades','Distribuir demandas'],
-      ter:['Revisar processos internos','Atualizar fluxos'],
-      qua:['Análise financeira / DRE','Preparar resumo para o CEO'],
-      qui:['Gerenciar demandas cruzadas'],
-      sex:['Reunião individual: Compras','Reunião individual: Financeiro','Reunião individual: Marketing']}},
   marlon:{name:'Marlon',role:'CEO',color:'#f43f5e',icon:'ML',isLeader:true,email:'marlonzanoni@hotmail.com',
     daily:['Ler resumo do escritório','Validar aprovações'],
     weekly:{seg:['Definir prioridades','Validar demandas'],ter:[],
@@ -1063,7 +1056,13 @@ const M={
     daily:['Verificar execução das tarefas','Acompanhar manutenções pendentes'],weekly:{}},
   elias:{name:'Elias',role:'Gerente · Zanoni Lago',color:'#f59e0b',icon:'EL',isLeader:false,email:'elias@grupomrz.com',daily:[],weekly:{}},
   douglas:{name:'Douglas',role:'Gerente · Zanoni Alphaville',color:'#3b82f6',icon:'DG',isLeader:false,email:'douglas@grupomrz.com',daily:[],weekly:{}},
-  saulo:{name:'Saulo',role:'Gerente · Zanoni Maringá',color:'#8b5cf6',icon:'SL',isLeader:false,email:'saulo@grupomrz.com',daily:[],weekly:{}},
+  saulo:{name:'Saulo',role:'Gerente do Escritório',color:'#8b5cf6',icon:'SL',isLeader:true,email:'saulo@grupomrz.com',
+    daily:['Checar pendências críticas','Validar aprovações pendentes','Executar pagamentos urgentes'],
+    weekly:{seg:['Mapear pendências','Definir prioridades','Distribuir demandas','DDA semanal completo'],
+      ter:['Revisar processos internos','Atualizar fluxos','Resolver boletos com erro'],
+      qua:['Análise financeira / DRE','Preparar resumo para o CEO','Executar pagamentos programados'],
+      qui:['Gerenciar demandas cruzadas','Revisar pagamentos'],
+      sex:['Reunião individual: Compras','Reunião individual: Financeiro','Reunião individual: Marketing','Verificar limites bancários']}},
   amanda:{name:'Amanda',role:'Gerente · Raz Alameda',color:'#ec4899',icon:'AM',isLeader:false,email:'amanda@grupomrz.com',daily:[],weekly:{}},
   carla:{name:'Carla',role:'Gerente · Raz Mercadão',color:'#14b8a6',icon:'CL',isLeader:false,email:'carla@grupomrz.com',daily:[],weekly:{}},
   rogerio:{name:'Rogério',role:'Coordenador de Logística e Manutenção',color:'#84cc16',icon:'RG',isLeader:false,tipo:'frota',email:'rogerio@grupomrz.com',daily:[],weekly:{}},
@@ -1077,7 +1076,7 @@ const M={
   barlago:{name:'Bar · Zanoni Lago',role:'Líder · Bar',color:'#f97316',icon:'BL',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Bar',email:'',daily:[],weekly:{}},
   churrasqueiralago:{name:'Churrasqueira · Zanoni Lago',role:'Líder · Churrasqueira',color:'#dc2626',icon:'CH',isLeader:false,tipo:'setorLider',loja:'lago',setor:'Churrasqueira',email:'',daily:[],weekly:{}}
 };
-const APPROVERS=['bruna','marlon','lucas','raquel'];
+const APPROVERS=['marlon','lucas','raquel','saulo'];
 
 // Institutional flowcharts per role
 const ROLE_FLOWS={
@@ -1088,7 +1087,7 @@ const ROLE_FLOWS={
   nelci:[
     {label:'Consolidação de Caixa',img:'./flows/proc-3.png'},
   ],
-  iza:[
+  bruna:[
     {label:'Folha de Pagamento',   img:'./flows/proc-4.png'},
     {label:'Admissão',             img:'./flows/proc-5.png'},
   ],
@@ -1152,7 +1151,7 @@ function reRenderAll(){
 function defState(){return{v:23,tasks:[],flow:{},reports:{},occ:[],mural:[],cotacoes:[],fornecedores:[],logs:{},status:{},pins:{},calendar:[],errosCaixa:[],projetos:[],manutencao:[],carros:[],trilha:{flows:defTrilhaFlows(),progress:{},quiz:{}},rotinas:{defs:defRotinas(),completions:{}},contasPagar:null,rh:{pontos:[],contratacoes:[],agendamentos:[]},customUsers:[],userPerms:{},userEmail:{},usernames:{},op:{gerentes:{},funcionarios:[],tarefas:[],marketing:[],errosProcesso:[],manutencao:[],checklistModelos:{},faq:{},completions:{},lojaConfig:{}},lastUp:null};}
 function migrateState(d){
   // Segurança permanente: líderes nunca têm customPerms (roda a cada sync)
-  const _LIDERES_FIXOS=['marlon','bruna','lucas','raquel','iza','dario','carlos','marco','nelci','carol'];
+  const _LIDERES_FIXOS=['marlon','lucas','raquel','dario','carlos','nelci','carol','saulo'];
   if(d.userPerms){_LIDERES_FIXOS.forEach(u=>{if(d.userPerms[u])delete d.userPerms[u];});}
   // Firebase converte arrays vazios para null — forçar arrays em todos os campos
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
@@ -1955,6 +1954,26 @@ function migrateState(d){
     });
     d.v=39;
   }
+  if(d.v<40){
+    // Saulo deixou a gerência da loja Zanoni Maringá e virou Gerente do Escritório.
+    // Remover atribuição dele como gerente da loja (fica sem gerente até alguém ser designado no painel Operacional).
+    if(d.op?.gerentes?.maringa==='saulo'){
+      delete d.op.gerentes.maringa;
+    }
+    // Limpar customPerms residual (Saulo era restrito a 'operacional'; agora é líder e não deve ter restrição)
+    if(d.userPerms?.saulo)delete d.userPerms.saulo;
+    d.v=40;
+  }
+  if(d.v<41){
+    // Refresh das definições de rotinas — pega as reatribuições recentes:
+    // Iza→Bruna (RH), Bruna(escritório)→Saulo, Marco simplificado, e a nova rotina de sexta (relatórios/feedback).
+    // Preserva rotinas customizadas (ID começa com u_).
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=41;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
@@ -2319,7 +2338,7 @@ function enterApp(k){
   document.getElementById('sb-rl').textContent=m.role;
   // Construir sidebar imediatamente ao logar (não esperar próximo sync do Firebase)
   try{buildSidebar();}catch(e){console.error('enterApp buildSidebar:',e);}
-  const _gerentes=['marcio','elias','douglas','saulo','amanda','carla'];
+  const _gerentes=['marcio','elias','douglas','amanda','carla'];
   const _isSetorLider=M[k]?.tipo==='setorLider';
   if(me==='marlon')goPanel('gestao');
   else if(_gerentes.includes(me)){window._opLojaView=null;window._opTab='tarefas';goPanel('operacional');}
@@ -2335,7 +2354,7 @@ function closeSB(){document.getElementById('sidebar').classList.remove('open');d
 
 const NAV_ITEMS=[
   {id:'gestao', label:'Painel CEO',           grp:'Visão Geral', leader:true},
-  {id:'operacional',label:'Operacional',      grp:'Visão Geral', leader:true, extra:['marcio','elias','douglas','saulo','amanda','carla']},
+  {id:'operacional',label:'Operacional',      grp:'Visão Geral', leader:true, extra:['marcio','elias','douglas','amanda','carla']},
   {id:'home',   label:'Início',              grp:'Pessoal'},
   {id:'calendar',label:'Calendário',          grp:'Pessoal'},
   {id:'tasks',  label:'Tarefas',              grp:'Pessoal'},
@@ -2347,7 +2366,7 @@ const NAV_ITEMS=[
   {id:'trilha', label:'Trilha',                grp:'Pessoal'},
   {id:'rotinas',label:'Rotinas',               grp:'Pessoal'},
   {id:'metas',  label:'Metas',                 grp:'Pessoal'},
-  {id:'rh',         label:'RH',                grp:'Pessoal',  roles:['iza']},
+  {id:'rh',         label:'RH',                grp:'Pessoal',  roles:['bruna']},
   {id:'erros-caixa',label:'Erros de Caixa',   grp:'Pessoal',  roles:['nelci']},
   {id:'occ',    label:'Ocorrências',          grp:'Pessoal'},
   {id:'log',    label:'Registro Diário',      grp:'Pessoal',  exclude:['raquel']},
@@ -2366,7 +2385,7 @@ const NAV_ITEMS=[
 function setAppMode(mode){
   // ADM só para usuários autorizados
   if(mode==='adm'){
-    const _admUsers=['marcio','bruna','marlon','lucas'];
+    const _admUsers=['marcio','marlon','lucas'];
     if(!M[me]?.isLeader&&!_admUsers.includes(me))return;
   }
   window._appMode=mode;
@@ -2477,8 +2496,8 @@ function buildSidebar(){
   const isSetorLider=M[me]?.tipo==='setorLider';
   const mode=isSetorLider?'operacional':(window._appMode||'adm');
   // Troca de modo — só para Márcio, Bruna, Marlon, Lucas e líderes
-  const _opGerentes=['marcio','elias','douglas','saulo','amanda','carla'];
-  const _admUsers=['marcio','bruna','marlon','lucas'];
+  const _opGerentes=['marcio','elias','douglas','amanda','carla'];
+  const _admUsers=['marcio','marlon','lucas'];
   const podeOp=!isSetorLider&&(isL||opCanSeeAll()||opLojaDoGerente(me)||_opGerentes.includes(me)||_admUsers.includes(me));
   const podeAdm=isL||_admUsers.includes(me);
   const switcher=(podeOp&&podeAdm)?`<div style="display:flex;gap:3px;margin:2px 4px 12px;">
@@ -2569,7 +2588,7 @@ function renderPanel(id){
 
 // ══════════════════════════════════════
 const DONO_VIEW=['marlon','lucas'];
-const DONO_ADM=['bruna','marco','nelci','carlos','iza','carol','raquel','bredi'];
+const DONO_ADM=['bruna','nelci','carlos','carol','raquel','bredi'];
 function donoRotStats(k,date){
   const dues=rotasDueOn(date||new Date(),k);
   const done=dues.filter(d=>(S.rotinas?.completions||{})[rotCompKey(d.rot.id,d.pk,k)]?.status==='feito').length;
@@ -2921,9 +2940,10 @@ const HOME_QUICK={
   carlos:[{label:'Cotação',panel:'cotacao'},{label:'Fornecedores',panel:'fornecedores'},{label:'Tarefas',panel:'tasks'},{label:'Rotinas',panel:'rotinas'}],
   marco: [{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Calendário',panel:'calendar'},{label:'Tarefas',panel:'tasks'}],
   nelci: [{label:'Erros Caixa',panel:'erros-caixa'},{label:'Tarefas',panel:'tasks'},{label:'Rotinas',panel:'rotinas'},{label:'Trilha',panel:'trilha'}],
-  iza:   [{label:'RH',panel:'rh'},{label:'Rotinas',panel:'rotinas'},{label:'Tarefas',panel:'tasks'},{label:'Ocorrências',panel:'occ'}],
   carol: [{label:'Campanhas',panel:'campanhas'},{label:'Insights',panel:'insights'},{label:'Rotinas',panel:'rotinas'},{label:'Trilha',panel:'trilha'}],
-  bruna: [{label:'Tarefas',panel:'tasks'},{label:'Rotinas',panel:'rotinas'},{label:'Mural',panel:'mural'},{label:'Trilha',panel:'trilha'}],
+  bruna: [{label:'RH',panel:'rh'},{label:'Rotinas',panel:'rotinas'},{label:'Tarefas',panel:'tasks'},{label:'Ocorrências',panel:'occ'}],
+  marco: [{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Tarefas',panel:'tasks'},{label:'Trilha',panel:'trilha'}],
+  saulo: [{label:'Contas',panel:'contas'},{label:'Aprovações',panel:'queue'},{label:'Rotinas',panel:'rotinas'},{label:'Equipe',panel:'team'}],
   marlon:[{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Timeline',panel:'timeline'},{label:'Equipe',panel:'team'}],
   raquel:[{label:'Mural',panel:'mural'},{label:'Calendário',panel:'calendar'},{label:'Equipe',panel:'team'},{label:'Ocorrências',panel:'occ'}],
 };
@@ -3761,7 +3781,7 @@ function updateOccStatus(id,status){
 // ══════════════════════════════════════
 const MARKETING_MEMBERS=['carol','raquel'];
 const CAIXA_MEMBERS=['nelci'];
-const CONTAS_PAGAR_MEMBERS=['marco'];
+const CONTAS_PAGAR_MEMBERS=['marco','saulo'];
 const COMPRAS_MEMBERS=['carlos'];
 function isMarketing(){return MARKETING_MEMBERS.includes(me);}
 function isCaixa(){return CAIXA_MEMBERS.includes(me);}
@@ -8044,7 +8064,7 @@ function defRotinas(){return[
   {id:'rot009',titulo:'Dia 01 — Envio Fechamento à Contabilidade',desc:'Dia 01 de cada mês: juntar todos os arquivos do fechamento mensal de todas as lojas. Organizar em pasta padrão no drive. Incluir: extratos bancários, relatório de caixas, notas fiscais, folha de pagamento e demais documentos exigidos. Enviar para o escritório de contabilidade com checklist preenchido.',assignees:['nelci'],freq:'mensal',diaMes:1,color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Extratos bancários incluídos?',tipo:'sim-nao'},{id:'cf2',label:'Relatório de caixas incluído?',tipo:'sim-nao'},{id:'cf3',label:'Notas fiscais organizadas?',tipo:'sim-nao'},{id:'cf4',label:'Folha de pagamento incluída?',tipo:'sim-nao'},{id:'cf5',label:'Arquivo enviado para a contabilidade?',tipo:'sim-nao'},{id:'cf6',label:'Observações para o contador',tipo:'text'}]},
   // IZA (Isabella) - Adm
   {id:'rot010',titulo:'Fechamento de Contas sem Boleto',desc:'Até o dia 5: fechar todas as contas de fornecedores que não trabalham com boleto. Conferir manualmente e cruzar com o sistema.',assignees:['marco'],freq:'mensal',diaMes:5,color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contas fechadas (quantidade)',tipo:'number'},{id:'cf2',label:'Alguma divergência?',tipo:'sim-nao'},{id:'cf3',label:'Observação',tipo:'text'}]},
-  {id:'rot011',titulo:'Lançamentos de RH',desc:'Atualizar cadastros no Medline. Lançar pontos e informações operacionais de RH do período. Digitalizar e enviar documentos para contabilidade.',assignees:['iza'],freq:'quinzenal',diaSemana:5,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Lançamentos realizados',tipo:'number'},{id:'cf2',label:'Documentos enviados?',tipo:'sim-nao'}]},
+  {id:'rot011',titulo:'Lançamentos de RH',desc:'Atualizar cadastros no Medline. Lançar pontos e informações operacionais de RH do período. Digitalizar e enviar documentos para contabilidade.',assignees:['bruna'],freq:'quinzenal',diaSemana:5,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Lançamentos realizados',tipo:'number'},{id:'cf2',label:'Documentos enviados?',tipo:'sim-nao'}]},
   // CAROL - Marketing
   // CAROL — MARKETING | Rotinas diárias e semanais
   // DIÁRIA (todos os dias)
@@ -8097,21 +8117,22 @@ function defRotinas(){return[
   {id:'rot042',titulo:'Reunião Mensal com Caixas',desc:'Uma vez por mês (sugestão: entre os dias 15 e 20): reunir todos os responsáveis de caixa de cada loja. Pautar: principais divergências do mês, erros recorrentes, dúvidas sobre os processos de lançamento (iFood, app, Stone, sistema), e lembretes sobre procedimentos corretos. Registrar ata resumida com os pontos levantados e encaminhamentos.',assignees:['nelci'],freq:'mensal',diaMes:18,icon:'',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todos os responsáveis de caixa presentes?',tipo:'sim-nao'},{id:'cf2',label:'Ausentes (nome/loja)',tipo:'text'},{id:'cf3',label:'Principal erro do mês discutido',tipo:'text'},{id:'cf4',label:'Dúvidas levantadas sobre processos?',tipo:'sim-nao'},{id:'cf5',label:'Encaminhamentos definidos',tipo:'text'},{id:'cf6',label:'Ata registrada?',tipo:'sim-nao'}]},
   {id:'rot043',titulo:'Sexta — Conciliação Bancária Semanal',desc:'Toda sexta-feira: cruzar extrato bancário de cada conta com os lançamentos do sistema da semana. Verificar: entradas que não foram lançadas, saídas sem nota, taxas cobradas pelos bancos e maquininhas. Identificar cobranças indevidas da Stone (taxas MDR, antecipação). Registrar divergências e encaminhar para Bruna.',assignees:['nelci'],freq:'semanal',diaSemana:5,icon:'',color:'#8b5cf6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Extratos de todas as contas conferidos?',tipo:'sim-nao'},{id:'cf2',label:'Cobranças indevidas identificadas?',tipo:'sim-nao'},{id:'cf3',label:'Valor de cobranças indevidas (R$)',tipo:'text'},{id:'cf4',label:'Taxa MDR Stone dentro do esperado?',tipo:'sim-nao'},{id:'cf5',label:'Relatório de conciliação enviado para Bruna?',tipo:'sim-nao'}]},
   // IZA - Rotinas adicionais
-  {id:'rot025',titulo:'Pontos Conferidos',desc:'Dia 01 de cada mês: conferir e validar os pontos de todos os funcionários do mês anterior no sistema. Identificar inconsistências e reportar ao RH.',assignees:['iza'],freq:'mensal',diaMes:1,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pontos conferidos e validados?',tipo:'sim-nao'},{id:'cf2',label:'Funcionários com inconsistência',tipo:'number'},{id:'cf3',label:'Observações',tipo:'text'}]},
-  {id:'rot026',titulo:'Consumos Lançados',desc:'Dia 02 de cada mês: lançar todos os consumos do mês anterior no sistema. Conferir com os registros físicos e garantir que nenhum lançamento ficou pendente.',assignees:['iza'],freq:'mensal',diaMes:2,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todos os consumos lançados?',tipo:'sim-nao'},{id:'cf2',label:'Divergência encontrada?',tipo:'sim-nao'}]},
-  {id:'rot027',titulo:'Digitalização de Documentos',desc:'Dia 20 de cada mês: digitalizar e arquivar todos os documentos físicos do período — notas, contratos, registros de RH e comprovantes — em pasta padrão.',assignees:['iza'],freq:'mensal',diaMes:20,icon:'️',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Documentos digitalizados?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de documentos arquivados',tipo:'number'}]},
-  {id:'rot046',titulo:'Dia 25 — Aviso de Férias e Pedido ao Contador',desc:'Dia 25 de cada mês: enviar para o grupo de colaboradores a lista de funcionários que precisam ser avisados sobre férias nos próximos 30 dias. Em seguida, enviar para o contador o pedido formal de férias do mês seguinte, com todos os dados necessários.',assignees:['iza','dario'],freq:'mensal',diaMes:25,icon:'️',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Lista de férias enviada para o grupo?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de colaboradores a serem avisados',tipo:'number'},{id:'cf3',label:'Pedido de férias enviado ao contador?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
-  {id:'rot047',titulo:'Dia 07 — Envio de Holerite, Pontos e Relatórios',desc:'Dia 7 de cada mês: enviar holerite e pontos dos funcionários do mês anterior. Salvar os relatórios das folhas fechadas na pasta padrão do drive, devidamente organizados e nomeados.',assignees:['iza','dario'],freq:'mensal',diaMes:7,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Holerites enviados?',tipo:'sim-nao'},{id:'cf2',label:'Pontos enviados?',tipo:'sim-nao'},{id:'cf3',label:'Relatórios das folhas salvos?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
-  // BRUNA - Escritório
-  {id:'rot014',titulo:'Organização Geral do Escritório',desc:'Revisar pendências da semana anterior. Organizar prioridades. Distribuir demandas entre setores. Mapear riscos de atraso.',assignees:['bruna'],freq:'semanal',diaSemana:1,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências da semana passada resolvidas?',tipo:'sim-nao'},{id:'cf2',label:'Urgências identificadas',tipo:'text'}]},
-  {id:'rot015',titulo:'Revisão de Contratos e Plataformas',desc:'Acompanhar contratos ativos (PagSeguro, iFood, fornecedores de serviço). Verificar taxas aplicadas. Identificar oportunidades de renegociação.',assignees:['bruna'],freq:'quinzenal',diaSemana:3,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contratos revisados',tipo:'number'},{id:'cf2',label:'Oportunidade de renegociação identificada?',tipo:'sim-nao'},{id:'cf3',label:'Próximo vencimento importante',tipo:'text'}]},
-  {id:'rot016',titulo:'Consolidação da DRE',desc:'Organizar dados do financeiro. Consolidar DRE do mês. Verificar consistência das informações. Preparar números para o CEO.',assignees:['bruna'],freq:'mensal',diaMes:10,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE enviada ao CEO?',tipo:'sim-nao'},{id:'cf2',label:'Variação relevante identificada?',tipo:'sim-nao'},{id:'cf3',label:'Observações',tipo:'text'}]},
-  {id:'rot048',titulo:'Dias 30 e 31 — Emissão de Notas Fiscais de Serviço',desc:'Nos dias 30 e 31 de cada mês: emitir todas as notas fiscais de serviço do mês. Verificar dados de cada prestador, emitir no sistema, salvar PDFs na pasta padrão e encaminhar para os respectivos destinatários.',assignees:['bruna'],freq:'mensal',diaMes:30,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Notas fiscais emitidas (quantidade)',tipo:'number'},{id:'cf2',label:'PDFs salvos na pasta padrão?',tipo:'sim-nao'},{id:'cf3',label:'Notas encaminhadas aos destinatários?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
-  {id:'rot049',titulo:'Dia 27 — Planilhas de Folgas',desc:'Dia 27 de cada mês: elaborar e atualizar as planilhas de folgas dos funcionários para o mês seguinte. Consolidar informações por loja, verificar cobertura de escala e encaminhar para aprovação dos gestores.',assignees:['bruna'],freq:'mensal',diaMes:27,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Planilha de folgas elaborada?',tipo:'sim-nao'},{id:'cf2',label:'Cobertura de escala verificada em todas as lojas?',tipo:'sim-nao'},{id:'cf3',label:'Encaminhada para aprovação dos gestores?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
-  {id:'rot050',titulo:'Dia 01 — Finalização de Pontos e Planilhas de Adiantamento',desc:'Dia 01 de cada mês: finalizar conferência dos pontos do mês anterior e elaborar as planilhas de adiantamento. Verificar pendências, corrigir inconsistências e encaminhar para processamento.',assignees:['bruna'],freq:'mensal',diaMes:1,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Conferência de pontos finalizada?',tipo:'sim-nao'},{id:'cf2',label:'Inconsistências corrigidas?',tipo:'sim-nao'},{id:'cf3',label:'Planilhas de adiantamento elaboradas?',tipo:'sim-nao'},{id:'cf4',label:'Encaminhado para processamento?',tipo:'sim-nao'}]},
-  {id:'rot051',titulo:'Dia 02 — Envio de Informações da Folha ao Contador',desc:'Dia 02 de cada mês: consolidar e enviar para o contador todas as informações necessárias para processamento da folha de pagamento (pontos, adiantamentos, afastamentos, admissões, demissões e outras variáveis do mês).',assignees:['bruna'],freq:'mensal',diaMes:2,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pontos e adiantamentos incluídos?',tipo:'sim-nao'},{id:'cf2',label:'Admissões/demissões do mês informadas?',tipo:'sim-nao'},{id:'cf3',label:'Informações enviadas ao contador?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
-  {id:'rot052',titulo:'Segunda — Lançamento de Despesas Fixas',desc:'Toda segunda-feira: lançar todas as despesas fixas da semana no sistema. Conferir vencimentos, verificar se há novos lançamentos e manter o controle atualizado para que Marco possa executar os pagamentos na quarta.',assignees:['bruna'],freq:'semanal',diaSemana:1,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todas as despesas fixas da semana lançadas?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de lançamentos',tipo:'number'},{id:'cf3',label:'Alguma despesa nova identificada?',tipo:'sim-nao'},{id:'cf4',label:'Marco avisado sobre os lançamentos?',tipo:'sim-nao'}]},
-  {id:'rot028',titulo:'Conferência DRE',desc:'Dia 21 de cada mês: conferir a DRE consolidada. Validar os números com o financeiro, identificar variações relevantes e preparar análise para Marlon.',assignees:['bruna'],freq:'mensal',diaMes:21,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE conferida e validada?',tipo:'sim-nao'},{id:'cf2',label:'Variações identificadas',tipo:'text'},{id:'cf3',label:'Análise enviada para Marlon?',tipo:'sim-nao'}]},
+  {id:'rot025',titulo:'Pontos Conferidos',desc:'Dia 01 de cada mês: conferir e validar os pontos de todos os funcionários do mês anterior no sistema. Identificar inconsistências e reportar ao RH.',assignees:['bruna'],freq:'mensal',diaMes:1,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pontos conferidos e validados?',tipo:'sim-nao'},{id:'cf2',label:'Funcionários com inconsistência',tipo:'number'},{id:'cf3',label:'Observações',tipo:'text'}]},
+  {id:'rot026',titulo:'Consumos Lançados',desc:'Dia 02 de cada mês: lançar todos os consumos do mês anterior no sistema. Conferir com os registros físicos e garantir que nenhum lançamento ficou pendente.',assignees:['bruna'],freq:'mensal',diaMes:2,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todos os consumos lançados?',tipo:'sim-nao'},{id:'cf2',label:'Divergência encontrada?',tipo:'sim-nao'}]},
+  {id:'rot027',titulo:'Digitalização de Documentos',desc:'Dia 20 de cada mês: digitalizar e arquivar todos os documentos físicos do período — notas, contratos, registros de RH e comprovantes — em pasta padrão.',assignees:['bruna'],freq:'mensal',diaMes:20,icon:'️',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Documentos digitalizados?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de documentos arquivados',tipo:'number'}]},
+  {id:'rot046',titulo:'Dia 25 — Aviso de Férias e Pedido ao Contador',desc:'Dia 25 de cada mês: enviar para o grupo de colaboradores a lista de funcionários que precisam ser avisados sobre férias nos próximos 30 dias. Em seguida, enviar para o contador o pedido formal de férias do mês seguinte, com todos os dados necessários.',assignees:['bruna','dario'],freq:'mensal',diaMes:25,icon:'️',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Lista de férias enviada para o grupo?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de colaboradores a serem avisados',tipo:'number'},{id:'cf3',label:'Pedido de férias enviado ao contador?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
+  {id:'rot047',titulo:'Dia 07 — Envio de Holerite, Pontos e Relatórios',desc:'Dia 7 de cada mês: enviar holerite e pontos dos funcionários do mês anterior. Salvar os relatórios das folhas fechadas na pasta padrão do drive, devidamente organizados e nomeados.',assignees:['bruna','dario'],freq:'mensal',diaMes:7,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Holerites enviados?',tipo:'sim-nao'},{id:'cf2',label:'Pontos enviados?',tipo:'sim-nao'},{id:'cf3',label:'Relatórios das folhas salvos?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
+  // SAULO - Escritório (rotinas de liderança que eram da Bruna antes de ela assumir só o RH)
+  {id:'rot014',titulo:'Organização Geral do Escritório',desc:'Revisar pendências da semana anterior. Organizar prioridades. Distribuir demandas entre setores. Mapear riscos de atraso.',assignees:['saulo'],freq:'semanal',diaSemana:1,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pendências da semana passada resolvidas?',tipo:'sim-nao'},{id:'cf2',label:'Urgências identificadas',tipo:'text'}]},
+  {id:'rot015',titulo:'Revisão de Contratos e Plataformas',desc:'Acompanhar contratos ativos (PagSeguro, iFood, fornecedores de serviço). Verificar taxas aplicadas. Identificar oportunidades de renegociação.',assignees:['saulo'],freq:'quinzenal',diaSemana:3,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contratos revisados',tipo:'number'},{id:'cf2',label:'Oportunidade de renegociação identificada?',tipo:'sim-nao'},{id:'cf3',label:'Próximo vencimento importante',tipo:'text'}]},
+  {id:'rot016',titulo:'Consolidação da DRE',desc:'Organizar dados do financeiro. Consolidar DRE do mês. Verificar consistência das informações. Preparar números para o CEO.',assignees:['saulo'],freq:'mensal',diaMes:10,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE enviada ao CEO?',tipo:'sim-nao'},{id:'cf2',label:'Variação relevante identificada?',tipo:'sim-nao'},{id:'cf3',label:'Observações',tipo:'text'}]},
+  {id:'rot048',titulo:'Dias 30 e 31 — Emissão de Notas Fiscais de Serviço',desc:'Nos dias 30 e 31 de cada mês: emitir todas as notas fiscais de serviço do mês. Verificar dados de cada prestador, emitir no sistema, salvar PDFs na pasta padrão e encaminhar para os respectivos destinatários.',assignees:['saulo'],freq:'mensal',diaMes:30,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Notas fiscais emitidas (quantidade)',tipo:'number'},{id:'cf2',label:'PDFs salvos na pasta padrão?',tipo:'sim-nao'},{id:'cf3',label:'Notas encaminhadas aos destinatários?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
+  {id:'rot049',titulo:'Dia 27 — Planilhas de Folgas',desc:'Dia 27 de cada mês: elaborar e atualizar as planilhas de folgas dos funcionários para o mês seguinte. Consolidar informações por loja, verificar cobertura de escala e encaminhar para aprovação dos gestores.',assignees:['saulo'],freq:'mensal',diaMes:27,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Planilha de folgas elaborada?',tipo:'sim-nao'},{id:'cf2',label:'Cobertura de escala verificada em todas as lojas?',tipo:'sim-nao'},{id:'cf3',label:'Encaminhada para aprovação dos gestores?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
+  {id:'rot050',titulo:'Dia 01 — Finalização de Pontos e Planilhas de Adiantamento',desc:'Dia 01 de cada mês: finalizar conferência dos pontos do mês anterior e elaborar as planilhas de adiantamento. Verificar pendências, corrigir inconsistências e encaminhar para processamento.',assignees:['saulo'],freq:'mensal',diaMes:1,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Conferência de pontos finalizada?',tipo:'sim-nao'},{id:'cf2',label:'Inconsistências corrigidas?',tipo:'sim-nao'},{id:'cf3',label:'Planilhas de adiantamento elaboradas?',tipo:'sim-nao'},{id:'cf4',label:'Encaminhado para processamento?',tipo:'sim-nao'}]},
+  {id:'rot051',titulo:'Dia 02 — Envio de Informações da Folha ao Contador',desc:'Dia 02 de cada mês: consolidar e enviar para o contador todas as informações necessárias para processamento da folha de pagamento (pontos, adiantamentos, afastamentos, admissões, demissões e outras variáveis do mês).',assignees:['saulo'],freq:'mensal',diaMes:2,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pontos e adiantamentos incluídos?',tipo:'sim-nao'},{id:'cf2',label:'Admissões/demissões do mês informadas?',tipo:'sim-nao'},{id:'cf3',label:'Informações enviadas ao contador?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
+  {id:'rot052',titulo:'Segunda — Lançamento de Despesas Fixas',desc:'Toda segunda-feira: lançar todas as despesas fixas da semana no sistema. Conferir vencimentos, verificar se há novos lançamentos e manter o controle atualizado para que os pagamentos possam ser executados na quarta.',assignees:['saulo'],freq:'semanal',diaSemana:1,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todas as despesas fixas da semana lançadas?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de lançamentos',tipo:'number'},{id:'cf3',label:'Alguma despesa nova identificada?',tipo:'sim-nao'},{id:'cf4',label:'Pagamento programado para quarta-feira?',tipo:'sim-nao'}]},
+  {id:'rot028',titulo:'Conferência DRE',desc:'Dia 21 de cada mês: conferir a DRE consolidada. Validar os números com o financeiro, identificar variações relevantes e preparar análise para Marlon.',assignees:['saulo'],freq:'mensal',diaMes:21,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE conferida e validada?',tipo:'sim-nao'},{id:'cf2',label:'Variações identificadas',tipo:'text'},{id:'cf3',label:'Análise enviada para Marlon?',tipo:'sim-nao'}]},
+  {id:'rot053',titulo:'Sexta — Relatórios Semanais e Reuniões de Feedback',desc:'Toda sexta-feira: visualizar os relatórios semanais enviados pela equipe (Compras, Financeiro, Marketing). Realizar reuniões individuais de feedback com cada área, revisando resultados da semana e alinhando prioridades para a próxima.',assignees:['saulo'],freq:'semanal',diaSemana:5,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Relatórios semanais da equipe revisados?',tipo:'sim-nao'},{id:'cf2',label:'Reunião individual com Compras realizada?',tipo:'sim-nao'},{id:'cf3',label:'Reunião individual com Financeiro realizada?',tipo:'sim-nao'},{id:'cf4',label:'Reunião individual com Marketing realizada?',tipo:'sim-nao'},{id:'cf5',label:'Principais pontos de feedback',tipo:'text'}]},
   // MARLON - CEO
   {id:'rot029',titulo:'Análise DRE e Folha de Pagamento',desc:'Dia 25 de cada mês: analisar a DRE final e a folha de pagamento. Validar os números, questionar desvios e aprovar antes do fechamento.',assignees:['marlon'],freq:'mensal',diaMes:25,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE aprovada?',tipo:'sim-nao'},{id:'cf2',label:'Folha de pagamento aprovada?',tipo:'sim-nao'},{id:'cf3',label:'Desvios relevantes identificados',tipo:'text'}]},
   {id:'rot030',titulo:'Reunião MKT e Reunião de Gestores',desc:'Dia 28 de cada mês: conduzir reunião de marketing com a equipe e em seguida reunião com os gestores. Revisar resultados do mês e definir prioridades do próximo.',assignees:['marlon','bruna','lucas','raquel'],freq:'mensal',diaMes:28,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Reunião MKT realizada?',tipo:'sim-nao'},{id:'cf2',label:'Reunião de Gestores realizada?',tipo:'sim-nao'},{id:'cf3',label:'Principais decisões tomadas',tipo:'text'}]},
