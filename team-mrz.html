@@ -2795,9 +2795,9 @@ function metasCalc(k,y,m){
       tList.push({t,st:'em andamento'});
     }
   });
-  // Contas fixas (Marco): paga em dia=1, paga atrasada=0.5, vencida sem pagar=0
+  // Contas fixas (Saulo, responsável pelos pagamentos): paga em dia=1, paga atrasada=0.5, vencida sem pagar=0
   let ctDen=0,ctOk=0,ctLate=0,ctMiss=0,ctPts=0;
-  if(k==='marco'&&S.contasPagar){
+  if(k==='saulo'&&S.contasPagar){
     const maxDia=new Date(y,m,0).getDate();
     (S.contasPagar.lojas||[]).forEach(l=>{(l.contas||[]).forEach(c=>{
       if(!c.dia||c.dia>maxDia)return;
