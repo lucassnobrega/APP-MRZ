@@ -6059,6 +6059,34 @@ function renderRH(){
       </div>`;
     }
 
+    // Detecta possíveis duplicados: mesmo funcionário + mesma loja, ainda não resolvidos
+    const dupGroups={};
+    pontos.filter(p=>p.status!=='resolvido').forEach(p=>{
+      const key=(p.funcionario||'').trim().toLowerCase()+'|'+(p.loja||'');
+      if(!dupGroups[key])dupGroups[key]=[];
+      dupGroups[key].push(p);
+    });
+    const dupList=Object.values(dupGroups).filter(g=>g.length>1);
+
+    if(dupList.length){
+      html+=`<div style="margin-bottom:14px;padding:12px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;">
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#f59e0b;margin-bottom:8px;">Possíveis duplicados — mesma pessoa, mesma loja</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${dupList.map(g=>{
+            const loja=LOJAS.find(l=>l.id===g[0].loja)||{nome:g[0].loja,cor:'#888'};
+            const diasResumo=g.map(p=>`"${esc((p.diasSemPonto||'').toString())||'—'}"`).join(' + ');
+            return`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--panel);border-radius:8px;padding:8px 10px;">
+              <div style="font-size:.76rem;">
+                <b>${esc(g[0].funcionario)}</b> · <span style="color:${loja.cor};">${loja.nome}</span>
+                <span style="color:var(--muted);"> — ${g.length} cards (dias: ${diasResumo})</span>
+              </div>
+              <button onclick="rhPontoMerge('${esc(g[0].funcionario).replace(/'/g,"\\'")}','${g[0].loja}')" style="font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:6px;border:1px solid #f59e0b44;background:#f59e0b15;color:#f59e0b;cursor:pointer;white-space:nowrap;">🔗 É a mesma pessoa — juntar</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+
     html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div style="font-size:.7rem;color:var(--muted);">${pontos.length} registro${pontos.length!==1?'s':''} no total</div>
       <button class="btn-gold btn-sm" onclick="openRhPontoModal()">+ Registrar</button>
@@ -6385,6 +6413,29 @@ function rhPontoStatus(id,status){
 function rhPontoDelete(id){
   S.rh.pontos=(S.rh.pontos||[]).filter(x=>x.id!==id);
   saveLocal();renderRH();
+}
+function rhPontoMerge(funcionario,loja){
+  if(!S.rh.pontos)return;
+  const key=(funcionario||'').trim().toLowerCase();
+  const dups=S.rh.pontos.filter(p=>p.status!=='resolvido'&&(p.funcionario||'').trim().toLowerCase()===key&&(p.loja||'')===loja);
+  if(dups.length<2)return;
+  dups.sort((a,b)=>(a.criadoEm||'').localeCompare(b.criadoEm||''));
+  const base=dups[0];
+  const setDias=new Set();
+  const obsArr=[];
+  let bestStatus=base.status; // pendente é "mais urgente" que cobrado — se algum ainda está pendente, o unificado fica pendente
+  const prio={pendente:0,cobrado:1};
+  dups.forEach(p=>{
+    (p.diasSemPonto||'').split(',').map(d=>d.trim()).filter(Boolean).forEach(d=>setDias.add(d));
+    if(p.obs&&!obsArr.includes(p.obs))obsArr.push(p.obs);
+    if((prio[p.status]??1)<(prio[bestStatus]??1))bestStatus=p.status;
+  });
+  base.diasSemPonto=[...setDias].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0)).join(', ');
+  base.obs=obsArr.join(' · ');
+  base.status=bestStatus;
+  const removeIds=new Set(dups.slice(1).map(p=>p.id));
+  S.rh.pontos=S.rh.pontos.filter(p=>!removeIds.has(p.id));
+  saveLocal();renderRH();toast(`Registros de ${base.funcionario} unidos em um só card.`);
 }
 function rhContFase(id,fase){
   const c=(S.rh.contratacoes||[]).find(x=>x.id===id);
