@@ -1999,6 +1999,15 @@ function migrateState(d){
     d.userPerms.raquel=['home','tasks','campanhas','occ','queue'];
     d.v=43;
   }
+  if(d.v<44){
+    // Reestrutura as rotinas da Carol: Segunda mantém, Terça/Quinta saem (fica só a rotina diária),
+    // Quarta vira "Gravação" e Sexta vira "Gravação e Edição + Relatório Semanal".
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=44;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
@@ -2398,7 +2407,7 @@ const NAV_ITEMS=[
   {id:'team',   label:'Visão da Equipe',      grp:'Supervisão',leader:true},
   {id:'queue',  label:'Aprovações',           grp:'Liderança', leader:true, extra:['raquel']},
   {id:'processos',label:'Processos',           grp:'Gestão',    leader:true, exclude:['marlon']},
-  {id:'projetos',label:'Projetos',            grp:'Gestão',    leader:true},
+  {id:'projetos',label:'Projetos',            grp:'Gestão',    leader:true, extra:['carol']},
   {id:'contas', label:'Contas a Pagar',       grp:'Financeiro',leader:true, extra:['marco']},
   {id:'manutencao',label:'Manutenção',        grp:'Pessoal',   roles:['bredi'], leader:true},
   {id:'carros',    label:'Frota / Carros',   grp:'Pessoal',   roles:['rogerio'],leader:true},
@@ -2965,7 +2974,8 @@ const HOME_QUICK={
   carlos:[{label:'Cotação',panel:'cotacao'},{label:'Fornecedores',panel:'fornecedores'},{label:'Tarefas',panel:'tasks'},{label:'Rotinas',panel:'rotinas'}],
   marco: [{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Calendário',panel:'calendar'},{label:'Tarefas',panel:'tasks'}],
   nelci: [{label:'Erros Caixa',panel:'erros-caixa'},{label:'Tarefas',panel:'tasks'},{label:'Rotinas',panel:'rotinas'},{label:'Trilha',panel:'trilha'}],
-  carol: [{label:'Campanhas',panel:'campanhas'},{label:'Insights',panel:'insights'},{label:'Rotinas',panel:'rotinas'},{label:'Trilha',panel:'trilha'}],
+  carol: [{label:'Campanhas',panel:'campanhas'},{label:'Insights',panel:'insights'},{label:'Projetos',panel:'projetos'},{label:'Rotinas',panel:'rotinas'}],
+  rogerio:[{label:'Frota',panel:'carros'},{label:'Projetos',panel:'projetos'},{label:'Tarefas',panel:'tasks'},{label:'Rotinas',panel:'rotinas'}],
   bruna: [{label:'RH',panel:'rh'},{label:'Rotinas',panel:'rotinas'},{label:'Tarefas',panel:'tasks'},{label:'Ocorrências',panel:'occ'}],
   marco: [{label:'Contas',panel:'contas'},{label:'Rotinas',panel:'rotinas'},{label:'Tarefas',panel:'tasks'},{label:'Trilha',panel:'trilha'}],
   saulo: [{label:'Contas',panel:'contas'},{label:'Aprovações',panel:'queue'},{label:'Rotinas',panel:'rotinas'},{label:'Equipe',panel:'team'}],
@@ -8145,14 +8155,10 @@ function defRotinas(){return[
   {id:'rot012_d',titulo:'Rotina Diária de Marketing',desc:'TODO DIA — independente do que mais acontecer na semana, estas 4 ações são obrigatórias: 1) Postar ou republicar stories do dia (mínimo 3 stories — pode ser produto, bastidor, cliente, meme do dia). 2) Acompanhar comentários nos posts (responder perguntas, agradecer elogios, sinalizar reclamações para resolução). 3) Responder mensagens recebidas no direct/WhatsApp/iFood. 4) Registrar qualquer insight de cliente captado no dia (frase que ouviu, pergunta frequente, elogio espontâneo). Esse último alimenta o planejamento de sexta.',assignees:['carol'],freq:'diaria',icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Stories publicados hoje?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de stories',tipo:'number'},{id:'cf3',label:'Comentários respondidos?',tipo:'sim-nao'},{id:'cf4',label:'Mensagens respondidas?',tipo:'sim-nao'},{id:'cf5',label:'Insight do dia (o que o cliente disse/perguntou)',tipo:'text'}]},
   // SEGUNDA — Dia de pensar
   {id:'rot012',titulo:'Segunda — Análise & Planejamento da Semana',desc:'SEGUNDA é o DIA DE PENSAR, não de gravar. Pilar: Estratégia. ANÁLISE DA SEMANA ANTERIOR: abrir Meta Business Suite/Instagram Insights e analisar posts, stories e reels publicados na semana. Ver métricas: alcance, impressões, curtidas, comentários, compartilhamentos e salvamentos. Identificar: qual post gerou mais movimento? Qual não funcionou? Por quê? PLANEJAMENTO DA SEMANA: definir os temas dos conteúdos da semana. Listar ideias de gravação para terça e quinta. Mapear campanhas e promoções ativas. Organizar agenda de publicação (o que vai no feed, o que vai nos stories, quando sobe cada coisa).',assignees:['carol'],freq:'semanal',diaSemana:1,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Análise da semana anterior concluída?',tipo:'sim-nao'},{id:'cf2',label:'Post com mais alcance da semana',tipo:'text'},{id:'cf3',label:'Alcance do melhor post',tipo:'text'},{id:'cf4',label:'Post que menos funcionou (e por quê)',tipo:'text'},{id:'cf5',label:'Tema principal da semana planejado',tipo:'text'},{id:'cf6',label:'Ideias de gravação listadas para ter/qui?',tipo:'sim-nao'},{id:'cf7',label:'Campanhas/promoções ativas mapeadas?',tipo:'sim-nao'},{id:'cf8',label:'Agenda de publicação da semana organizada?',tipo:'sim-nao'}]},
-  // TERÇA — Dia completo no restaurante
-  {id:'rot012b',titulo:'Terça — Gravação + Operação + Cliente',desc:'TERÇA é o DIA COMPLETO DENTRO DO RESTAURANTE. Pilares: Conteúdo + Serviço. GRAVAÇÃO OBRIGATÓRIA: gravar pratos (apresentação, montagem, close no prato), bastidores (cozinha, equipe trabalhando, processo) e equipe (rosto humano por trás do restaurante). OBSERVAÇÃO DE OPERAÇÃO: observar o comportamento dos clientes — o que eles pedem, o que causa dúvida, o que encanta, o que irrita. Anotar pedidos mais comuns e dúvidas frequentes. COLETA DE FEEDBACK (informal): perguntar para pelo menos 2 a 3 clientes: "O que você mais gosta aqui?", "O que te faz voltar?", "Como você conheceu o restaurante?". Essas respostas alimentam o conteúdo e a estratégia. "Esse dia aproxima o marketing da realidade."',assignees:['carol'],freq:'semanal',diaSemana:2,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Gravação de pratos realizada?',tipo:'sim-nao'},{id:'cf2',label:'Gravação de bastidores realizada?',tipo:'sim-nao'},{id:'cf3',label:'Gravação de equipe realizada?',tipo:'sim-nao'},{id:'cf4',label:'Quantidade de vídeos/fotos gravados',tipo:'number'},{id:'cf5',label:'Feedbacks de clientes coletados (quantidade)',tipo:'number'},{id:'cf6',label:'Principal insight do cliente hoje',tipo:'text'},{id:'cf7',label:'Pedido mais comum observado',tipo:'text'},{id:'cf8',label:'Algo que causou dúvida ou reclamação?',tipo:'text'}]},
-  // QUARTA — Criação & Edição
-  {id:'rot012c',titulo:'Quarta — Criação & Edição',desc:'QUARTA é o DIA DE TRANSFORMAR VIVÊNCIA EM COMUNICAÇÃO. Pilar: Conteúdo. EDIÇÃO: editar os materiais gravados na terça. Cortar, ajustar ritmo, adicionar legenda/texto/música. Manter identidade visual (cores, fonte, estilo MRZ). CRIAÇÃO: criar posts para o feed, reels e stories com o material editado. Organizar banco de conteúdo: nomear e arquivar os arquivos no drive/pasta padrão para não perder nada. AJUSTES DE IDENTIDADE: verificar se os materiais publicados estão alinhados com a identidade visual do grupo (consistência de marca).',assignees:['carol'],freq:'semanal',diaSemana:3,icon:'️',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Materiais da terça editados?',tipo:'sim-nao'},{id:'cf2',label:'Posts criados (quantidade)',tipo:'number'},{id:'cf3',label:'Reels criados (quantidade)',tipo:'number'},{id:'cf4',label:'Stories criados (quantidade)',tipo:'number'},{id:'cf5',label:'Material arquivado no banco de conteúdo?',tipo:'sim-nao'},{id:'cf6',label:'Identidade visual mantida?',tipo:'sim-nao'}]},
-  // QUINTA — Gravação + Campanhas + Tráfego Pago
-  {id:'rot012d',titulo:'Quinta — Gravação de Vendas + Campanhas',desc:'QUINTA é o SEGUNDO DIA DE GRAVAÇÃO — mais objetivo, focado em converter. Pilares: Conteúdo + Vendas. GRAVAÇÃO FOCADA EM VENDA: gravar vídeos e fotos de OFERTAS (promoção do dia/semana), LANÇAMENTOS (novo prato, nova opção, novidade) e CHAMADAS DE VENDA ("Peça agora pelo iFood", "Venha hoje", "Promoção só até domingo"). ANÚNCIOS: subir ou ajustar campanhas pagas no Meta Ads. Verificar se os anúncios ativos estão com bom desempenho (CPR, CTR). Pausar o que não está convertendo. CAMPANHAS: criar ou atualizar campanhas de promoção, ativações (cupons, frete grátis, combo) e tráfego pago para o iFood/Google. "Aqui o foco é converter, não só engajar."',assignees:['carol'],freq:'semanal',diaSemana:4,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Gravações de oferta/venda realizadas?',tipo:'sim-nao'},{id:'cf2',label:'Anúncios verificados/ajustados?',tipo:'sim-nao'},{id:'cf3',label:'CPR (custo por resultado) atual (R$)',tipo:'text'},{id:'cf4',label:'CTR (taxa de clique) atual (%)',tipo:'text'},{id:'cf5',label:'Anúncio pausado por baixo desempenho?',tipo:'sim-nao'},{id:'cf6',label:'Nova campanha/promoção criada?',tipo:'sim-nao'},{id:'cf7',label:'Descrição da campanha criada',tipo:'text'}]},
-  // SEXTA — Análise de Cliente + Relatório Semanal
-  {id:'rot012e',titulo:'Sexta — Análise de Cliente + Relatório Semanal',desc:'SEXTA CONECTA MARKETING COM REALIDADE. Pilares: Cliente + Resultado. ANÁLISE DE FEEDBACKS: revisar todos os insights e feedbacks coletados na semana (registro diário + terça no restaurante). Identificar objeções recorrentes (o que afasta o cliente), elogios (o que atrai) e padrões de comportamento. AJUSTES: com base nos dados da semana, ajustar campanhas que não estão funcionando, reformular mensagens, e atualizar o planejamento de conteúdo. RELATÓRIO SEMANAL: preencher os campos abaixo com os números da semana — esses dados formam o relatório semanal de marketing para Marlon e Bruna. APRENDIZADOS: registrar em uma frase o maior aprendizado da semana para usar no planejamento de segunda.',assignees:['carol'],freq:'semanal',diaSemana:5,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Feedbacks da semana analisados?',tipo:'sim-nao'},{id:'cf2',label:'Objeção mais comum dos clientes',tipo:'text'},{id:'cf3',label:'Elogio mais frequente',tipo:'text'},{id:'cf4',label:'Alcance total da semana (Instagram)',tipo:'text'},{id:'cf5',label:'Impressões totais',tipo:'text'},{id:'cf6',label:'Novos seguidores na semana',tipo:'number'},{id:'cf7',label:'Post com mais engajamento',tipo:'text'},{id:'cf8',label:'Taxa de engajamento do melhor post (%)',tipo:'text'},{id:'cf9',label:'Gasto em anúncios na semana (R$)',tipo:'text'},{id:'cf10',label:'Resultado dos anúncios (cliques/pedidos/resultados)',tipo:'text'},{id:'cf11',label:'Campanha ajustada ou pausada?',tipo:'sim-nao'},{id:'cf12',label:'Maior aprendizado da semana',tipo:'text'}]},
+  // QUARTA — Gravação
+  {id:'rot012c',titulo:'Quarta — Gravação de Conteúdo',desc:'QUARTA é o DIA DE GRAVAR. Pilar: Conteúdo. GRAVAÇÃO OBRIGATÓRIA: gravar pratos (apresentação, montagem, close no prato), bastidores (cozinha, equipe trabalhando, processo), equipe (rosto humano por trás do restaurante) e ofertas/promoções da semana (chamadas de venda, lançamentos, novidades — "Peça agora pelo iFood", "Promoção só até domingo"). Reunir todo o material bruto do dia, nomear e organizar no banco de conteúdo (drive/pasta padrão) para edição na sexta.',assignees:['carol'],freq:'semanal',diaSemana:3,icon:'️',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Gravação de pratos realizada?',tipo:'sim-nao'},{id:'cf2',label:'Gravação de bastidores realizada?',tipo:'sim-nao'},{id:'cf3',label:'Gravação de equipe realizada?',tipo:'sim-nao'},{id:'cf4',label:'Gravação de ofertas/promoções realizada?',tipo:'sim-nao'},{id:'cf5',label:'Quantidade de vídeos/fotos gravados',tipo:'number'},{id:'cf6',label:'Material organizado no banco de conteúdo?',tipo:'sim-nao'}]},
+  // SEXTA — Gravação e Edição + Relatório Semanal
+  {id:'rot012e',titulo:'Sexta — Gravação e Edição + Relatório Semanal',desc:'SEXTA FECHA O CICLO DA SEMANA. Pilares: Conteúdo + Cliente + Resultado. GRAVAÇÃO E EDIÇÃO: gravar o que faltar da semana e editar todo o material (da quarta e de hoje) — cortar, ajustar ritmo, adicionar legenda/texto/música, manter identidade visual (cores, fonte, estilo MRZ) — e deixar os posts, reels e stories prontos para publicação. ANÁLISE DE FEEDBACKS: revisar os insights e feedbacks coletados na semana (registro diário). Identificar objeções recorrentes (o que afasta o cliente), elogios (o que atrai) e padrões de comportamento — use o resumo da rotina diária da semana, mostrado abaixo, como referência rápida. AJUSTES: com base nos dados da semana, ajustar campanhas que não estão funcionando, reformular mensagens, atualizar o planejamento de conteúdo. RELATÓRIO SEMANAL: preencher os campos abaixo com os números da semana — esses dados formam o relatório semanal de marketing para Marlon e Bruna. APRENDIZADOS: registrar o maior aprendizado da semana para usar no planejamento de segunda.',assignees:['carol'],freq:'semanal',diaSemana:5,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Material da semana editado?',tipo:'sim-nao'},{id:'cf2',label:'Posts criados (quantidade)',tipo:'number'},{id:'cf3',label:'Reels criados (quantidade)',tipo:'number'},{id:'cf4',label:'Stories criados (quantidade)',tipo:'number'},{id:'cf5',label:'Feedbacks da semana analisados?',tipo:'sim-nao'},{id:'cf6',label:'Objeção mais comum dos clientes',tipo:'text'},{id:'cf7',label:'Elogio mais frequente',tipo:'text'},{id:'cf8',label:'Alcance total da semana (Instagram)',tipo:'text'},{id:'cf9',label:'Impressões totais',tipo:'text'},{id:'cf10',label:'Novos seguidores na semana',tipo:'number'},{id:'cf11',label:'Post com mais engajamento',tipo:'text'},{id:'cf12',label:'Taxa de engajamento do melhor post (%)',tipo:'text'},{id:'cf13',label:'Gasto em anúncios na semana (R$)',tipo:'text'},{id:'cf14',label:'Resultado dos anúncios (cliques/pedidos/resultados)',tipo:'text'},{id:'cf15',label:'Campanha ajustada ou pausada?',tipo:'sim-nao'},{id:'cf16',label:'Maior aprendizado da semana',tipo:'text'}]},
   // QUINZENAL — Reunião de performance
   {id:'rot013',titulo:'Dia 28 — Reunião de Performance Mensal',desc:'Todo dia 28: reunir com Marlon e/ou Bruna para apresentar os resultados do marketing do mês. Apresentar: evolução de seguidores, alcance, engajamento, retorno dos anúncios e comparativo com o mês anterior. Trazer também os insights de comportamento do cliente coletados no período. Propor ajustes de estratégia para o próximo mês.',assignees:['carol'],freq:'mensal',diaMes:28,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Seguidores atuais (total)',tipo:'number'},{id:'cf2',label:'Crescimento de seguidores no mês',tipo:'number'},{id:'cf3',label:'Alcance total do mês',tipo:'text'},{id:'cf4',label:'Melhor post do período',tipo:'text'},{id:'cf5',label:'Investimento total em anúncios (R$)',tipo:'text'},{id:'cf6',label:'Melhor campanha do período',tipo:'text'},{id:'cf7',label:'Proposta de ajuste para o próximo mês',tipo:'text'},{id:'cf8',label:'Reunião realizada com Marlon/Bruna?',tipo:'sim-nao'}]},
   // MENSAL — Relatório completo com KPIs
@@ -9079,6 +9085,35 @@ function openCompModal(rotId,periodKey,assignee){
   const campos=existing.campos||{};
   const fLabel={semanal:'Semanal',quinzenal:'Quinzenal',mensal:'Mensal'};
 
+  // Resumo da semana: no relatório de sexta (rot012e), puxa o que já foi preenchido na rotina diária
+  // de marketing (rot012_d) de segunda a sexta, pra não precisar lembrar tudo de cabeça.
+  let resumoSemanaHtml='';
+  if(rotId==='rot012e'){
+    const hoje=new Date();hoje.setHours(0,0,0,0);
+    const seg=new Date(hoje);seg.setDate(hoje.getDate()-((hoje.getDay()+6)%7)); // segunda desta semana
+    const dias=['Segunda','Terça','Quarta','Quinta','Sexta'];
+    const p=n=>String(n).padStart(2,'0');
+    const linhas=[];
+    for(let i=0;i<5;i++){
+      const d=new Date(seg);d.setDate(seg.getDate()+i);
+      const dk=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+      const c=getRotComp('rot012_d',dk,assignee);
+      if(c&&(c.campos?.cf5||c.campos?.cf2)){
+        linhas.push(`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:.76rem;">
+          <b>${dias[i]} (${p(d.getDate())}/${p(d.getMonth()+1)})</b>
+          ${c.campos?.cf2?` · ${esc(c.campos.cf2)} stories`:''}
+          ${c.campos?.cf5?`<div style="color:var(--muted);margin-top:2px;">${esc(c.campos.cf5)}</div>`:''}
+        </div>`);
+      }
+    }
+    if(linhas.length){
+      resumoSemanaHtml=`<div style="background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.18);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">📋 Resumo da semana (rotina diária)</div>
+        ${linhas.join('')}
+      </div>`;
+    }
+  }
+
   let linksHtml=links.map((l,i)=>`
     <div style="display:flex;gap:6px;margin-bottom:6px;">
       <input class="inp" placeholder="Nome / descrição" value="${esc(l.label)}" id="rlink_lbl_${i}" style="flex:1">
@@ -9109,6 +9144,7 @@ function openCompModal(rotId,periodKey,assignee){
   openModal(`<div style="max-width:520px;margin:0 auto;">
     <h3 style="margin:0 0 4px;font-size:1rem;">${rot.icon||''} ${esc(rot.titulo)}</h3>
     <div style="font-size:.7rem;color:var(--muted);margin-bottom:16px;">${fLabel[rot.freq]||rot.freq} · Período: ${periodKey}</div>
+    ${resumoSemanaHtml}
     <label class="lbl">Status</label>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       ${['feito','parcial','pendente'].map(s=>`<button class="ev-type-btn${(existing.status||'pendente')===s?' sel':''}" onclick="document.getElementById('rcomp_status').value='${s}';this.parentElement.querySelectorAll('.ev-type-btn').forEach(b=>b.classList.remove('sel'));this.classList.add('sel')">${s==='feito'?'Feito':s==='parcial'?'◑ Feito parcialmente':'⏸ Ainda pendente'}</button>`).join('')}
@@ -9803,7 +9839,7 @@ let tmpProj=null;
 
 function renderProjetos(){
   if(!S.projetos)S.projetos=[];
-  const isL=M[me]?.isLeader||M[me]?.tipo==='frota';
+  const isL=M[me]?.isLeader||M[me]?.tipo==='frota'||me==='carol';
   const el=document.getElementById('p-projetos');
   const tipos=Object.keys(PROJ_TIPOS);
   // Filter tabs
