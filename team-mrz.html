@@ -2072,10 +2072,10 @@ function migrateState(d){
     if(!d.op.checklistModelos)d.op.checklistModelos={};
     const _rawAla51=d.op.checklistModelos.alameda;
     d.op.checklistModelos.alameda=Array.isArray(_rawAla51)?_rawAla51:(_rawAla51?Object.values(_rawAla51):[]);
-    if(!d.op.checklistModelos.alameda.some(m=>m.setor==='Copa')){
+    if(!d.op.checklistModelos.alameda.some(m=>m.id==='copa_ala_cheg')){
       d.op.checklistModelos.alameda.push(
         {
-          id:'copa_ala_cheg',nome:'Checklist Diária – Chegada',setor:'Copa',tipo:'abertura',turno:'Manhã',
+          id:'copa_ala_cheg',nome:'Checklist Diária – Chegada',setor:'Bar',tipo:'abertura',turno:'Manhã',
           horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
           items:[
             {id:'cpc01',texto:'Conferência de insumos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
@@ -2086,7 +2086,7 @@ function migrateState(d){
           ]
         },
         {
-          id:'copa_ala_said',nome:'Checklist Diária – Saída',setor:'Copa',tipo:'fechamento',turno:'Noite',
+          id:'copa_ala_said',nome:'Checklist Diária – Saída',setor:'Bar',tipo:'fechamento',turno:'Noite',
           horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
           items:[
             {id:'cps01',texto:'Limpeza do lixo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
@@ -2096,7 +2096,7 @@ function migrateState(d){
           ]
         },
         {
-          id:'copa_ala_2a4',nome:'Checklist – A Cada 2 ou 4 Dias (Seg e Qui)',setor:'Copa',tipo:'geral',turno:'Manhã',
+          id:'copa_ala_2a4',nome:'Checklist – A Cada 2 ou 4 Dias (Seg e Qui)',setor:'Bar',tipo:'geral',turno:'Manhã',
           horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:['dom','ter','qua','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
           items:[
             {id:'cp24_01',texto:'Conferência de fruta',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
@@ -2106,7 +2106,7 @@ function migrateState(d){
           ]
         },
         {
-          id:'copa_ala_15d',nome:'Checklist – Limpezas Específicas (a cada 15 dias, terça)',setor:'Copa',tipo:'geral',turno:'Manhã',
+          id:'copa_ala_15d',nome:'Checklist – Limpezas Específicas (a cada 15 dias, terça)',setor:'Bar',tipo:'geral',turno:'Manhã',
           horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:['dom','seg','qua','qui','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
           items:[
             {id:'cp15_01',texto:'Limpeza completa do freezer',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
@@ -2288,6 +2288,17 @@ function migrateState(d){
       );
     }
     d.v=52;
+  }
+  if(d.v<53){
+    // Correção: os checklists da "Copa" do Raz Alameda (v51) são na verdade do setor Bar.
+    const _copaIds=['copa_ala_cheg','copa_ala_said','copa_ala_2a4','copa_ala_15d'];
+    if(d.op?.checklistModelos?.alameda){
+      const _rawAla53=d.op.checklistModelos.alameda;
+      const _arrAla53=Array.isArray(_rawAla53)?_rawAla53:Object.values(_rawAla53);
+      _arrAla53.forEach(m=>{if(_copaIds.includes(m.id))m.setor='Bar';});
+      d.op.checklistModelos.alameda=_arrAla53;
+    }
+    d.v=53;
   }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
