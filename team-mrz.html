@@ -2308,14 +2308,14 @@ function migrateState(d){
     if(!d.pins)d.pins={};
     if(!d.usernames)d.usernames={};
     if(!d.userPerms)d.userPerms={};
-    const _uidEsfiMerc='esfiharia_merc';
+    const _uidEsfiMerc='esfihariamercadao';
     if(!d.customUsers.find(u=>u.id===_uidEsfiMerc)){
       d.customUsers.push({id:_uidEsfiMerc,username:_uidEsfiMerc,name:'Esfiharia · Raz Mercadão',role:'Líder · Esfiharia',color:'#f59e0b',icon:'ES',isLeader:false,tipo:'setorLider',loja:'mercadao',setor:'Esfiharia',email:''});
       d.pins[_uidEsfiMerc]=pwdHash('1234');
       d.usernames[_uidEsfiMerc]=_uidEsfiMerc;
       d.userPerms[_uidEsfiMerc]=['operacional'];
     }
-    const _uidCozMerc='cozinha_merc';
+    const _uidCozMerc='cozinhamercadao';
     if(!d.customUsers.find(u=>u.id===_uidCozMerc)){
       d.customUsers.push({id:_uidCozMerc,username:_uidCozMerc,name:'Cozinha · Raz Mercadão',role:'Líder · Cozinha (Produção Fria e Quente)',color:'#ef4444',icon:'CO',isLeader:false,tipo:'setorLider',loja:'mercadao',setor:'Produção Fria',setores:['Produção Fria','Produção Quente'],email:''});
       d.pins[_uidCozMerc]=pwdHash('1234');
@@ -2331,7 +2331,7 @@ function migrateState(d){
     if(!d.pins)d.pins={};
     if(!d.usernames)d.usernames={};
     if(!d.userPerms)d.userPerms={};
-    const _uidCaixaMerc='caixa_merc';
+    const _uidCaixaMerc='caixamercadao';
     if(!d.customUsers.find(u=>u.id===_uidCaixaMerc)){
       d.customUsers.push({id:_uidCaixaMerc,username:_uidCaixaMerc,name:'Caixa · Raz Mercadão',role:'Líder · Caixa/Salão',color:'#8b5cf6',icon:'CX',isLeader:false,tipo:'setorLider',loja:'mercadao',setor:'Salão',email:''});
       d.pins[_uidCaixaMerc]=pwdHash('1234');
@@ -2339,6 +2339,69 @@ function migrateState(d){
       d.userPerms[_uidCaixaMerc]=['operacional'];
     }
     d.v=55;
+  }
+  // v56: acessos de setor — Bar e Esfiharia (Raz Alameda)
+  if(d.v<56){
+    if(!d.customUsers)d.customUsers=[];
+    if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
+    if(!d.pins)d.pins={};
+    if(!d.usernames)d.usernames={};
+    if(!d.userPerms)d.userPerms={};
+    const _uidBarAla='baralameda';
+    if(!d.customUsers.find(u=>u.id===_uidBarAla)){
+      d.customUsers.push({id:_uidBarAla,username:_uidBarAla,name:'Bar · Raz Alameda',role:'Líder · Bar',color:'#f97316',icon:'BA',isLeader:false,tipo:'setorLider',loja:'alameda',setor:'Bar',email:''});
+      d.pins[_uidBarAla]=pwdHash('1234');
+      d.usernames[_uidBarAla]=_uidBarAla;
+      d.userPerms[_uidBarAla]=['operacional'];
+    }
+    const _uidEsfiAla='esfihariaalameda';
+    if(!d.customUsers.find(u=>u.id===_uidEsfiAla)){
+      d.customUsers.push({id:_uidEsfiAla,username:_uidEsfiAla,name:'Esfiharia · Raz Alameda',role:'Líder · Esfiharia',color:'#f59e0b',icon:'ES',isLeader:false,tipo:'setorLider',loja:'alameda',setor:'Esfiharia',email:''});
+      d.pins[_uidEsfiAla]=pwdHash('1234');
+      d.usernames[_uidEsfiAla]=_uidEsfiAla;
+      d.userPerms[_uidEsfiAla]=['operacional'];
+    }
+    d.v=56;
+  }
+  // v57: acessos de setor — Cozinha, Churrasqueira, Bar, Salão e Lavanderia (Zanoni Maringá).
+  // Os checklists desses 5 setores já existem no Maringá desde a v39 (cópia do Zanoni Lago),
+  // então aqui só criamos os logins — não é preciso recriar os checklists.
+  if(d.v<57){
+    if(!d.customUsers)d.customUsers=[];
+    if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
+    if(!d.pins)d.pins={};
+    if(!d.usernames)d.usernames={};
+    if(!d.userPerms)d.userPerms={};
+    const _mgSetores=[
+      {id:'cozinhamaringa',       name:'Cozinha · Zanoni Maringá',      role:'Líder · Cozinha',      color:'#6366f1', icon:'CO', setor:'Cozinha'},
+      {id:'churrasqueiramaringa', name:'Churrasqueira · Zanoni Maringá',role:'Líder · Churrasqueira',color:'#dc2626', icon:'CH', setor:'Churrasqueira'},
+      {id:'barmaringa',           name:'Bar · Zanoni Maringá',          role:'Líder · Bar',          color:'#f97316', icon:'BM', setor:'Bar'},
+      {id:'salaomaringa',         name:'Salão · Zanoni Maringá',        role:'Líder · Salão',        color:'#8b5cf6', icon:'SM', setor:'Salão'},
+      {id:'limpezamaringa',       name:'Lavanderia · Zanoni Maringá',   role:'Líder · Lavanderia',   color:'#06b6d4', icon:'LM', setor:'Lavanderia'},
+    ];
+    _mgSetores.forEach(s=>{
+      if(!d.customUsers.find(u=>u.id===s.id)){
+        d.customUsers.push({id:s.id,username:s.id,name:s.name,role:s.role,color:s.color,icon:s.icon,isLeader:false,tipo:'setorLider',loja:'maringa',setor:s.setor,email:''});
+        d.pins[s.id]=pwdHash('1234');
+        d.usernames[s.id]=s.id;
+        d.userPerms[s.id]=['operacional'];
+      }
+    });
+    d.v=57;
+  }
+  if(d.v<58){
+    // Padroniza os logins de setor sem underscore (ex.: cozinhamaringa, em vez de cozinha_mg).
+    // Remove as versões antigas com underscore, caso tenham sido criadas antes desta correção.
+    const _oldIds=['esfiharia_merc','cozinha_merc','caixa_merc','bar_ala','esfiharia_ala','cozinha_mg','chur_mg','bar_mg','salao_mg','limpeza_mg'];
+    if(Array.isArray(d.customUsers)){
+      d.customUsers=d.customUsers.filter(u=>!_oldIds.includes(u.id));
+    }
+    _oldIds.forEach(id=>{
+      if(d.pins)delete d.pins[id];
+      if(d.usernames)delete d.usernames[id];
+      if(d.userPerms)delete d.userPerms[id];
+    });
+    d.v=58;
   }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
