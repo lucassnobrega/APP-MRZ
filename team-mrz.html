@@ -2066,6 +2066,229 @@ function migrateState(d){
     d.rotinas={...(d.rotinas||{}),defs:deduped};
     d.v=50;
   }
+  if(d.v<51){
+    // Checklists Copa e Esfiharia — Raz Alameda
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    const _rawAla51=d.op.checklistModelos.alameda;
+    d.op.checklistModelos.alameda=Array.isArray(_rawAla51)?_rawAla51:(_rawAla51?Object.values(_rawAla51):[]);
+    if(!d.op.checklistModelos.alameda.some(m=>m.setor==='Copa')){
+      d.op.checklistModelos.alameda.push(
+        {
+          id:'copa_ala_cheg',nome:'Checklist Diária – Chegada',setor:'Copa',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'cpc01',texto:'Conferência de insumos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cpc02',texto:'Limpeza do lixo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cpc03',texto:'Limpeza do chão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cpc04',texto:'Produção diária',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cpc05',texto:'Retirar água do freezer',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'copa_ala_said',nome:'Checklist Diária – Saída',setor:'Copa',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'cps01',texto:'Limpeza do lixo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cps02',texto:'Limpeza de utensílios',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cps03',texto:'Abastecimento do bar',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cps04',texto:'Limpeza do chão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'copa_ala_2a4',nome:'Checklist – A Cada 2 ou 4 Dias (Seg e Qui)',setor:'Copa',tipo:'geral',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:['dom','ter','qua','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'cp24_01',texto:'Conferência de fruta',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cp24_02',texto:'Limpeza completa do liquidificador',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cp24_03',texto:'Conferência de bebidas do estoque',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cp24_04',texto:'Limpeza do estoque',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'copa_ala_15d',nome:'Checklist – Limpezas Específicas (a cada 15 dias, terça)',setor:'Copa',tipo:'geral',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:['dom','seg','qua','qui','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'cp15_01',texto:'Limpeza completa do freezer',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cp15_02',texto:'Limpeza do lixo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cp15_03',texto:'Limpeza das prateleiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'cp15_04',texto:'Limpeza da cafeteira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+    if(!d.op.checklistModelos.alameda.some(m=>m.setor==='Esfiharia')){
+      d.op.checklistModelos.alameda.push(
+        {
+          id:'esfi_ala_cheg',nome:'Checklist Diária – Chegada',setor:'Esfiharia',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'esc01',texto:'Conferência de insumos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'esc02',texto:'Conferência da lista de reposição do salão e produção dos itens assim que possível',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'esc03',texto:'Preparação de massa (limpeza da masseira logo após o uso)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'esc04',texto:'Produção diária',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'esfi_ala_said',nome:'Checklist Diária – Saída',setor:'Esfiharia',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'ess01',texto:'Limpeza de maquinário',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'ess02',texto:'Limpeza de utensílios e formas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'ess03',texto:'Limpeza e organização de prateleiras e geladeiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'ess04',texto:'Limpeza do lixo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'ess05',texto:'Limpeza do chão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'ess06',texto:'Planejamento de produção do dia seguinte',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'esfi_ala_2a4',nome:'Checklist – A Cada 2 ou 4 Dias (Seg e Qui)',setor:'Esfiharia',tipo:'geral',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:['dom','ter','qua','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'es24_01',texto:'Conferência e reposição de recheios (Carne e Queijo)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es24_02',texto:'Conferência de esfirras no estoque e rechear esfirras de queijo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es24_03',texto:'Conferência e reposição de torradas — cozinha quente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es24_04',texto:'Conferência e reposição de pães cortados — cozinha quente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es24_05',texto:'Conferência e reposição de pão artesanal para lanches — cozinha quente',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es24_06',texto:'Limpeza área externa',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'esfi_ala_15d',nome:'Checklist – Limpezas Específicas (a cada 15 dias, terça)',setor:'Esfiharia',tipo:'geral',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:['dom','seg','qua','qui','sex','sab'],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'es15_01',texto:'Limpeza das paredes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es15_02',texto:'Limpeza do forno',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es15_03',texto:'Limpeza atrás das geladeiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es15_04',texto:'Limpeza do ralo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es15_05',texto:'Limpeza esqueleto',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'es15_06',texto:'Descongelar e limpar freezer',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+    d.v=51;
+  }
+  if(d.v<52){
+    // Checklists Produção Quente, Produção Fria, Esfiharia e Salão/Caixa — Raz Mercadão
+    if(!d.op)d.op={};
+    if(!d.op.checklistModelos)d.op.checklistModelos={};
+    const _rawMrc=d.op.checklistModelos.mercadao;
+    d.op.checklistModelos.mercadao=Array.isArray(_rawMrc)?_rawMrc:(_rawMrc?Object.values(_rawMrc):[]);
+    if(!d.op.checklistModelos.mercadao.some(m=>m.setor==='Produção Quente')){
+      d.op.checklistModelos.mercadao.push(
+        {
+          id:'mrc_pq_ab',nome:'Abertura – Produção Quente',setor:'Produção Quente',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'mpqa01',texto:'Medição de geladeiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqa02',texto:'Conferência de estoque de produção',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqa03',texto:'Produção',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqa04',texto:'Preparação buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqa05',texto:'Limpeza cozinha',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqa06',texto:'Almoço funcionários',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqa07',texto:'Organização cozinha para saída do intervalo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'mrc_pq_fe',nome:'Fechamento – Produção Quente',setor:'Produção Quente',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'mpqf01',texto:'Armazenar buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqf02',texto:'Lavar louça',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqf03',texto:'Organizar geladeiras',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqf04',texto:'Limpeza cozinha',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpqf05',texto:'Medição geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+    if(!d.op.checklistModelos.mercadao.some(m=>m.setor==='Produção Fria')){
+      d.op.checklistModelos.mercadao.push(
+        {
+          id:'mrc_pf_ab',nome:'Abertura – Produção Fria',setor:'Produção Fria',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'mpfa01',texto:'Medição de geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpfa02',texto:'Conferência de estoque de produção',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpfa03',texto:'Produção necessária',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpfa04',texto:'Preparar buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpfa05',texto:'Organização cozinha',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'mrc_pf_fe',nome:'Fechamento – Produção Fria',setor:'Produção Fria',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'mpff01',texto:'Arrumar pastas para o dia seguinte',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpff02',texto:'Organizar geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpff03',texto:'Limpeza',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mpff04',texto:'Medição geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+    if(!d.op.checklistModelos.mercadao.some(m=>m.setor==='Esfiharia')){
+      d.op.checklistModelos.mercadao.push(
+        {
+          id:'mrc_esf_ab',nome:'Abertura – Esfiharia',setor:'Esfiharia',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'mesa01',texto:'Medição geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mesa02',texto:'Bater massa',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mesa03',texto:'Produção',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'mrc_esf_fe',nome:'Fechamento – Esfiharia',setor:'Esfiharia',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'mesf01',texto:'Congelar esfihas da produção',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mesf02',texto:'Armazenar esfihas buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mesf03',texto:'Limpeza',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'mesf04',texto:'Medição geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+    if(!d.op.checklistModelos.mercadao.some(m=>m.setor==='Salão'&&/Caixa/.test(m.nome))){
+      d.op.checklistModelos.mercadao.push(
+        {
+          id:'mrc_sal_ab',nome:'Abertura – Salão/Caixa',setor:'Salão',tipo:'abertura',turno:'Manhã',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'msaa01',texto:'Contagem de troco e abertura do sistema (Sagres)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa02',texto:'Abrir no computador o app do WhatsApp da Raz, caso tenha mensagem de clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa03',texto:'Conferir geladeira de bebidas',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa04',texto:'Conferir geladeira de congelados',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa05',texto:'Conferir insumos (limão, pão sírio cortado, gelo)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa06',texto:'Preparar a abertura pro buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa07',texto:'Limpeza do salão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa08',texto:'Passar álcool nos talheres e ensacar, passar álcool nos pratos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa09',texto:'Limpar buffet (em cima e por baixo)',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa10',texto:'Conferir pimentas e azeites para clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa11',texto:'Limpeza das escadas e salão',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa12',texto:'Ligar buffet às 10h para a colocação de pratos',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaa13',texto:'11h: estar com o caixa já ligado e buffet pronto para receber clientes',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        },
+        {
+          id:'mrc_sal_fe',nome:'Fechamento – Salão/Caixa',setor:'Salão',tipo:'fechamento',turno:'Noite',
+          horarioInicio:'',horarioLimite:'',responsaveis:[],diasBloq:[],freq:'diario',doubleCheck:false,ativo:true,
+          items:[
+            {id:'msaf01',texto:'Lavar louça, pratos, talheres e pegadores',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaf02',texto:'Limpeza do buffet',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaf03',texto:'Abastecimento da geladeira',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaf04',texto:'Limpeza do fechamento',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaf05',texto:'Fechar o caixa',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaf06',texto:'Tirar o lixo',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+            {id:'msaf07',texto:'Colocar panos de molho',tipoResp:'ok_nok',exigeObs:false,exigeFoto:false},
+          ]
+        }
+      );
+    }
+    d.v=52;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
