@@ -2300,6 +2300,30 @@ function migrateState(d){
     }
     d.v=53;
   }
+  // v54: acessos de setor — Esfiharia (Raz Mercadão) e Cozinha (Raz Mercadão, cobre Produção
+  // Fria + Produção Quente num único login)
+  if(d.v<54){
+    if(!d.customUsers)d.customUsers=[];
+    if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
+    if(!d.pins)d.pins={};
+    if(!d.usernames)d.usernames={};
+    if(!d.userPerms)d.userPerms={};
+    const _uidEsfiMerc='esfiharia_merc';
+    if(!d.customUsers.find(u=>u.id===_uidEsfiMerc)){
+      d.customUsers.push({id:_uidEsfiMerc,username:_uidEsfiMerc,name:'Esfiharia · Raz Mercadão',role:'Líder · Esfiharia',color:'#f59e0b',icon:'ES',isLeader:false,tipo:'setorLider',loja:'mercadao',setor:'Esfiharia',email:''});
+      d.pins[_uidEsfiMerc]=pwdHash('1234');
+      d.usernames[_uidEsfiMerc]=_uidEsfiMerc;
+      d.userPerms[_uidEsfiMerc]=['operacional'];
+    }
+    const _uidCozMerc='cozinha_merc';
+    if(!d.customUsers.find(u=>u.id===_uidCozMerc)){
+      d.customUsers.push({id:_uidCozMerc,username:_uidCozMerc,name:'Cozinha · Raz Mercadão',role:'Líder · Cozinha (Produção Fria e Quente)',color:'#ef4444',icon:'CO',isLeader:false,tipo:'setorLider',loja:'mercadao',setor:'Produção Fria',setores:['Produção Fria','Produção Quente'],email:''});
+      d.pins[_uidCozMerc]=pwdHash('1234');
+      d.usernames[_uidCozMerc]=_uidCozMerc;
+      d.userPerms[_uidCozMerc]=['operacional'];
+    }
+    d.v=54;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
@@ -2439,7 +2463,7 @@ function syncCustomUsers(){
     if(!u||!u.id)return;
     M[u.id]={name:u.name,role:u.role,color:u.color,icon:u.icon,
       email:u.email,isLeader:u.isLeader||false,
-      tipo:u.tipo||'',loja:u.loja||'',setor:u.setor||'',
+      tipo:u.tipo||'',loja:u.loja||'',setor:u.setor||'',setores:u.setores||undefined,
       daily:[],weekly:{}};
   });
 }
@@ -2737,7 +2761,7 @@ function buildOpSidebarHtml(){
     const loja=opGetLoja(M[me].loja);
     const setorTab=window._opSetorTab||'checklist';
     return`<div class="nav-grp">Meu Setor</div>
-      <div style="padding:4px 12px 2px;font-size:.8rem;font-weight:700;color:var(--fg);">${M[me].setor||'Meu Setor'}</div>
+      <div style="padding:4px 12px 2px;font-size:.8rem;font-weight:700;color:var(--fg);">${(Array.isArray(M[me].setores)&&M[me].setores.length?M[me].setores.join(' + '):M[me].setor)||'Meu Setor'}</div>
       <div style="padding:2px 12px 10px;font-size:.64rem;color:var(--muted);">${loja?.label||''}</div>
       <button class="ni${setorTab==='checklist'?' on':''}" onclick="window._opSetorTab='checklist';renderOperacional()">Checklist</button>
       <button class="ni${setorTab==='processos'?' on':''}" onclick="window._opSetorTab='processos';renderOperacional()">Processos</button>
@@ -11122,12 +11146,15 @@ function renderOperacional(){
 
 function renderOpSetorLider(el){
   const lojaId=M[me]?.loja||'';
-  const setor=M[me]?.setor||'';
+  // Suporta acesso cobrindo mais de um setor (ex.: Cozinha = Produção Fria + Produção Quente).
+  // M[me].setores (array) tem prioridade; M[me].setor (string) continua funcionando sozinho.
+  const setoresArr=Array.isArray(M[me]?.setores)&&M[me].setores.length?M[me].setores:[M[me]?.setor].filter(Boolean);
+  const setor=setoresArr.join(' + '); // usado só para exibição/título
   const loja=opGetLoja(lojaId);
-  if(!loja||!setor){el.innerHTML='<div class="card" style="padding:24px;">Configuração inválida. Fale com o gestor.</div>';return;}
+  if(!loja||!setoresArr.length){el.innerHTML='<div class="card" style="padding:24px;">Configuração inválida. Fale com o gestor.</div>';return;}
   const hoje=serviceKey();
   const TIPO_COR={abertura:'#22d3ee',fechamento:'#f59e0b',geral:'#a78bfa','Manhã':'#22d3ee',Tarde:'#f59e0b',Noite:'#8b5cf6',Geral:'#a78bfa'};
-  const modelos=(S.op.checklistModelos?.[lojaId]||[]).filter(m=>m.setor===setor&&m.ativo);
+  const modelos=(S.op.checklistModelos?.[lojaId]||[]).filter(m=>setoresArr.includes(m.setor)&&m.ativo);
   const completions=S.op.completions?.[lojaId]?.[hoje]||{};
   const agora=new Date();
   const checklistCards=modelos.length===0
@@ -11150,6 +11177,7 @@ function renderOpSetorLider(el){
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
               ${statusBadge}
+              ${setoresArr.length>1?`<span style="font-size:.62rem;padding:2px 7px;border-radius:999px;background:var(--panel2);color:var(--muted);font-weight:700;">${esc(m.setor)}</span>`:''}
               <span style="font-size:.9rem;font-weight:700;">${esc(m.nome)}</span>
             </div>
             <div style="font-size:.7rem;color:var(--muted);">${m.horarioLimite?`Limite: ${m.horarioLimite} · `:''}${(m.items||[]).length} itens</div>
@@ -11158,15 +11186,13 @@ function renderOpSetorLider(el){
         </div>
       </div>`;
     }).join('');
-  const sugestoesHoje=(S.op.errosProcesso||[]).filter(e=>e.loja===lojaId&&e.setor===setor&&e.date===hoje);
+  const sugestoesHoje=(S.op.errosProcesso||[]).filter(e=>e.loja===lojaId&&setoresArr.includes(e.setor)&&e.date===hoje);
   const sugestoesCards=sugestoesHoje.length
     ?sugestoesHoje.map(e=>`<div class="card" style="padding:10px 14px;margin-bottom:6px;border-left:3px solid ${e.tipo==='sugestao'?'#22d3ee':'#f87171'};">
       <div style="font-size:.74rem;font-weight:700;margin-bottom:2px;">${esc(e.titulo)}</div>
       ${e.desc?`<div style="font-size:.72rem;color:var(--muted);">${esc(e.desc.slice(0,120))}</div>`:''}
     </div>`).join('')
     :`<div style="font-size:.76rem;color:var(--muted);padding:6px 0;">Nenhum registro hoje.</div>`;
-  const faqData=S.op.faq?.[lojaId]?.[setor]||{};
-  const temFAQ=(faqData.faq||[]).length>0||(faqData.pops||[]).length>0||faqData.fluxograma;
   const concluidos=modelos.filter(m=>(completions[m.id]?.status==='feito')).length;
   const setorTab=window._opSetorTab||'checklist';
   const tabContent=setorTab==='checklist'
@@ -11179,44 +11205,52 @@ function renderOpSetorLider(el){
     </div>`
     :setorTab==='processos'
     ?`<div style="margin-bottom:8px;">
-      <div style="font-weight:700;font-size:.88rem;margin-bottom:16px;">Processos do Setor</div>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-weight:700;font-size:.82rem;">POPs</div>
-            <div style="font-size:.7rem;color:var(--muted);">Procedimentos Operacionais Padrão</div>
+      ${setoresArr.map(s=>{
+        const faqData=S.op.faq?.[lojaId]?.[s]||{};
+        const temFAQ=(faqData.faq||[]).length>0||(faqData.pops||[]).length>0||faqData.fluxograma;
+        return`<div style="margin-bottom:20px;">
+        <div style="font-weight:700;font-size:.88rem;margin-bottom:16px;">Processos${setoresArr.length>1?` — ${esc(s)}`:' do Setor'}</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;font-size:.82rem;">POPs</div>
+              <div style="font-size:.7rem;color:var(--muted);">Procedimentos Operacionais Padrão</div>
+            </div>
+            ${(faqData.pops||[]).length>0
+              ?`<button class="btn-ghost btn-sm" onclick="opVerFAQSetor('${lojaId}','${s}','pops')">Ver ${(faqData.pops||[]).length} POPs</button>`
+              :`<span style="font-size:.68rem;color:var(--muted);">Não cadastrado</span>`}
           </div>
-          ${(faqData.pops||[]).length>0
-            ?`<button class="btn-ghost btn-sm" onclick="opVerFAQSetor('${lojaId}','${setor}','pops')">Ver ${(faqData.pops||[]).length} POPs</button>`
-            :`<span style="font-size:.68rem;color:var(--muted);">Não cadastrado</span>`}
-        </div>
-        <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-weight:700;font-size:.82rem;">Fluxograma</div>
-            <div style="font-size:.7rem;color:var(--muted);">Diagrama de fluxo do setor</div>
+          <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;font-size:.82rem;">Fluxograma</div>
+              <div style="font-size:.7rem;color:var(--muted);">Diagrama de fluxo do setor</div>
+            </div>
+            ${faqData.fluxograma
+              ?`<a class="btn-ghost btn-sm" href="${esc(faqData.fluxograma)}" target="_blank" style="text-decoration:none;">Abrir</a>`
+              :`<span style="font-size:.68rem;color:var(--muted);">Não cadastrado</span>`}
           </div>
-          ${faqData.fluxograma
-            ?`<a class="btn-ghost btn-sm" href="${esc(faqData.fluxograma)}" target="_blank" style="text-decoration:none;">Abrir</a>`
-            :`<span style="font-size:.68rem;color:var(--muted);">Não cadastrado</span>`}
-        </div>
-        <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-weight:700;font-size:.82rem;">FAQ</div>
-            <div style="font-size:.7rem;color:var(--muted);">Perguntas e respostas frequentes</div>
+          <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;font-size:.82rem;">FAQ</div>
+              <div style="font-size:.7rem;color:var(--muted);">Perguntas e respostas frequentes</div>
+            </div>
+            ${(faqData.faq||[]).length>0
+              ?`<button class="btn-ghost btn-sm" onclick="opVerFAQSetor('${lojaId}','${s}','faq')">Ver ${(faqData.faq||[]).length} itens</button>`
+              :`<span style="font-size:.68rem;color:var(--muted);">Não cadastrado</span>`}
           </div>
-          ${(faqData.faq||[]).length>0
-            ?`<button class="btn-ghost btn-sm" onclick="opVerFAQSetor('${lojaId}','${setor}','faq')">Ver ${(faqData.faq||[]).length} itens</button>`
-            :`<span style="font-size:.68rem;color:var(--muted);">Não cadastrado</span>`}
         </div>
-      </div>
-      ${!temFAQ?`<div style="font-size:.72rem;color:var(--muted);margin-top:14px;text-align:center;">O gerente adicionará os procedimentos em breve.</div>`:''}
+        ${!temFAQ?`<div style="font-size:.72rem;color:var(--muted);margin-top:14px;text-align:center;">O gerente adicionará os procedimentos em breve.</div>`:''}
+      </div>`;
+      }).join('')}
     </div>`
     :`<div style="margin-bottom:28px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <span style="font-weight:700;font-size:.88rem;">Sugestões / Erros</span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn-ghost btn-sm" onclick="opOpenRegistroSetor('${lojaId}','${setor}','sugestao')">+ Sugestão</button>
-          <button class="btn-ghost btn-sm" onclick="opOpenRegistroSetor('${lojaId}','${setor}','erro')">+ Erro</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${setoresArr.map(s=>`
+            <button class="btn-ghost btn-sm" onclick="opOpenRegistroSetor('${lojaId}','${s}','sugestao')">+ Sugestão${setoresArr.length>1?` (${esc(s)})`:''}</button>
+            <button class="btn-ghost btn-sm" onclick="opOpenRegistroSetor('${lojaId}','${s}','erro')">+ Erro${setoresArr.length>1?` (${esc(s)})`:''}</button>
+          `).join('')}
         </div>
       </div>
       ${sugestoesCards}
@@ -11226,8 +11260,8 @@ function renderOpSetorLider(el){
       <div style="display:flex;align-items:center;gap:12px;">
         ${opLojaBadge(loja,40)}
         <div>
-          <h2 style="margin:0;">${esc(setor)}</h2>
-          <div style="font-size:.72rem;color:var(--muted);">${loja.label} · Líder de Setor · ${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
+          <h2 style="margin:0;">${esc(M[me]?.name?.split('·')[0]?.trim()||setor)}</h2>
+          <div style="font-size:.72rem;color:var(--muted);">${loja.label} · Líder de Setor${setoresArr.length>1?` (${esc(setor)})`:''} · ${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
         </div>
       </div>
     </div>
