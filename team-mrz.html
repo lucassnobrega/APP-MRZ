@@ -2324,6 +2324,22 @@ function migrateState(d){
     }
     d.v=54;
   }
+  // v55: acesso Caixa (Raz Mercadão) — cobre os checklists de Salão/Caixa (mesma pessoa do Caixa)
+  if(d.v<55){
+    if(!d.customUsers)d.customUsers=[];
+    if(d.customUsers&&!Array.isArray(d.customUsers))d.customUsers=Object.values(d.customUsers);
+    if(!d.pins)d.pins={};
+    if(!d.usernames)d.usernames={};
+    if(!d.userPerms)d.userPerms={};
+    const _uidCaixaMerc='caixa_merc';
+    if(!d.customUsers.find(u=>u.id===_uidCaixaMerc)){
+      d.customUsers.push({id:_uidCaixaMerc,username:_uidCaixaMerc,name:'Caixa · Raz Mercadão',role:'Líder · Caixa/Salão',color:'#8b5cf6',icon:'CX',isLeader:false,tipo:'setorLider',loja:'mercadao',setor:'Salão',email:''});
+      d.pins[_uidCaixaMerc]=pwdHash('1234');
+      d.usernames[_uidCaixaMerc]=_uidCaixaMerc;
+      d.userPerms[_uidCaixaMerc]=['operacional'];
+    }
+    d.v=55;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
