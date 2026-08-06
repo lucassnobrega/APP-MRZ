@@ -9078,10 +9078,14 @@ function renderRotinas(){
   /* ─── ABA: PENDENTES ─── */
   else if(tab==='pendentes'){
     const lookback=30;
+    // Perdão geral de pendências até 31/07/2026 — cobrança de rotinas do ADM passa a valer
+    // a partir de 01/08/2026 pra frente. Nada anterior a essa data volta a aparecer aqui.
+    const rotCutoff=new Date(2026,7,1); // mês 7 = agosto (0-indexed)
     const members=isL?Object.keys(M):[me];
     const overdue=[];
     for(let i=1;i<=lookback;i++){
       const d=new Date(today);d.setDate(today.getDate()-i);
+      if(d<rotCutoff)continue;
       members.forEach(uid=>{
         if(!M[uid])return;
         rotasDueOn(d,uid).forEach(({rot,pk})=>{
