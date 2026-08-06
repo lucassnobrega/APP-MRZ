@@ -1153,6 +1153,37 @@ function _fbSave(attempt=0){
     }
   });
 }
+// Grava SÓ o caminho do checklist em execução (update parcial no Firebase, não o S inteiro).
+// Isso evita que dois setores/lojas diferentes executando checklist ao mesmo tempo se
+// sobrescrevam — cada update() toca apenas o próprio caminho e não mexe no resto da árvore.
+// Controla saves pendentes/com falha, para poder avisar o usuário antes de fechar o checklist
+// (ex.: foto anexada mas ainda não confirmada no servidor por causa de wifi ruim).
+const _xPendingSaves=new Set();
+function _fbSaveChecklistPath(lojaId,hoje,modeloId,attempt=0){
+  const chave=`${lojaId}|${hoje}|${modeloId}`;
+  const comp=S.op?.completions?.[lojaId]?.[hoje]?.[modeloId];
+  if(!comp||!_fbReady){_xPendingSaves.delete(chave);return;}
+  _xPendingSaves.add(chave);
+  S.lastUp=new Date().toISOString();
+  setSdot('saving');
+  const updates={};
+  updates[`op/completions/${lojaId}/${hoje}/${modeloId}`]=comp;
+  updates['lastUp']=S.lastUp;
+  _db.ref(_FBKEY).update(updates).then(()=>{
+    _xPendingSaves.delete(chave);
+    setSdot('ok');
+  }).catch(e=>{
+    console.warn('Falha ao salvar item de checklist:',e,'tentativa',attempt);
+    if(attempt<3){
+      // Retry com backoff exponencial (1s/2s/4s), igual ao _fbSave() principal —
+      // numa rede de restaurante instável, uma única tentativa não é confiável.
+      setTimeout(()=>_fbSaveChecklistPath(lojaId,hoje,modeloId,attempt+1),1000*Math.pow(2,attempt));
+    }else{
+      setSdot('err');
+      toast('⚠️ Falha ao salvar! Verifique sua internet e não feche o checklist ainda.',8000);
+    }
+  });
+}
 function reRenderAll(){
   if(!me||!S)return;
   try{buildSidebar();}catch(e){}
@@ -11379,6 +11410,16 @@ function renderOpSetorLider(el){
     ${tabContent}`;
 }
 
+// Fecha a tela de execução, mas avisa se ainda houver algo não confirmado no servidor
+// (ex.: foto anexada com a internet caindo) — evita que o usuário feche achando que salvou.
+function opCloseExec(){
+  const lojaId=window._xLoja,hoje=serviceKey(),modeloId=window._xModelo;
+  const chave=`${lojaId}|${hoje}|${modeloId}`;
+  if(_xPendingSaves.has(chave)){
+    if(!confirm('Ainda estamos tentando salvar suas últimas alterações (ex.: foto) no servidor. Se sair agora, elas podem se perder. Sair mesmo assim?'))return;
+  }
+  document.getElementById('exec-ov').classList.remove('show');
+}
 function opOpenExecutarChecklist(lojaId,modeloId){
   const m=(S.op.checklistModelos?.[lojaId]||[]).find(x=>x.id===modeloId);
   if(!m)return;
@@ -11388,7 +11429,7 @@ function opOpenExecutarChecklist(lojaId,modeloId){
   if(!S.op.completions[lojaId])S.op.completions[lojaId]={};
   if(!S.op.completions[lojaId][hoje])S.op.completions[lojaId][hoje]={};
   if(!S.op.completions[lojaId][hoje][modeloId])S.op.completions[lojaId][hoje][modeloId]={items:{},status:'pendente'};
-  saveLocal(); // salva init no Firebase imediatamente — evita race condition
+  _fbSaveChecklistPath(lojaId,hoje,modeloId); // salva init no Firebase imediatamente — evita race condition
   opRenderExec();
   document.getElementById('exec-ov').classList.add('show');
 }
@@ -11486,7 +11527,7 @@ function opRenderExec(){
     ${passoIdx<total-1?`<button onclick="window._xPassoIdx++;opRenderExec()" class="btn-gold btn-sm">Próximo →</button>`:''}
   </div>`:''  ;
   document.getElementById('exec-ft').innerHTML=`
-    <button onclick="document.getElementById('exec-ov').classList.remove('show')" style="padding:13px 20px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:.88rem;font-weight:700;color:var(--fg);">Cancelar</button>
+    <button onclick="opCloseExec()" style="padding:13px 20px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:.88rem;font-weight:700;color:var(--fg);">Cancelar</button>
     ${passoNav}
     <button onclick="opFinalizarChecklist('${lojaId}','${modeloId}')" style="flex:1;padding:13px;border-radius:12px;border:none;background:#22c55e;color:#fff;cursor:pointer;font-size:.88rem;font-weight:800;letter-spacing:.02em;">FINALIZAR E ENVIAR</button>
     <div id="xexec-err" style="display:none;font-size:.74rem;color:var(--red);width:100%;text-align:center;margin-top:2px;"></div>`;
@@ -11503,7 +11544,7 @@ function opXSetItem(itemId,tipo){
   if(!comp.items[itemId])comp.items[itemId]={};
   comp.items[itemId].ok=(tipo==='ok');
   comp.items[itemId].nok=(tipo==='nok');
-  saveLocal();
+  _fbSaveChecklistPath(lojaId,hoje,modeloId);
   const card=document.getElementById(`xcard-${itemId}`);
   if(card){
     card.className=`exec-card ${tipo}`;
@@ -11521,7 +11562,7 @@ function opXSetVal(itemId,field,val){
   if(!comp.items)comp.items={};
   if(!comp.items[itemId])comp.items[itemId]={};
   comp.items[itemId][field]=field==='estrelas'?Number(val):val;
-  saveLocal();
+  _fbSaveChecklistPath(lojaId,hoje,modeloId);
   if(field==='estrelas'){
     document.querySelectorAll(`#xcard-${itemId} .exec-card-hd span[onclick*="estrelas"]`).forEach((s,i)=>s.style.color=i<Number(val)?'#f59e0b':'var(--muted)');
   }
@@ -11537,7 +11578,7 @@ function opXSetObs(itemId,obs){
   comp.items[itemId].obs=obs;
   // Debounce: salvar no Firebase após 1.5s sem digitar (evita perda se app sincronizar)
   clearTimeout(_obsTimer);
-  _obsTimer=setTimeout(()=>saveLocal(),1500);
+  _obsTimer=setTimeout(()=>_fbSaveChecklistPath(lojaId,hoje,modeloId),1500);
 }
 function opXAttachFoto(itemId,input){
   if(!input.files||!input.files[0])return;
@@ -11558,7 +11599,7 @@ function opXAttachFoto(itemId,input){
     try{
       const fi=comp.items[itemId].fotos.length;
       comp.items[itemId].fotos.push(compressed);
-      saveLocal();
+      _fbSaveChecklistPath(lojaId,hoje,modeloId);
       const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
       if(gridEl){
         gridEl.style.marginBottom='10px';
@@ -11638,7 +11679,7 @@ function opXDelFoto(itemId,fi){
   const comp=S.op.completions?.[lojaId]?.[hoje]?.[modeloId];
   if(!comp?.items?.[itemId]?.fotos)return;
   comp.items[itemId].fotos.splice(fi,1);
-  saveLocal();
+  _fbSaveChecklistPath(lojaId,hoje,modeloId);
   // Re-render just the grid
   const gridEl=document.getElementById(`xfoto-grid-${itemId}`);
   if(gridEl){
@@ -11727,9 +11768,16 @@ function opFinalizarChecklist(lojaId,modeloId){
     }
   }
   comp.status='feito';comp.finalizadoEm=localISOString();comp.finalizadoPor=me;
-  saveLocal();
+  _fbSaveChecklistPath(lojaId,hoje,modeloId);
   document.getElementById('exec-ov').classList.remove('show');
   renderOperacional();toast('Checklist finalizado!');
+  // Confere em alguns segundos se o save final realmente confirmou no servidor
+  // (ex.: última foto anexada bem no fim, com a internet caindo na hora H).
+  setTimeout(()=>{
+    if(_xPendingSaves.has(`${lojaId}|${hoje}|${modeloId}`)){
+      toast('⚠️ O checklist foi finalizado, mas ainda não confirmamos o salvamento no servidor. Verifique sua internet.',10000);
+    }
+  },7000);
 }
 function opOpenRegistroSetor(lojaId,setor,tipo){
   const label=tipo==='sugestao'?'Sugestão de Melhoria':'Erro de Processo';
