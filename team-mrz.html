@@ -2455,6 +2455,39 @@ function migrateState(d){
     d.rotinas={...(d.rotinas||{}),defs:deduped};
     d.v=60;
   }
+  if(d.v<61){
+    // Carol (Marketing) também é escritório — não trabalha sábado/domingo:
+    // rot012_d (diária) ganha diasUteis, rot044 (dia 02 mensal) ganha pularFds.
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=61;
+  }
+  if(d.v<62){
+    // Remove rotina "Foto do Estoque às 17h" (rot038) do Carlos — não vai mais ser cobrada.
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=62;
+  }
+  if(d.v<63){
+    // Planilhas de Folgas (rot049) muda do dia 27 para o dia 25 de cada mês.
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=63;
+  }
+  if(d.v<64){
+    // Planilhas de Folgas (rot049) é RH — reatribui de Saulo para Bruna.
+    const seen=new Set();
+    const custom=(d.rotinas?.defs||[]).filter(r=>r.id&&r.id.startsWith('u_'));
+    const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    d.rotinas={...(d.rotinas||{}),defs:deduped};
+    d.v=64;
+  }
   // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
   if(d.op?.completions){
     const _cut=new Date();_cut.setDate(_cut.getDate()-2);
@@ -3622,11 +3655,19 @@ function renderTasks(){
   const isMob=window.innerWidth<640;
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
     <div style="font-size:.74rem;color:var(--muted);">${isMob?'Toque no cartão para editar • use o botão ▶ para avançar o status':'Arraste para mover entre colunas ou reordenar dentro delas'}</div>
-    <button class="btn-gold btn-sm" onclick="openNewTask()">+ Nova Tarefa</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ghost btn-sm" onclick="openTaskHistorico(0)">📅 Histórico</button>
+      <button class="btn-gold btn-sm" onclick="openNewTask()">+ Nova Tarefa</button>
+    </div>
   </div><div class="kanban-wrap"><div class="kanban">`;
+  const _feitoCut=new Date();_feitoCut.setDate(_feitoCut.getDate()-30);
+  const _p2=n=>String(n).padStart(2,'0');
+  const _feitoCutKey=`${_feitoCut.getFullYear()}-${_p2(_feitoCut.getMonth()+1)}-${_p2(_feitoCut.getDate())}`;
   COLS.forEach(col=>{
     const tasks=S.tasks.filter(t=>{
       if(t.status!==col.id)return false;
+      // Coluna "Feito": some da visão depois de 30 dias (fica só como histórico, não é excluída).
+      if(col.id==='done'&&t.doneAt&&t.doneAt<_feitoCutKey)return false;
       if(isL)return true; // líderes veem tudo
       if((t.assignees||[]).includes(me))return true; // é responsável pela tarefa
       if(t.aprovador===me)return true; // foi escolhida como aprovadora desta tarefa
@@ -3803,6 +3844,46 @@ function taskToWhatsApp(id){
   if(fileAtts.length)toast(`${fileAtts.length} arquivo(s) baixado(s) — anexe no WhatsApp!`,4000);
 }
 // ══════════════════════════════════════
+// Histórico de tarefas feitas, por mês — as tarefas concluídas somem da coluna "Feito" do
+// kanban depois de 30 dias (ver renderTasks), mas continuam salvas e podem ser puxadas aqui.
+function openTaskHistorico(monthOffset){
+  window._histOffset=monthOffset||0;
+  const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+window._histOffset);
+  const ym=`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}`;
+  const label=base.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const isL=M[me].isLeader;
+  const list=(S.tasks||[]).filter(t=>{
+    if(t.status!=='done'||!t.doneAt||!t.doneAt.startsWith(ym))return false;
+    if(isL)return true;
+    if((t.assignees||[]).includes(me))return true;
+    if(t.aprovador===me)return true;
+    return false;
+  }).sort((a,b)=>(a.doneAt||'').localeCompare(b.doneAt||''));
+  const rows=list.length?list.map(t=>{
+    const assigneesHtml=(t.assignees||[]).map(a=>`<span class="av-chip" style="background:${M[a]?.color||'#888'}22;color:${M[a]?.color||'#888'}">${M[a]?.icon||'?'} ${M[a]?.name.split(' ')[0]||a}</span>`).join('');
+    return `<div style="padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;" onclick="closeModal();openTask('${t.id}')">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+        <div style="font-weight:700;font-size:.88rem;">${esc(t.title)}</div>
+        <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;">${fmtDate(t.doneAt)}</div>
+      </div>
+      ${t.desc?`<div style="font-size:.76rem;color:var(--muted);margin-top:4px;">${esc(t.desc.slice(0,90))}${t.desc.length>90?'...':''}</div>`:''}
+      <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">${assigneesHtml}</div>
+    </div>`;
+  }).join(''):'<div class="empty" style="padding:30px 10px;text-align:center;color:var(--muted);">Nenhuma tarefa concluída neste mês.</div>';
+  openWideModal(`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="margin:0;">Histórico de Tarefas Feitas</h3>
+      <button class="btn-ghost btn-sm" onclick="closeModal()">Fechar</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px;">
+      <button class="btn-ghost btn-sm" onclick="openTaskHistorico(${window._histOffset-1})">← Anterior</button>
+      <div style="font-weight:700;font-size:.95rem;text-transform:capitalize;min-width:170px;text-align:center;">${label}</div>
+      <button class="btn-ghost btn-sm" ${window._histOffset>=0?'disabled style="opacity:.4;cursor:default;"':''} onclick="openTaskHistorico(${window._histOffset+1})">Próximo →</button>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px;text-align:center;">${list.length} tarefa${list.length!==1?'s':''} concluída${list.length!==1?'s':''} em ${label}</div>
+    ${rows}
+  `);
+}
 function openNewTask(){
   editingTask=null;
   renderTaskModal({id:uid(),title:'',desc:'',status:'todo',priority:'m',assignees:[me],attachments:[],deadline:'',created:todayKey(),comments:[]});
@@ -8627,8 +8708,6 @@ const TRL_COLORS={
 /* ===== ROTINAS ===== */
 function defRotinas(){return[
   // ── CARLOS — COMPRAS ──────────────────────────────────────────────
-  // DIÁRIA
-  {id:'rot038',titulo:'Foto do Estoque às 17h',desc:'Todo dia até as 17h (máximo): os estoquistas de cada unidade tiram fotos de todo o estoque e enviam para o grupo. REGRA: ninguém pode ir embora antes de enviar as fotos. Carlos é o responsável por cobrar e confirmar o envio de todas as unidades.',assignees:['carlos'],freq:'diaria',icon:'',color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Raz Alameda enviou?',tipo:'sim-nao'},{id:'cf2',label:'Zanoni Lago enviou?',tipo:'sim-nao'},{id:'cf3',label:'Raz Mercadão enviou?',tipo:'sim-nao'},{id:'cf4',label:'Zanoni Maringá enviou?',tipo:'sim-nao'},{id:'cf5',label:'Alguma unidade atrasou?',tipo:'sim-nao'}]},
   // SEMANAIS
   {id:'rot001',titulo:'Segunda — Cotação e Pedidos por CNPJ',desc:'Atualizar painel de preços (grupos de WhatsApp + fornecedores diretos). Negociar e registrar o "preço negociado". Fechar pedido para CADA loja/CNPJ separadamente — cada unidade tem estoque próprio em local diferente. Pedido conforme mínimo/máximo de cada estoque. Imprimir e deixar com gestor/estoquista de cada unidade. ATENÇÃO: mercados (não perecíveis) são compras quinzenais — verificar agenda. CEASA e CARNES: Rogério faz a compra na madrugada de quarta para quinta (de madrugada). Carlos supervisiona o processo enquanto Rogério está em aprendizado. CONFERÊNCIA DE CONTAGEM: antes de fechar os pedidos, conferir se a contagem de estoque foi lançada pelos estoquistas de cada unidade.',assignees:['carlos'],freq:'semanal',diaSemana:1,color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pedido Raz Alameda fechado?',tipo:'sim-nao'},{id:'cf2',label:'Pedido Zanoni Lago fechado?',tipo:'sim-nao'},{id:'cf3',label:'Pedido Raz Mercadão fechado?',tipo:'sim-nao'},{id:'cf4',label:'Pedido Zanoni Maringá fechado?',tipo:'sim-nao'},{id:'cf5',label:'Preço negociado registrado?',tipo:'sim-nao'},{id:'cf6',label:'Pedidos impressos e entregues?',tipo:'sim-nao'},{id:'cf7',label:'Contagem de estoque lançada pelos estoquistas conferida?',tipo:'sim-nao'}]},
   {id:'rot035',titulo:'Terça — Cotação e Pedidos por CNPJ',desc:'Atualizar painel de preços (grupos de WhatsApp + fornecedores diretos). Negociar e registrar o "preço negociado". Fechar pedido para CADA loja/CNPJ separadamente — cada unidade tem estoque próprio em local diferente. Pedido conforme mínimo/máximo de cada estoque. Imprimir e deixar com gestor/estoquista de cada unidade. ATENÇÃO: mercados (não perecíveis) são compras quinzenais — verificar agenda. CEASA e CARNES: Rogério faz a compra na madrugada de quarta para quinta (de madrugada). Carlos supervisiona o processo enquanto Rogério está em aprendizado.',assignees:['carlos'],freq:'semanal',diaSemana:2,color:'#d97706',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pedido Raz Alameda fechado?',tipo:'sim-nao'},{id:'cf2',label:'Pedido Zanoni Lago fechado?',tipo:'sim-nao'},{id:'cf3',label:'Pedido Raz Mercadão fechado?',tipo:'sim-nao'},{id:'cf4',label:'Pedido Zanoni Maringá fechado?',tipo:'sim-nao'},{id:'cf5',label:'Preço negociado registrado?',tipo:'sim-nao'},{id:'cf6',label:'Pedidos impressos e entregues?',tipo:'sim-nao'}]},
@@ -8660,7 +8739,7 @@ function defRotinas(){return[
   // CAROL - Marketing
   // CAROL — MARKETING | Rotinas diárias e semanais
   // DIÁRIA (todos os dias)
-  {id:'rot012_d',titulo:'Rotina Diária de Marketing',desc:'TODO DIA — independente do que mais acontecer na semana, estas 4 ações são obrigatórias: 1) Postar ou republicar stories do dia (mínimo 3 stories — pode ser produto, bastidor, cliente, meme do dia). 2) Acompanhar comentários nos posts (responder perguntas, agradecer elogios, sinalizar reclamações para resolução). 3) Responder mensagens recebidas no direct/WhatsApp/iFood. 4) Registrar qualquer insight de cliente captado no dia (frase que ouviu, pergunta frequente, elogio espontâneo). Esse último alimenta o planejamento de sexta.',assignees:['carol'],freq:'diaria',icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Stories publicados hoje?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de stories',tipo:'number'},{id:'cf3',label:'Comentários respondidos?',tipo:'sim-nao'},{id:'cf4',label:'Mensagens respondidas?',tipo:'sim-nao'},{id:'cf5',label:'Insight do dia (o que o cliente disse/perguntou)',tipo:'text'}]},
+  {id:'rot012_d',titulo:'Rotina Diária de Marketing',desc:'TODOS OS DIAS ÚTEIS (o escritório não trabalha sábado e domingo) — independente do que mais acontecer na semana, estas 4 ações são obrigatórias: 1) Postar ou republicar stories do dia (mínimo 3 stories — pode ser produto, bastidor, cliente, meme do dia). 2) Acompanhar comentários nos posts (responder perguntas, agradecer elogios, sinalizar reclamações para resolução). 3) Responder mensagens recebidas no direct/WhatsApp/iFood. 4) Registrar qualquer insight de cliente captado no dia (frase que ouviu, pergunta frequente, elogio espontâneo). Esse último alimenta o planejamento de sexta.',assignees:['carol'],freq:'diaria',diasUteis:true,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Stories publicados hoje?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de stories',tipo:'number'},{id:'cf3',label:'Comentários respondidos?',tipo:'sim-nao'},{id:'cf4',label:'Mensagens respondidas?',tipo:'sim-nao'},{id:'cf5',label:'Insight do dia (o que o cliente disse/perguntou)',tipo:'text'}]},
   // SEGUNDA — Dia de pensar
   {id:'rot012',titulo:'Segunda — Análise & Planejamento da Semana',desc:'SEGUNDA é o DIA DE PENSAR, não de gravar. Pilar: Estratégia. ANÁLISE DA SEMANA ANTERIOR: abrir Meta Business Suite/Instagram Insights e analisar posts, stories e reels publicados na semana. Ver métricas: alcance, impressões, curtidas, comentários, compartilhamentos e salvamentos. Identificar: qual post gerou mais movimento? Qual não funcionou? Por quê? PLANEJAMENTO DA SEMANA: definir os temas dos conteúdos da semana. Listar ideias de gravação para terça e quinta. Mapear campanhas e promoções ativas. Organizar agenda de publicação (o que vai no feed, o que vai nos stories, quando sobe cada coisa).',assignees:['carol'],freq:'semanal',diaSemana:1,icon:'',color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Análise da semana anterior concluída?',tipo:'sim-nao'},{id:'cf2',label:'Post com mais alcance da semana',tipo:'text'},{id:'cf3',label:'Alcance do melhor post',tipo:'text'},{id:'cf4',label:'Post que menos funcionou (e por quê)',tipo:'text'},{id:'cf5',label:'Tema principal da semana planejado',tipo:'text'},{id:'cf6',label:'Ideias de gravação listadas para ter/qui?',tipo:'sim-nao'},{id:'cf7',label:'Campanhas/promoções ativas mapeadas?',tipo:'sim-nao'},{id:'cf8',label:'Agenda de publicação da semana organizada?',tipo:'sim-nao'}]},
   // QUARTA — Gravação
@@ -8670,7 +8749,7 @@ function defRotinas(){return[
   // QUINZENAL — Reunião de performance
   {id:'rot013',titulo:'Dia 03 — Reunião de Performance Mensal (Mês Anterior)',desc:'Todo dia 03 (se cair no sábado ou domingo, passa para a segunda-feira seguinte): reunir com Marlon e/ou Bruna para apresentar os resultados de marketing do MÊS ANTERIOR, já fechado. Apresentar: evolução de seguidores, alcance, engajamento, retorno dos anúncios e comparativo com o mês anterior a esse. Trazer também os insights de comportamento do cliente coletados no período. Propor ajustes de estratégia para o mês corrente.',assignees:['carol'],freq:'mensal',diaMes:3,pularFds:true,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Seguidores atuais (total)',tipo:'number'},{id:'cf2',label:'Crescimento de seguidores no mês anterior',tipo:'number'},{id:'cf3',label:'Alcance total do mês anterior',tipo:'text'},{id:'cf4',label:'Melhor post do período',tipo:'text'},{id:'cf5',label:'Investimento total em anúncios (R$)',tipo:'text'},{id:'cf6',label:'Melhor campanha do período',tipo:'text'},{id:'cf7',label:'Proposta de ajuste para o mês corrente',tipo:'text'},{id:'cf8',label:'Reunião realizada com Marlon/Bruna?',tipo:'sim-nao'}]},
   // MENSAL — Relatório completo com KPIs
-  {id:'rot044',titulo:'Dia 02 — Relatório Mensal de Marketing (KPIs)',desc:'DIA 02 DE CADA MÊS: entregar o relatório mensal completo de marketing para Marlon e Bruna. O relatório cobre DOIS BLOCOS: 1) COMO FOI O MÊS ANTERIOR — todos os números e o que aprendemos. 2) COMO SERÁ O PRÓXIMO MÊS — planejamento, campanhas e metas. MÉTRICAS OBRIGATÓRIAS (preencher abaixo): Crescimento: seguidores ganhos, taxa de crescimento (%). Alcance: impressões, pessoas alcançadas. Engajamento: curtidas, comentários, compartilhamentos, salvamentos, taxa de engajamento. Reels/Stories: visualizações, retenção. Anúncios: investimento, alcance pago, CPR (custo por resultado), ROAS (retorno sobre investimento), CTR. Negócio: como os clientes conheceram o restaurante (dados coletados nas terças). KPI DE SAÚDE: taxa de crescimento de seguidores acima de 3% ao mês = bom. Taxa de engajamento acima de 5% = bom. CPR abaixo de R$ 0,50 para alcance = bom.',assignees:['carol'],freq:'mensal',diaMes:2,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[
+  {id:'rot044',titulo:'Dia 02 — Relatório Mensal de Marketing (KPIs)',desc:'DIA 02 DE CADA MÊS (se cair no sábado ou domingo, passa para a segunda-feira seguinte — o escritório não trabalha fim de semana): entregar o relatório mensal completo de marketing para Marlon e Bruna. O relatório cobre DOIS BLOCOS: 1) COMO FOI O MÊS ANTERIOR — todos os números e o que aprendemos. 2) COMO SERÁ O PRÓXIMO MÊS — planejamento, campanhas e metas. MÉTRICAS OBRIGATÓRIAS (preencher abaixo): Crescimento: seguidores ganhos, taxa de crescimento (%). Alcance: impressões, pessoas alcançadas. Engajamento: curtidas, comentários, compartilhamentos, salvamentos, taxa de engajamento. Reels/Stories: visualizações, retenção. Anúncios: investimento, alcance pago, CPR (custo por resultado), ROAS (retorno sobre investimento), CTR. Negócio: como os clientes conheceram o restaurante (dados coletados nas terças). KPI DE SAÚDE: taxa de crescimento de seguidores acima de 3% ao mês = bom. Taxa de engajamento acima de 5% = bom. CPR abaixo de R$ 0,50 para alcance = bom.',assignees:['carol'],freq:'mensal',diaMes:2,pularFds:true,color:'#f43f5e',isLeader:true,createdBy:'marlon',campos:[
     {id:'kpi1',label:'MÊS DE REFERÊNCIA (ex: Maio/2026)',tipo:'text'},
     {id:'kpi2',label:'SEGUIDORES — Total atual',tipo:'number'},
     {id:'kpi3',label:'SEGUIDORES — Ganhos no mês',tipo:'number'},
@@ -8715,7 +8794,7 @@ function defRotinas(){return[
   {id:'rot015',titulo:'Revisão de Contratos e Plataformas',desc:'Acompanhar contratos ativos (PagSeguro, iFood, fornecedores de serviço). Verificar taxas aplicadas. Identificar oportunidades de renegociação.',assignees:['saulo'],freq:'quinzenal',diaSemana:3,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Contratos revisados',tipo:'number'},{id:'cf2',label:'Oportunidade de renegociação identificada?',tipo:'sim-nao'},{id:'cf3',label:'Próximo vencimento importante',tipo:'text'}]},
   {id:'rot016',titulo:'Consolidação da DRE',desc:'Organizar dados do financeiro. Consolidar DRE do mês. Verificar consistência das informações. Preparar números para o CEO.',assignees:['saulo'],freq:'mensal',diaMes:10,pularFds:true,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'DRE enviada ao CEO?',tipo:'sim-nao'},{id:'cf2',label:'Variação relevante identificada?',tipo:'sim-nao'},{id:'cf3',label:'Observações',tipo:'text'}]},
   {id:'rot048',titulo:'Dias 30 e 31 — Emissão de Notas Fiscais de Serviço',desc:'Nos dias 30 e 31 de cada mês: emitir todas as notas fiscais de serviço do mês. Verificar dados de cada prestador, emitir no sistema, salvar PDFs na pasta padrão e encaminhar para os respectivos destinatários.',assignees:['saulo'],freq:'mensal',diaMes:30,pularFds:true,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Notas fiscais emitidas (quantidade)',tipo:'number'},{id:'cf2',label:'PDFs salvos na pasta padrão?',tipo:'sim-nao'},{id:'cf3',label:'Notas encaminhadas aos destinatários?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
-  {id:'rot049',titulo:'Dia 27 — Planilhas de Folgas',desc:'Dia 27 de cada mês: elaborar e atualizar as planilhas de folgas dos funcionários para o mês seguinte. Consolidar informações por loja, verificar cobertura de escala e encaminhar para aprovação dos gestores.',assignees:['saulo'],freq:'mensal',diaMes:27,pularFds:true,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Planilha de folgas elaborada?',tipo:'sim-nao'},{id:'cf2',label:'Cobertura de escala verificada em todas as lojas?',tipo:'sim-nao'},{id:'cf3',label:'Encaminhada para aprovação dos gestores?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
+  {id:'rot049',titulo:'Dia 25 — Planilhas de Folgas',desc:'Dia 25 de cada mês (se cair no sábado ou domingo, passa para a segunda-feira seguinte — o escritório não trabalha fim de semana): elaborar e atualizar as planilhas de folgas dos funcionários para o mês seguinte. Consolidar informações por loja, verificar cobertura de escala e encaminhar para aprovação dos gestores.',assignees:['bruna'],freq:'mensal',diaMes:25,pularFds:true,icon:'',color:'#ec4899',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Planilha de folgas elaborada?',tipo:'sim-nao'},{id:'cf2',label:'Cobertura de escala verificada em todas as lojas?',tipo:'sim-nao'},{id:'cf3',label:'Encaminhada para aprovação dos gestores?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
   {id:'rot050',titulo:'Dia 01 — Finalização de Pontos e Planilhas de Adiantamento',desc:'Dia 01 de cada mês: finalizar conferência dos pontos do mês anterior e elaborar as planilhas de adiantamento. Verificar pendências, corrigir inconsistências e encaminhar para processamento.',assignees:['saulo'],freq:'mensal',diaMes:1,pularFds:true,icon:'',color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Conferência de pontos finalizada?',tipo:'sim-nao'},{id:'cf2',label:'Inconsistências corrigidas?',tipo:'sim-nao'},{id:'cf3',label:'Planilhas de adiantamento elaboradas?',tipo:'sim-nao'},{id:'cf4',label:'Encaminhado para processamento?',tipo:'sim-nao'}]},
   {id:'rot051',titulo:'Dia 02 — Envio de Informações da Folha ao Contador',desc:'Dia 02 de cada mês: consolidar e enviar para o contador todas as informações necessárias para processamento da folha de pagamento (pontos, adiantamentos, afastamentos, admissões, demissões e outras variáveis do mês).',assignees:['saulo'],freq:'mensal',diaMes:2,pularFds:true,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Pontos e adiantamentos incluídos?',tipo:'sim-nao'},{id:'cf2',label:'Admissões/demissões do mês informadas?',tipo:'sim-nao'},{id:'cf3',label:'Informações enviadas ao contador?',tipo:'sim-nao'},{id:'cf4',label:'Observações',tipo:'text'}]},
   {id:'rot052',titulo:'Segunda — Lançamento de Despesas Fixas',desc:'Toda segunda-feira: lançar todas as despesas fixas da semana no sistema. Conferir vencimentos, verificar se há novos lançamentos e manter o controle atualizado para que os pagamentos possam ser executados na quarta.',assignees:['saulo'],freq:'semanal',diaSemana:1,color:'#14b8a6',isLeader:true,createdBy:'marlon',campos:[{id:'cf1',label:'Todas as despesas fixas da semana lançadas?',tipo:'sim-nao'},{id:'cf2',label:'Quantidade de lançamentos',tipo:'number'},{id:'cf3',label:'Alguma despesa nova identificada?',tipo:'sim-nao'},{id:'cf4',label:'Pagamento programado para quarta-feira?',tipo:'sim-nao'}]},
