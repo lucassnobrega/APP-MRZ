@@ -3314,12 +3314,22 @@ function metaBarHtml(pct,cor,h=10){
     <div style="height:100%;width:${w}%;background:${cor};border-radius:99px;transition:width .4s;"></div>
   </div>`;
 }
+function metasMonthOffset(delta){window._metasOffset=(window._metasOffset||0)+delta;renderMetas();}
 function renderMetas(){
-  const now=new Date();const y=now.getFullYear(),mo=now.getMonth()+1;
-  const mesLabel=now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const off=window._metasOffset||0;
+  const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+off);
+  const y=base.getFullYear(),mo=base.getMonth()+1;
+  const mesLabel=base.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const isDono=DONO_VIEW.includes(me);
   let html=`<div style="margin-bottom:16px;">
-    <div style="font-size:1.1rem;font-weight:800;">Metas — ${mesLabel.charAt(0).toUpperCase()+mesLabel.slice(1)}</div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="font-size:1.1rem;font-weight:800;">Metas — ${mesLabel.charAt(0).toUpperCase()+mesLabel.slice(1)}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="btn-ghost btn-sm" onclick="metasMonthOffset(-1)">← Mês anterior</button>
+        ${off<0?`<button class="btn-ghost btn-sm" onclick="metasMonthOffset(1)">Próximo mês →</button>`:''}
+        ${off!==0?`<button class="btn-ghost btn-sm" onclick="window._metasOffset=0;renderMetas();">Mês atual</button>`:''}
+      </div>
+    </div>
     <div style="font-size:.74rem;color:var(--muted);margin-top:3px;">% de entrega = rotinas + tarefas + contas fixas (financeiro), tudo no prazo. Item feito com atraso vale meio ponto; vencido sem fazer, zero. Faixas: <b style="color:var(--green)">≥90% meta cheia</b> · <b style="color:var(--amber)">75–89% parcial</b> · <b style="color:var(--red)">&lt;75% sem bônus</b></div>
   </div>`;
   if(isDono){
@@ -3327,7 +3337,7 @@ function renderMetas(){
     DONO_ADM.forEach(k=>{
       const m2=M[k];if(!m2)return;
       const r=metasCalc(k,y,mo);const f=metaFaixa(r.pct);
-      html+=`<div class="sc" style="padding:14px;cursor:pointer;border-left:3px solid ${f.cor};" onclick="metasDrill('${k}')">
+      html+=`<div class="sc" style="padding:14px;cursor:pointer;border-left:3px solid ${f.cor};" onclick="metasDrill('${k}',${off})">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <span style="width:28px;height:28px;border-radius:8px;background:${m2.color}22;color:${m2.color};display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;flex-shrink:0;">${m2.icon}</span>
           <div style="min-width:0;"><div style="font-weight:700;font-size:.84rem;">${m2.name}</div><div style="font-size:.62rem;color:var(--muted);">${m2.role}</div></div>
@@ -3371,10 +3381,11 @@ function renderMetas(){
   }
   document.getElementById('p-metas').innerHTML=html;
 }
-function metasDrill(k){
+function metasDrill(k,off){
   const m2=M[k];if(!m2)return;
-  const now=new Date();const r=metasCalc(k,now.getFullYear(),now.getMonth()+1);const f=metaFaixa(r.pct);
-  let html=`<h3 style="margin-bottom:2px;">${m2.name}</h3><div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">${m2.role} · ${now.toLocaleDateString('pt-BR',{month:'long'})}</div>
+  const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+(off||0));
+  const r=metasCalc(k,base.getFullYear(),base.getMonth()+1);const f=metaFaixa(r.pct);
+  let html=`<h3 style="margin-bottom:2px;">${m2.name}</h3><div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">${m2.role} · ${base.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
   <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2rem;font-weight:800;color:${f.cor};">${r.pct===null?'—':r.pct+'%'}</span><span style="font-size:.68rem;font-weight:800;color:${f.cor};">${f.label} · ${f.bonus}</span></div>
   ${metaBarHtml(r.pct,f.cor,12)}
   <div style="font-size:.76rem;color:var(--muted);margin:8px 0 14px;">Rotinas: <b>${r.rotDone}/${r.rotDue}</b>${r.rotLate?` (<b style="color:var(--amber)">${r.rotLate} fora do dia</b>)`:''} · Tarefas no prazo: <b>${r.tOnTime}</b> · entregues atrasadas: <b>${r.tLate}</b> · vencidas sem entrega: <b style="color:var(--red)">${r.tMiss}</b>${r.ctDen?` · Contas fixas em dia: <b>${r.ctOk}/${r.ctDen}</b>${r.ctLate?` · pagas com atraso: <b style="color:var(--amber)">${r.ctLate}</b>`:''}${r.ctMiss?` · vencidas sem pagar: <b style="color:var(--red)">${r.ctMiss}</b>`:''}`:''}</div>`;
