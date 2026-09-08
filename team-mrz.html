@@ -2488,14 +2488,32 @@ function migrateState(d){
     d.rotinas={...(d.rotinas||{}),defs:deduped};
     d.v=64;
   }
-  // ── Limpeza automática: remover completions com mais de 2 dias (fotos consomem muita memória)
+  // ── Limpeza automática (2 camadas) — antes isso apagava a completion INTEIRA depois de só 2 dias,
+  // o que fazia checklists "sumirem" do histórico rápido demais. Agora:
+  // 1) Só as FOTOS (a parte pesada) são removidas depois de 7 dias, mantendo o resto do registro.
+  // 2) O registro completo (status, ok/nok, observações) só some depois de 60 dias — igual às rotinas.
   if(d.op?.completions){
-    const _cut=new Date();_cut.setDate(_cut.getDate()-2);
-    const _p=n=>String(n).padStart(2,'0');
-    const _cutKey=`${_cut.getFullYear()}-${_p(_cut.getMonth()+1)}-${_p(_cut.getDate())}`;
+    const _pad=n=>String(n).padStart(2,'0');
+    const _cutFoto=new Date();_cutFoto.setDate(_cutFoto.getDate()-7);
+    const _cutFotoKey=`${_cutFoto.getFullYear()}-${_pad(_cutFoto.getMonth()+1)}-${_pad(_cutFoto.getDate())}`;
+    const _cutFull=new Date();_cutFull.setDate(_cutFull.getDate()-60);
+    const _cutFullKey=`${_cutFull.getFullYear()}-${_pad(_cutFull.getMonth()+1)}-${_pad(_cutFull.getDate())}`;
     for(const _lj in d.op.completions){
       for(const _dt in d.op.completions[_lj]){
-        if(_dt<_cutKey)delete d.op.completions[_lj][_dt];
+        if(_dt<_cutFullKey){
+          delete d.op.completions[_lj][_dt];
+          continue;
+        }
+        if(_dt<_cutFotoKey){
+          const _mods=d.op.completions[_lj][_dt];
+          for(const _mid in _mods){
+            const _items=_mods[_mid]?.items;
+            if(!_items)continue;
+            for(const _iid in _items){
+              if(_items[_iid]?.fotos?.length)_items[_iid].fotos=[];
+            }
+          }
+        }
       }
     }
   }
