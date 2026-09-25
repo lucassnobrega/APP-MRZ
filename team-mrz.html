@@ -1055,7 +1055,7 @@ const M={
     weekly:{seg:['Planejar rotas da semana'],ter:[],qua:['Verificar estoque de materiais'],qui:[],sex:['Relatório semanal de manutenções']}},
   marcio:{name:'Márcio',role:'Gerente Geral',color:'#0ea5e9',icon:'MC',isLeader:false,email:'marcio@grupomrz.com',
     daily:['Verificar execução das tarefas','Acompanhar manutenções pendentes'],weekly:{}},
-  elias:{name:'Elias',role:'Gerente · Zanoni Lago',color:'#f59e0b',icon:'EL',isLeader:false,email:'elias@grupomrz.com',daily:[],weekly:{}},
+  elias:{name:'Jonathan',role:'Gerente · Zanoni Lago',color:'#f59e0b',icon:'JN',isLeader:false,email:'',daily:[],weekly:{}},
   douglas:{name:'Douglas',role:'Gerente · Zanoni Alphaville',color:'#3b82f6',icon:'DG',isLeader:false,email:'douglas@grupomrz.com',daily:[],weekly:{}},
   saulo:{name:'Saulo',role:'Gerente do Escritório',color:'#8b5cf6',icon:'SL',isLeader:true,email:'saulo@grupomrz.com',
     daily:['Checar pendências críticas','Validar aprovações pendentes','Executar pagamentos urgentes'],
@@ -2487,6 +2487,29 @@ function migrateState(d){
     const deduped=[...defRotinas(),...custom].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
     d.rotinas={...(d.rotinas||{}),defs:deduped};
     d.v=64;
+  }
+  if(d.v<65){
+    // Login da Lavanderia do Zanoni Lago passa a se chamar "lavanderialago" (era "limpezalago").
+    // Churrasqueira já usa a chave "churrasqueiralago" — nenhuma mudança necessária ali.
+    if(!d.usernames)d.usernames={};
+    d.usernames['limpezalago']='lavanderialago';
+    if(!d.pins)d.pins={};
+    if(!d.pins['limpezalago'])d.pins['limpezalago']=pwdHash('1234');
+    if(!d.pins['churrasqueiralago'])d.pins['churrasqueiralago']=pwdHash('1234');
+    if(!d.userPerms)d.userPerms={};
+    if(!d.userPerms['limpezalago'])d.userPerms['limpezalago']=['operacional'];
+    if(!d.userPerms['churrasqueiralago'])d.userPerms['churrasqueiralago']=['operacional'];
+    d.v=65;
+  }
+  if(d.v<66){
+    // Troca de gerente do Zanoni Lago: Elias saiu, entrou o Jonathan.
+    // O usuário já tinha trocado o login pela própria tela (Usuário), mas com erro de grafia
+    // ("jhonatan"); aqui corrigimos para "jonathan" e garantimos que a senha/permissões seguem ok.
+    if(!d.usernames)d.usernames={};
+    d.usernames['elias']='jonathan';
+    if(!d.pins)d.pins={};
+    // não mexe na senha já definida pelo usuário — só garante que existe alguma
+    d.v=66;
   }
   // ── Limpeza automática (2 camadas) — antes isso apagava a completion INTEIRA depois de só 2 dias,
   // o que fazia checklists "sumirem" do histórico rápido demais. Agora:
